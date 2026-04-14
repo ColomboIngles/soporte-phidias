@@ -1,0 +1,12 @@
+[
+  {
+    "email": "ing.wilsonreales@gmail.com",
+    "nombre": "Wilson Reales",
+    "rol": "admin"
+  },
+  {
+    "email": "docente1@colomboingles.edu.co",
+    "nombre": "Docente 1",
+    "rol": "docente"
+  }
+]

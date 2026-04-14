@@ -1,18 +1,15 @@
 ﻿const express = require("express");
 const crypto = require("crypto");
+const fs = require("fs");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 🔐 Usa variable de entorno en producción (Render)
+// 🔐 Clave segura (usa variable de entorno en Render)
 const SECRET = process.env.SECRET || "Colombo2026_SoporteTI";
 
-// 📋 Lista temporal (luego puedes conectarla a tu BD)
-const usuarios = [
-    "ing.wilsonreales@gmail.com",
-    "docente1@colomboingles.edu.co",
-    "docente2@colomboingles.edu.co"
-];
+// 📂 Cargar usuarios desde archivo JSON
+const usuarios = JSON.parse(fs.readFileSync("usuarios.json"));
 
 
 // 🚀 1. Entrada desde Phidias
@@ -20,73 +17,49 @@ app.get("/login-phidias", (req, res) => {
     res.send(`
     <html>
       <head>
-        <title>Redirigiendo...</title>
+        <title>Acceso Soporte</title>
       </head>
-      <body>
+      <body style="font-family: Arial; text-align:center; padding:40px;">
+
         <script>
           const email = localStorage.getItem("email");
 
           if (email) {
-            // Si ya tiene usuario guardado → entra directo
             window.location.href = "/login?email=" + email;
-          } else {
-            // Primera vez → seleccionar usuario
-            window.location.href = "/seleccionar";
           }
         </script>
+
+        <h2>Bienvenido al sistema de soporte</h2>
+        <p><b>Digite su correo electrónico guardado en Phidias por primera vez para validar sus datos</b></p>
+
+        <input id="correo" placeholder="correo@colomboingles.edu.co" style="padding:10px; width:280px;" />
+        <br><br>
+        <button onclick="ingresar()" style="padding:10px 20px;">Ingresar</button>
+
+        <script>
+          function ingresar() {
+            const email = document.getElementById("correo").value;
+
+            if (!email) {
+              alert("Por favor ingrese su correo");
+              return;
+            }
+
+            // Guardar en navegador
+            localStorage.setItem("email", email);
+
+            // Redirigir para validación
+            window.location.href = "/login?email=" + email;
+          }
+        </script>
+
       </body>
     </html>
   `);
 });
 
 
-// 👤 2. Pantalla de selección (solo primera vez)
-app.get("/seleccionar", (req, res) => {
-    let html = `
-    <html>
-      <head>
-        <title>Seleccionar usuario</title>
-        <style>
-          body {
-            font-family: Arial;
-            text-align: center;
-            padding: 40px;
-          }
-          a {
-            display: block;
-            margin: 10px;
-            padding: 10px;
-            background: #007bff;
-            color: white;
-            text-decoration: none;
-            border-radius: 5px;
-          }
-        </style>
-      </head>
-      <body>
-        <h2>Selecciona tu usuario</h2>
-  `;
-
-    usuarios.forEach(email => {
-        html += `<a href="#" onclick="guardar('${email}')">${email}</a>`;
-    });
-
-    html += `
-        <script>
-          function guardar(email) {
-            localStorage.setItem("email", email);
-            window.location.href = "/login?email=" + email;
-          }
-        </script>
-      </body>
-    </html>
-  `;
-
-    res.send(html);
-});
-
-
-// 🔐 3. Generar token y redirigir a Lovable
+// 🔐 2. Validar usuario y generar acceso
 app.get("/login", (req, res) => {
     const tli = req.query.email;
 
@@ -94,18 +67,32 @@ app.get("/login", (req, res) => {
         return res.send("❌ Falta el correo");
     }
 
+    // 🔍 Validar contra base de datos
+    const usuario = usuarios.find(u => u.email === tli);
+
+    if (!usuario) {
+        return res.send(`
+      <h3>❌ Usuario no autorizado</h3>
+      <p>Verifique que su correo esté registrado en el sistema</p>
+      <a href="/logout">Intentar nuevamente</a>
+    `);
+    }
+
+    // 🕒 Generar timestamp
     const tld = Math.floor(Date.now() / 1000);
 
+    // 🔐 Generar hash
     const string = `${SECRET}:${tli}@${tld}`;
     const tlh = crypto.createHash("md5").update(string).digest("hex");
 
+    // 🔗 URL de acceso a Lovable
     const url = `https://soportecolombo.lovable.app/?tli=${tli}&tld=${tld}&tlh=${tlh}&autoTicket=true`;
 
     res.redirect(url);
 });
 
 
-// 🔄 4. Cambiar usuario (opcional)
+// 🔄 3. Resetear usuario (cambiar correo)
 app.get("/logout", (req, res) => {
     res.send(`
     <script>
