@@ -5,10 +5,10 @@ const fs = require("fs");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 🔐 Clave segura (usa variable de entorno en Render)
+// 🔐 Clave segura
 const SECRET = process.env.SECRET || "Colombo2026_SoporteTI";
 
-// 📂 Cargar usuarios desde archivo JSON
+// 📂 Cargar usuarios desde JSON
 const usuarios = JSON.parse(fs.readFileSync("usuarios.json"));
 
 
@@ -22,10 +22,21 @@ app.get("/login-phidias", (req, res) => {
       <body style="font-family: Arial; text-align:center; padding:40px;">
 
         <script>
-          const email = localStorage.getItem("email");
+          // 🔍 Revisar si viene correo por parámetro
+          const params = new URLSearchParams(window.location.search);
+          const emailParam = params.get("email");
 
-          if (email) {
-            window.location.href = "/login?email=" + email;
+          if (emailParam) {
+            // 💥 Sobrescribe siempre el usuario
+            localStorage.setItem("email", emailParam);
+            window.location.href = "/login?email=" + emailParam;
+          } else {
+            const email = localStorage.getItem("email");
+
+            if (email) {
+              // 💥 Entra directo si ya existe
+              window.location.href = "/login?email=" + email;
+            }
           }
         </script>
 
@@ -34,22 +45,32 @@ app.get("/login-phidias", (req, res) => {
 
         <input id="correo" placeholder="correo@colomboingles.edu.co" style="padding:10px; width:280px;" />
         <br><br>
+
         <button onclick="ingresar()" style="padding:10px 20px;">Ingresar</button>
+
+        <br><br>
+        <button onclick="cambiar()" style="padding:5px 10px;">Cambiar usuario</button>
 
         <script>
           function ingresar() {
-            const email = document.getElementById("correo").value;
+            let email = document.getElementById("correo").value;
 
             if (!email) {
               alert("Por favor ingrese su correo");
               return;
             }
 
-            // Guardar en navegador
+            email = email.toLowerCase().trim();
+
+            // 💥 SIEMPRE reemplaza el usuario guardado
             localStorage.setItem("email", email);
 
-            // Redirigir para validación
             window.location.href = "/login?email=" + email;
+          }
+
+          function cambiar() {
+            localStorage.removeItem("email");
+            window.location.reload();
           }
         </script>
 
@@ -61,11 +82,14 @@ app.get("/login-phidias", (req, res) => {
 
 // 🔐 2. Validar usuario y generar acceso
 app.get("/login", (req, res) => {
-    const tli = req.query.email.toLowerCase().trim();
+    let tli = req.query.email;
 
     if (!tli) {
         return res.send("❌ Falta el correo");
     }
+
+    // 🔧 Normalizar correo
+    tli = tli.toLowerCase().trim();
 
     // 🔍 Validar contra base de datos
     const usuario = usuarios.find(
@@ -84,28 +108,28 @@ app.get("/login", (req, res) => {
     const tld = Math.floor(Date.now() / 1000);
 
     // 🔐 Generar hash
-    const string = `${SECRET}:${tli}@${tld}`;
-    const tlh = crypto.createHash("md5").update(string).digest("hex");
+    const string = \`\${SECRET}:\${tli}@\${tld}\`;
+  const tlh = crypto.createHash("md5").update(string).digest("hex");
 
-    // 🔗 URL de acceso a Lovable
-    const url = `https://soportecolombo.lovable.app/?tli=${tli}&tld=${tld}&tlh=${tlh}&autoTicket=true`;
+  // 🔗 URL hacia Lovable
+  const url = \`https://soportecolombo.lovable.app/?tli=\${tli}&tld=\${tld}&tlh=\${tlh}&autoTicket=true\`;
 
-    res.redirect(url);
+  res.redirect(url);
 });
 
 
-// 🔄 3. Resetear usuario (cambiar correo)
+// 🔄 3. Resetear usuario
 app.get("/logout", (req, res) => {
-    res.send(`
-    <script>
-      localStorage.removeItem("email");
-      window.location.href = "/login-phidias";
-    </script>
-  `);
+  res.send(`
+        < script >
+        localStorage.removeItem("email");
+    window.location.href = "/login-phidias";
+    </script >
+        `);
 });
 
 
 // 🟢 Servidor
 app.listen(PORT, () => {
-    console.log("Servidor corriendo en puerto " + PORT);
+  console.log("Servidor corriendo en puerto " + PORT);
 });
