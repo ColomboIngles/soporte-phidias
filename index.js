@@ -4,21 +4,37 @@ const fs = require("fs");
 const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 
 app.use(express.json());
 
 // 🔐 CONFIG
 const SECRET = process.env.SECRET || "Colombo2026_SoporteTI";
 
-// 🟢 SUPABASE
-const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_KEY
-);
+// 🟢 SUPABASE (con validación para evitar crash)
+let supabase;
+try {
+    if (process.env.SUPABASE_URL && process.env.SUPABASE_KEY) {
+        supabase = createClient(
+            process.env.SUPABASE_URL,
+            process.env.SUPABASE_KEY
+        );
+        console.log("✅ Supabase conectado");
+    } else {
+        console.log("⚠️ Supabase no configurado");
+    }
+} catch (error) {
+    console.error("❌ Error conectando Supabase:", error.message);
+}
 
-// 📂 USUARIOS
-const usuarios = JSON.parse(fs.readFileSync("usuarios.json"));
+// 📂 USUARIOS (seguro para evitar fallo de deploy)
+let usuarios = [];
+try {
+    usuarios = JSON.parse(fs.readFileSync("usuarios.json"));
+    console.log("✅ usuarios.json cargado");
+} catch (error) {
+    console.error("❌ Error cargando usuarios.json:", error.message);
+}
 
 // 🧠 NORMALIZAR EMAIL
 function normalizarEmail(email) {
@@ -78,7 +94,7 @@ app.get("/login-phidias", (req, res) => {
   `);
 });
 
-// 🔐 VALIDACIÓN Y REDIRECCIÓN A LOVABLE
+// 🔐 VALIDACIÓN Y REDIRECCIÓN
 app.get("/login", (req, res) => {
 
     let email = req.query.email;
@@ -126,6 +142,10 @@ app.get("/logout", (req, res) => {
 // 📥 WEBHOOK DESDE LOVABLE
 app.post("/webhook-ticket", async (req, res) => {
 
+  if (!supabase) {
+    return res.status(500).send("Supabase no configurado");
+  }
+
   const { email, titulo, descripcion } = req.body;
 
   if (!email) return res.status(400).send("Falta email");
@@ -143,15 +163,19 @@ app.post("/webhook-ticket", async (req, res) => {
     ]);
 
   if (error) {
-    console.error(error);
+    console.error("❌ Error BD:", error);
     return res.status(500).send("Error BD");
   }
 
   res.sendStatus(200);
 });
 
-// 📊 MÉTRICAS REALES
+// 📊 MÉTRICAS
 app.get("/metrics", async (req, res) => {
+
+  if (!supabase) {
+    return res.status(500).send("Supabase no configurado");
+  }
 
   const { data, error } = await supabase
     .from("tickets")
@@ -244,4 +268,7 @@ app.get("/dashboard", (req, res) => {
         `);
 });
 
-app.listen(PORT, () => console.log("🚀 Servidor activo"));
+// 🚀 SERVIDOR
+app.listen(PORT, () => {
+  console.log("🚀 Servidor corriendo en puerto " + PORT);
+});
