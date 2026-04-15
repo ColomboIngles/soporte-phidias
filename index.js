@@ -74,7 +74,7 @@ app.get("/login-phidias", (req, res) => {
         </script>
 
         <h2>Soporte Tecnológico</h2>
-        <p><b>Digite su correo institucional registrado en Phidias para validar su acceso</b></p>
+        <p><b>Digite su correo institucional registrado en Phidias</b></p>
 
         <input id="correo" placeholder="correo@colomboingles.edu.co"/>
         <br><br>
@@ -94,8 +94,8 @@ app.get("/login-phidias", (req, res) => {
             }
 
             email = email.toLowerCase().trim();
-
             localStorage.setItem("email", email);
+
             window.location.href = "/login?email=" + email;
           }
 
@@ -151,23 +151,28 @@ app.get("/logout", (req, res) => {
 });
 
 
-// 📊 MÉTRICAS (TEMPORALES)
+// 📊 MÉTRICAS (SIMULACIÓN REALISTA)
 app.get("/metrics", (req, res) => {
   res.json({
-    ticketsHoy: 18,
-    abiertos: 7,
-    cerrados: 11,
-    usuariosActivos: 32
+    ticketsPorDia: [5, 8, 6, 10, 12, 7, 9],
+    dias: ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"],
+    estados: {
+      abiertos: 7,
+      cerrados: 11
+    }
   });
 });
 
 
-// 📊 DASHBOARD PRO
+// 📊 DASHBOARD CON GRÁFICAS
 app.get("/dashboard", (req, res) => {
   res.send(`
         < html >
       <head>
         <title>Dashboard Soporte</title>
+
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
         <style>
           body {
             font-family: Arial;
@@ -182,39 +187,20 @@ app.get("/dashboard", (req, res) => {
 
           .grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 20px;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
             margin-top: 30px;
           }
 
           .card {
             background: white;
-            padding: 25px;
+            padding: 20px;
             border-radius: 15px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-            text-align: center;
-            border-top: 5px solid #1e593d;
           }
 
-          .card h2 {
-            margin: 0;
-            font-size: 42px;
-            color: #1e593d;
-          }
-
-          .label {
-            color: #666;
-            margin-top: 10px;
-          }
-
-          button {
-            margin-top: 20px;
-            padding: 10px 20px;
-            background: #4a8c6a;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
+          canvas {
+            max-width: 100%;
           }
 
         </style>
@@ -222,48 +208,54 @@ app.get("/dashboard", (req, res) => {
 
       <body>
 
-        <h1>📊 Dashboard Soporte</h1>
+        <h1>📊 Dashboard de Soporte</h1>
 
         <div class="grid">
+
           <div class="card">
-            <h2 id="ticketsHoy">0</h2>
-            <div class="label">Tickets Hoy</div>
+            <h3>Tickets por día</h3>
+            <canvas id="lineChart"></canvas>
           </div>
 
           <div class="card">
-            <h2 id="abiertos">0</h2>
-            <div class="label">Abiertos</div>
+            <h3>Estado de Tickets</h3>
+            <canvas id="pieChart"></canvas>
           </div>
 
-          <div class="card">
-            <h2 id="cerrados">0</h2>
-            <div class="label">Cerrados</div>
-          </div>
-
-          <div class="card">
-            <h2 id="usuarios">0</h2>
-            <div class="label">Usuarios Activos</div>
-          </div>
         </div>
 
-        <center>
-          <button onclick="cargar()">Actualizar</button>
-        </center>
-
         <script>
-          function cargar() {
-            fetch('/metrics')
-              .then(res => res.json())
-              .then(data => {
-                document.getElementById('ticketsHoy').innerText = data.ticketsHoy;
-                document.getElementById('abiertos').innerText = data.abiertos;
-                document.getElementById('cerrados').innerText = data.cerrados;
-                document.getElementById('usuarios').innerText = data.usuariosActivos;
-              });
+          async function cargar() {
+            const res = await fetch('/metrics');
+            const data = await res.json();
+
+            new Chart(document.getElementById('lineChart'), {
+              type: 'line',
+              data: {
+                labels: data.dias,
+                datasets: [{
+                  label: 'Tickets',
+                  data: data.ticketsPorDia,
+                  borderColor: '#1e593d',
+                  backgroundColor: '#a1dc86',
+                  tension: 0.3
+                }]
+              }
+            });
+
+            new Chart(document.getElementById('pieChart'), {
+              type: 'pie',
+              data: {
+                labels: ['Abiertos', 'Cerrados'],
+                datasets: [{
+                  data: [data.estados.abiertos, data.estados.cerrados],
+                  backgroundColor: ['#ff914d', '#4a8c6a']
+                }]
+              }
+            });
           }
 
           cargar();
-          setInterval(cargar, 10000);
         </script>
 
       </body>
