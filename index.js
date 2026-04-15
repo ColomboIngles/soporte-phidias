@@ -61,14 +61,16 @@ app.get("/login-phidias", (req, res) => {
 
 // 🔐 2. Validar usuario y generar acceso
 app.get("/login", (req, res) => {
-    const tli = req.query.email;
+    const tli = req.query.email.toLowerCase().trim();
 
     if (!tli) {
         return res.send("❌ Falta el correo");
     }
 
     // 🔍 Validar contra base de datos
-    const usuario = usuarios.find(u => u.email === tli);
+    const usuario = usuarios.find(
+        u => u.email.toLowerCase().trim() === tli
+    );
 
     if (!usuario) {
         return res.send(`

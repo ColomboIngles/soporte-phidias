@@ -1,12 +1,432 @@
 [
   {
-    "email": "ing.wilsonreales@gmail.com",
-    "nombre": "Wilson Reales",
-    "rol": "admin"
+    "email": "dianaaf14@hotmail.com",
+    "nombre": "Acosta Freiles, Diana Milena",
+    "rol": "usuario"
   },
   {
-    "email": "docente1@colomboingles.edu.co",
-    "nombre": "Docente 1",
-    "rol": "docente"
+    "email": "luisignacioecheverriabriceno@gmail.com",
+    "nombre": "Echeverría Briceño, Luis Ignacio",
+    "rol": "administrador"
+  },
+  {
+    "email": "ing.wilsonreales@gmail.com",
+    "nombre": "Reales Sierra, Wilson",
+    "rol": "administrador"
+  },
+  {
+    "email": "aoliverosd0@gmail.com",
+    "nombre": "Oliveros Delgado, Andrea",
+    "rol": "usuario"
+  },
+  {
+    "email": "añes91@gmail.com",
+    "nombre": "Acuña Yance, Angelica María",
+    "rol": "usuario"
+  },
+  {
+    "email": "isaamaya47@gmail.com",
+    "nombre": "Amaya Amaya, Isabel Andrea",
+    "rol": "usuario"
+  },
+  {
+    "email": "marisoldaza10.09@gmail.com",
+    "nombre": "Estrada Daza, Marisol",
+    "rol": "usuario"
+  },
+  {
+    "email": "heydivillazon@gmail.com",
+    "nombre": "Mendoza Villazon, Heidi Sandrith",
+    "rol": "usuario"
+  },
+  {
+    "email": "mariamonicamolinamanjarrez@gmail.com",
+    "nombre": "Molina Manjarres, María Mónica",
+    "rol": "usuario"
+  },
+  {
+    "email": "vicentelinero@hotmail.com",
+    "nombre": "Linero Suarez, Vicente Manuel",
+    "rol": "usuario"
+  },
+  {
+    "email": "dianacl2507@gmail.com",
+    "nombre": "López Molina, Diana Carolina",
+    "rol": "usuario"
+  },
+  {
+    "email": "seccionelementarycci@gmail.com",
+    "nombre": "Soto Freite, Alemnys Xiomara",
+    "rol": "usuario"
+  },
+  {
+    "email": "macs4335@gmail.com",
+    "nombre": "Cabrera Saavedra, Mauricio Alberto",
+    "rol": "usuario"
+  },
+  {
+    "email": "mabemeza@gmail.com",
+    "nombre": "Meza García, María Beatriz",
+    "rol": "usuario"
+  },
+  {
+    "email": "johawat@yahoo.com",
+    "nombre": "Watson Briceño, Johanna",
+    "rol": "usuario"
+  },
+  {
+    "email": "albamercadomariajose@gmail.com",
+    "nombre": "Alba Mercado, Maria José",
+    "rol": "usuario"
+  },
+  {
+    "email": "griseldaalicantillo@gmail.com",
+    "nombre": "Ali Cantillo, Griselda Isabel",
+    "rol": "usuario"
+  },
+  {
+    "email": "emiliaamado41@gmail.com",
+    "nombre": "Amado Cuello, Emilia",
+    "rol": "usuario"
+  },
+  {
+    "email": "fredmanamayavergara@gmail.com",
+    "nombre": "Amaya Vergara, Fredman",
+    "rol": "usuario"
+  },
+  {
+    "email": "romarioangarita21@gmail.com",
+    "nombre": "Angarita Gómez, Romario",
+    "rol": "usuario"
+  },
+  {
+    "email": "ricardoaraujo14@hotmail.com",
+    "nombre": "Araujo Silva, Ricardo José",
+    "rol": "usuario"
+  },
+  {
+    "email": "haroldo.b.arzuaga@gmail.com",
+    "nombre": "Baute Arzuaga, Haroldo Enrique",
+    "rol": "usuario"
+  },
+  {
+    "email": "yajadisbertty.colegio@gmail.com",
+    "nombre": "Bertty Sierra, Yajadis",
+    "rol": "usuario"
+  },
+  {
+    "email": "whitebri@hotmail.com",
+    "nombre": "Briceño de Watson, Blanca Margarita",
+    "rol": "usuario"
+  },
+  {
+    "email": "mariakiararolando@gmail.com",
+    "nombre": "Bustamante Payares, María Candia",
+    "rol": "usuario"
+  },
+  {
+    "email": "jafetcabrerasalas7@gmail.com",
+    "nombre": "Cabrera Salas, Jafet",
+    "rol": "usuario"
+  },
+  {
+    "email": "laura.carpic14@gmail.com",
+    "nombre": "Cárdenas Picón, Laura Vanessa",
+    "rol": "usuario"
+  },
+  {
+    "email": "jimmycardona33@gmail.com",
+    "nombre": "Cardona Ardila, Jimmy",
+    "rol": "usuario"
+  },
+  {
+    "email": "soporte@colomboingles.edu.co",
+    "nombre": "Colombo Inglés, Soporte",
+    "rol": "usuario"
+  },
+  {
+    "email": "yecan79@gmail.com",
+    "nombre": "Cordoba Arevalo, Yeison David",
+    "rol": "usuario"
+  },
+  {
+    "email": "andres_0921@outlook.com",
+    "nombre": "De Las Salas Guerrero, Andrés Felipe",
+    "rol": "usuario"
+  },
+  {
+    "email": "araujoduartem@gmail.com",
+    "nombre": "Duarte Rangel, Luzmila",
+    "rol": "usuario"
+  },
+  {
+    "email": "kase3118@gmail.com",
+    "nombre": "García Fontalvo, Katherine Esther",
+    "rol": "usuario"
+  },
+  {
+    "email": "edinsondavidu@gmail.com",
+    "nombre": "Gutierrez Lemus, Edinson David",
+    "rol": "usuario"
+  },
+  {
+    "email": "fatimaguse@gmail.com",
+    "nombre": "Gutiérrez Segovia, Fátima",
+    "rol": "usuario"
+  },
+  {
+    "email": "valentinahacu07.14@gmail.com",
+    "nombre": "Hernández Acuña, Valentina",
+    "rol": "usuario"
+  },
+  {
+    "email": "yokajic@hotmail.com",
+    "nombre": "Jiménez Cuello, Yocanda",
+    "rol": "usuario"
+  },
+  {
+    "email": "jorgelevette0@gmail.com",
+    "nombre": "Levette Suarez, Jorge Eliecer",
+    "rol": "usuario"
+  },
+  {
+    "email": "mjlinaresjimenez@gmail.com",
+    "nombre": "Linares Jiménez, María José",
+    "rol": "usuario"
+  },
+  {
+    "email": "sergioalinero2017@gmail.com",
+    "nombre": "Linero Suarez, Sergio Andrés",
+    "rol": "usuario"
+  },
+  {
+    "email": "albanliz0206@gmail.com",
+    "nombre": "Lobelo Guerra, Elizabeth",
+    "rol": "usuario"
+  },
+  {
+    "email": "andruzlopez@gmail.com",
+    "nombre": "López Rúa, Andrés Felipe",
+    "rol": "usuario"
+  },
+  {
+    "email": "carolaymansan@gmail.com",
+    "nombre": "Manga Sanchez, Carolay Paola",
+    "rol": "usuario"
+  },
+  {
+    "email": "jork02032009@hotmail.com",
+    "nombre": "Manjarres Betancourt, Jorge Segundo",
+    "rol": "usuario"
+  },
+  {
+    "email": "lucianosolein@gmail.com",
+    "nombre": "Marriaga Montoya, Solein Francis",
+    "rol": "usuario"
+  },
+  {
+    "email": "lic.yeisonmartinez@gmail.com",
+    "nombre": "Martínez Román, Yeison Esteban",
+    "rol": "usuario"
+  },
+  {
+    "email": "2danieljose1499@gmail.com",
+    "nombre": "Medina Maestre, Daniel José",
+    "rol": "usuario"
+  },
+  {
+    "email": "actividadesyileniz@gmail.com",
+    "nombre": "Mendoza Daza, Yileniz",
+    "rol": "usuario"
+  },
+  {
+    "email": "tivisay15.25@gmail.com",
+    "nombre": "Mendoza De La Cruz, Tivisay Carolina",
+    "rol": "usuario"
+  },
+  {
+    "email": "lauramarcelamonsalvo@gmail.com",
+    "nombre": "Monsalvo Baleta, Laura Marcela",
+    "rol": "usuario"
+  },
+  {
+    "email": "mariaalejandramutisdaza@gmail.com",
+    "nombre": "Mutis Daza, María Alejandra",
+    "rol": "usuario"
+  },
+  {
+    "email": "yanetonate4@gmail.com",
+    "nombre": "Oñate De Avila, Yanet Elena",
+    "rol": "usuario"
+  },
+  {
+    "email": "karenlperez19@gmail.com",
+    "nombre": "Pérez Ramos, Karen Lorena",
+    "rol": "usuario"
+  },
+  {
+    "email": "marvelpertuz@gmail.com",
+    "nombre": "Pertuz Rincón, Elkin Enrique",
+    "rol": "usuario"
+  },
+  {
+    "email": "deilapinaaramendiz@gmail.com",
+    "nombre": "Piña Aramendiz, Deila Alejandra",
+    "rol": "usuario"
+  },
+  {
+    "email": "polowiston8@gmail.com",
+    "nombre": "Polo Ali, Wiston David",
+    "rol": "usuario"
+  },
+  {
+    "email": "yeca1824yeca@hotmail.com",
+    "nombre": "Rangel Sánchez, Yesica Marcela",
+    "rol": "usuario"
+  },
+  {
+    "email": "mriveralozada809@gmail.com",
+    "nombre": "Rivera Lozada, Maribel",
+    "rol": "usuario"
+  },
+  {
+    "email": "onirisrivera@hotmail.com",
+    "nombre": "Rivera Villafañe, Oniris del Carmen",
+    "rol": "usuario"
+  },
+  {
+    "email": "apaola0314@gmail.com",
+    "nombre": "Rodriguez Mendoza, Anyi Paola",
+    "rol": "usuario"
+  },
+  {
+    "email": "carlosjrosado543@gmail.com",
+    "nombre": "Rosado Acuña, Carlos Javier",
+    "rol": "usuario"
+  },
+  {
+    "email": "sanchezrodriguezzkariannys@gmail.com",
+    "nombre": "Sánchez Rodríguez, Kariannis María",
+    "rol": "usuario"
+  },
+  {
+    "email": "anasepulvedaortega@hotmail.com",
+    "nombre": "Sepulveda Ortega, Ana Delia",
+    "rol": "usuario"
+  },
+  {
+    "email": "marlonis2113@gmail.com",
+    "nombre": "Sierra Vidal, Marlonis Mauricio",
+    "rol": "usuario"
+  },
+  {
+    "email": "zoryvarona@gmail.com",
+    "nombre": "Varona Oviedo, Zoraida Beatriz",
+    "rol": "usuario"
+  },
+  {
+    "email": "valeriavelez53@gmail.com",
+    "nombre": "Vélez Barón, Yudi Valeria",
+    "rol": "usuario"
+  },
+  {
+    "email": "jorge.walteros.04@gmail.com",
+    "nombre": "Walteros Soto, Jorge Luis",
+    "rol": "usuario"
+  },
+  {
+    "email": "hwabogadosasociados@gmail.com",
+    "nombre": "Watson Briceño, Henry Orlando",
+    "rol": "usuario"
+  },
+  {
+    "email": "ezabaletaguerrero@gmail.com",
+    "nombre": "Zabaleta Guerrero, Edgar Andrés",
+    "rol": "usuario"
+  },
+  {
+    "email": "colonjessica867@gmail.com",
+    "nombre": "Colón Lobo, Jessica Patricia",
+    "rol": "usuario"
+  },
+  {
+    "email": "zabaletajohannap@gmail.com",
+    "nombre": "Zabaleta Aragon, Johanna",
+    "rol": "usuario"
+  },
+  {
+    "email": "leagonzalezmaria@gmail.com",
+    "nombre": "Gonzalez Lea, Ana María Camila",
+    "rol": "usuario"
+  },
+  {
+    "email": "tatianacarolinaro@gmail.com",
+    "nombre": "Rodriguez Plata, Tatiana Carolina",
+    "rol": "usuario"
+  },
+  {
+    "email": "elizabeth.elena@hotmail.com",
+    "nombre": "Cuadro Felizola, Elizabeth",
+    "rol": "usuario"
+  },
+  {
+    "email": "luisafermeza2010@hotmail.com",
+    "nombre": "Meza Sanchez, Luisa Fernanda",
+    "rol": "usuario"
+  },
+  {
+    "email": "ariasluz171@gmail.com",
+    "nombre": "Arias Jimenez, Luz Dary de Jesús",
+    "rol": "usuario"
+  },
+  {
+    "email": "ariasmariasalome32@gmail.com",
+    "nombre": "Arias, Sunilda Fabiola",
+    "rol": "usuario"
+  },
+  {
+    "email": "jorgecampomeza75@gmail.com",
+    "nombre": "Campo Meza, Jorge David",
+    "rol": "usuario"
+  },
+  {
+    "email": "nefercorzo1968@gmail.com",
+    "nombre": "Corzo Arzuza, Nefer Arturo",
+    "rol": "usuario"
+  },
+  {
+    "email": "esquezapata08@gmail.com",
+    "nombre": "Esquea Zapata, Cristian José",
+    "rol": "usuario"
+  },
+  {
+    "email": "nayibisnavarro45@gmail.com",
+    "nombre": "Navarro Arzuza, Nayibis Esther",
+    "rol": "usuario"
+  },
+  {
+    "email": "aospinocastro85@gmail.com",
+    "nombre": "Ospino Castro, Aldair",
+    "rol": "usuario"
+  },
+  {
+    "email": "margelispedroza0@gmail.com",
+    "nombre": "Pedroza San Juan, Margelis Esther",
+    "rol": "usuario"
+  },
+  {
+    "email": "perezcabarcaricardo890@gmail.com",
+    "nombre": "Perez Cabarcas, Ricardo Antonio",
+    "rol": "usuario"
+  },
+  {
+    "email": "yurismartinez908@gmail.com",
+    "nombre": "Salas Matinez, Yuris Mercedes",
+    "rol": "usuario"
+  },
+  {
+    "email": "yohadissanchez@gmail.com",
+    "nombre": "Sanchez Cortes, Yonadis",
+    "rol": "usuario"
   }
 ]
