@@ -21,80 +21,63 @@ const supabase = createClient(
 const usuarios = JSON.parse(fs.readFileSync("usuarios.json"));
 
 
+// 🧠 FUNCIÓN PARA LIMPIAR EMAIL
+function normalizarEmail(email) {
+    return email.toLowerCase().trim();
+}
+
+
 // 🚀 LOGIN DESDE PHIDIAS
 app.get("/login-phidias", (req, res) => {
-    res.send(`
-    <html>
-    <head>
-      <title>Soporte TI</title>
-      <style>
-        body { font-family: Arial; text-align:center; padding:40px; background:#f4f6f9;}
-        h2 { color:#1e593d; }
-        input { padding:10px; width:280px; border-radius:8px; }
-        button { padding:10px 20px; background:#1e593d; color:white; border:none; border-radius:8px; }
-      </style>
-    </head>
 
-    <body>
+    let email = req.query.email;
 
-      <script>
-        const params = new URLSearchParams(window.location.search);
-        const emailParam = params.get("email");
+    console.log("📩 Email recibido desde Phidias:", email);
 
-        if (emailParam) {
-          localStorage.setItem("email", emailParam);
-          window.location.href = "/login?email=" + emailParam;
-        } else {
-          const email = localStorage.getItem("email");
-          if (email) {
-            window.location.href = "/login?email=" + email;
-          }
-        }
-      </script>
+    if (!email) {
+        return res.send(`
+      <h3>❌ No se recibió correo desde Phidias</h3>
+      <p>Verifica la variable {{email}}</p>
+    `);
+    }
 
-      <h2>Soporte Tecnológico</h2>
-      <p>Ingrese su correo institucional</p>
+    email = normalizarEmail(email);
 
-      <input id="correo" placeholder="correo@colomboingles.edu.co"/>
-      <br><br>
-
-      <button onclick="ingresar()">Ingresar</button>
-
-      <script>
-        function ingresar() {
-          let email = document.getElementById("correo").value;
-
-          if (!email) return alert("Ingrese su correo");
-
-          email = email.toLowerCase().trim();
-          localStorage.setItem("email", email);
-
-          window.location.href = "/login?email=" + email;
-        }
-      </script>
-
-    </body>
-    </html>
-  `);
+    return res.redirect("/login?email=" + email);
 });
 
 
-// 🔐 VALIDACIÓN
+// 🔐 VALIDACIÓN Y REDIRECCIÓN
 app.get("/login", (req, res) => {
+
     let email = req.query.email;
 
-    if (!email) return res.send("Falta correo");
+    if (!email) {
+        return res.send("❌ Falta correo");
+    }
 
-    email = email.toLowerCase().trim();
+    email = normalizarEmail(email);
 
-    const usuario = usuarios.find(
-        u => u.email.toLowerCase().trim() === email
+    console.log("🔍 Buscando usuario:", email);
+
+    // 🔍 Buscar usuario
+    const usuario = usuarios.find(u =>
+        normalizarEmail(u.email) === email
     );
 
     if (!usuario) {
-        return res.send("Usuario no autorizado");
+        console.log("❌ Usuario NO encontrado:", email);
+
+        return res.send(`
+      <h2 style="color:red;">❌ Usuario no autorizado</h2>
+      <p>Correo: ${email}</p>
+      <p>Verifique que esté registrado en el sistema</p>
+    `);
     }
 
+    console.log("✅ Usuario encontrado:", usuario.nombre);
+
+    // 🔐 Generar token
     const tld = Math.floor(Date.now() / 1000);
     const string = `${SECRET}:${email}@${tld}`;
     const tlh = crypto.createHash("md5").update(string).digest("hex");
@@ -107,22 +90,33 @@ app.get("/login", (req, res) => {
 
 // 📥 WEBHOOK DESDE LOVABLE
 app.post("/webhook-ticket", async (req, res) => {
-    const { email } = req.body;
+
+    const { email, titulo, descripcion } = req.body;
+
+    console.log("📥 Ticket recibido:", req.body);
+
+    if (!email) {
+        return res.status(400).send("Falta email");
+    }
 
     const { error } = await supabase
         .from("tickets")
         .insert([
             {
-                email,
+                email: normalizarEmail(email),
                 estado: "abierto",
-                fecha: new Date()
+                fecha: new Date(),
+                titulo: titulo || "Sin título",
+                descripcion: descripcion || "Sin descripción"
             }
         ]);
 
     if (error) {
-        console.error(error);
+        console.error("❌ Error guardando en Supabase:", error);
         return res.status(500).send("Error BD");
     }
+
+    console.log("✅ Ticket guardado correctamente");
 
     res.sendStatus(200);
 });
@@ -135,7 +129,10 @@ app.get("/metrics", async (req, res) => {
         .from("tickets")
         .select("*");
 
-    if (error) return res.status(500).send("Error");
+    if (error) {
+        console.error(error);
+        return res.status(500).send("Error obteniendo datos");
+    }
 
     const abiertos = data.filter(t => t.estado === "abierto").length;
     const cerrados = data.filter(t => t.estado === "cerrado").length;
@@ -227,4 +224,8 @@ app.get("/dashboard", (req, res) => {
   `);
 });
 
-app.listen(PORT, () => console.log("Servidor activo"));
+
+// 🟢 SERVER
+app.listen(PORT, () => {
+    console.log("🚀 Servidor corriendo en puerto " + PORT);
+});
