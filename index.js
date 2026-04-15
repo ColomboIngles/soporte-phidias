@@ -1,53 +1,84 @@
 ﻿const express = require("express");
 const crypto = require("crypto");
 const fs = require("fs");
-const { createClient } = require('@supabase/supabase-js');
+const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// 🔐 Clave
+// 🔐 CONFIG
 const SECRET = process.env.SECRET || "Colombo2026_SoporteTI";
 
-// 🟢 Supabase
+// 🟢 SUPABASE
 const supabase = createClient(
     process.env.SUPABASE_URL,
     process.env.SUPABASE_KEY
 );
 
-// 📂 Usuarios
+// 📂 USUARIOS
 const usuarios = JSON.parse(fs.readFileSync("usuarios.json"));
 
-
-// 🧠 FUNCIÓN PARA LIMPIAR EMAIL
+// 🧠 NORMALIZAR EMAIL
 function normalizarEmail(email) {
     return email.toLowerCase().trim();
 }
 
-
-// 🚀 LOGIN DESDE PHIDIAS
+// 🚀 LOGIN DESDE PHIDIAS (SIN PARÁMETROS)
 app.get("/login-phidias", (req, res) => {
+    res.send(`
+    <html>
+    <head>
+      <title>Soporte TI</title>
+      <style>
+        body { font-family: Arial; text-align:center; padding:40px; background:#f4f6f9;}
+        h2 { color:#1e593d; }
+        input { padding:10px; width:280px; border-radius:8px; }
+        button { padding:10px 20px; background:#1e593d; color:white; border:none; border-radius:8px; }
+      </style>
+    </head>
 
-    let email = req.query.email;
+    <body>
 
-    console.log("📩 Email recibido desde Phidias:", email);
+      <script>
+        const emailGuardado = localStorage.getItem("email");
 
-    if (!email) {
-        return res.send(`
-      <h3>❌ No se recibió correo desde Phidias</h3>
-      <p>Verifica la variable {{email}}</p>
-    `);
-    }
+        if (emailGuardado) {
+          window.location.href = "/login?email=" + emailGuardado;
+        }
+      </script>
 
-    email = normalizarEmail(email);
+      <h2>Soporte Tecnológico</h2>
+      <p><b>Digite su correo institucional (solo la primera vez)</b></p>
 
-    return res.redirect("/login?email=" + email);
+      <input id="correo" placeholder="correo@colomboingles.edu.co"/>
+      <br><br>
+
+      <button onclick="ingresar()">Ingresar</button>
+
+      <script>
+        function ingresar() {
+          let email = document.getElementById("correo").value;
+
+          if (!email) {
+            alert("Ingrese su correo");
+            return;
+          }
+
+          email = email.toLowerCase().trim();
+          localStorage.setItem("email", email);
+
+          window.location.href = "/login?email=" + email;
+        }
+      </script>
+
+    </body>
+    </html>
+  `);
 });
 
-
-// 🔐 VALIDACIÓN Y REDIRECCIÓN
+// 🔐 VALIDACIÓN Y REDIRECCIÓN A LOVABLE
 app.get("/login", (req, res) => {
 
     let email = req.query.email;
@@ -58,113 +89,106 @@ app.get("/login", (req, res) => {
 
     email = normalizarEmail(email);
 
-    console.log("🔍 Buscando usuario:", email);
-
-    // 🔍 Buscar usuario
     const usuario = usuarios.find(u =>
         normalizarEmail(u.email) === email
     );
 
     if (!usuario) {
-        console.log("❌ Usuario NO encontrado:", email);
-
         return res.send(`
       <h2 style="color:red;">❌ Usuario no autorizado</h2>
-      <p>Correo: ${email}</p>
-      <p>Verifique que esté registrado en el sistema</p>
+      <p>${email}</p>
+      <button onclick="localStorage.removeItem('email');location.href='/login-phidias'">
+        Intentar nuevamente
+      </button>
     `);
     }
 
-    console.log("✅ Usuario encontrado:", usuario.nombre);
-
-    // 🔐 Generar token
+    // 🔐 TOKEN
     const tld = Math.floor(Date.now() / 1000);
-    const string = `${SECRET}:${email}@${tld}`;
-    const tlh = crypto.createHash("md5").update(string).digest("hex");
+    const string = \`\${SECRET}:\${email}@\${tld}\`;
+  const tlh = crypto.createHash("md5").update(string).digest("hex");
 
-    const url = `https://soportecolombo.lovable.app/?tli=${email}&tld=${tld}&tlh=${tlh}&autoTicket=true`;
+  const url = \`https://soportecolombo.lovable.app/?tli=\${email}&tld=\${tld}&tlh=\${tlh}&autoTicket=true\`;
 
-    res.redirect(url);
+  res.redirect(url);
 });
 
+// 🔄 LOGOUT
+app.get("/logout", (req, res) => {
+  res.send(`
+        < script >
+        localStorage.removeItem("email");
+    window.location.href = "/login-phidias";
+    </script >
+        `);
+});
 
 // 📥 WEBHOOK DESDE LOVABLE
 app.post("/webhook-ticket", async (req, res) => {
 
-    const { email, titulo, descripcion } = req.body;
+  const { email, titulo, descripcion } = req.body;
 
-    console.log("📥 Ticket recibido:", req.body);
+  if (!email) return res.status(400).send("Falta email");
 
-    if (!email) {
-        return res.status(400).send("Falta email");
-    }
+  const { error } = await supabase
+    .from("tickets")
+    .insert([
+      {
+        email: normalizarEmail(email),
+        estado: "abierto",
+        fecha: new Date(),
+        titulo: titulo || "Sin título",
+        descripcion: descripcion || "Sin descripción"
+      }
+    ]);
 
-    const { error } = await supabase
-        .from("tickets")
-        .insert([
-            {
-                email: normalizarEmail(email),
-                estado: "abierto",
-                fecha: new Date(),
-                titulo: titulo || "Sin título",
-                descripcion: descripcion || "Sin descripción"
-            }
-        ]);
+  if (error) {
+    console.error(error);
+    return res.status(500).send("Error BD");
+  }
 
-    if (error) {
-        console.error("❌ Error guardando en Supabase:", error);
-        return res.status(500).send("Error BD");
-    }
-
-    console.log("✅ Ticket guardado correctamente");
-
-    res.sendStatus(200);
+  res.sendStatus(200);
 });
-
 
 // 📊 MÉTRICAS REALES
 app.get("/metrics", async (req, res) => {
 
-    const { data, error } = await supabase
-        .from("tickets")
-        .select("*");
+  const { data, error } = await supabase
+    .from("tickets")
+    .select("*");
 
-    if (error) {
-        console.error(error);
-        return res.status(500).send("Error obteniendo datos");
-    }
+  if (error) return res.status(500).send("Error");
 
-    const abiertos = data.filter(t => t.estado === "abierto").length;
-    const cerrados = data.filter(t => t.estado === "cerrado").length;
+  const abiertos = data.filter(t => t.estado === "abierto").length;
+  const cerrados = data.filter(t => t.estado === "cerrado").length;
 
-    let dias = [];
-    let ticketsPorDia = [];
+  let dias = [];
+  let ticketsPorDia = [];
 
-    for (let i = 6; i >= 0; i--) {
-        let d = new Date();
-        d.setDate(d.getDate() - i);
+  for (let i = 6; i >= 0; i--) {
+    let d = new Date();
+    d.setDate(d.getDate() - i);
 
-        dias.push(d.toLocaleDateString("es-ES", { weekday: "short" }));
+    dias.push(d.toLocaleDateString("es-ES", { weekday: "short" }));
 
-        const count = data.filter(t =>
-            new Date(t.fecha).toDateString() === d.toDateString()
-        ).length;
+    const count = data.filter(t =>
+      new Date(t.fecha).toDateString() === d.toDateString()
+    ).length;
 
-        ticketsPorDia.push(count);
-    }
+    ticketsPorDia.push(count);
+  }
 
-    res.json({
-        ticketsPorDia,
-        dias,
-        estados: { abiertos, cerrados }
-    });
+  res.json({
+    ticketsPorDia,
+    dias,
+    estados: { abiertos, cerrados }
+  });
 });
-
 
 // 📊 DASHBOARD
 app.get("/dashboard", (req, res) => {
-    res.send(`
-    <html>
+  res.send(`
+        < html >
     <head>
       <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
       <style>
@@ -180,12 +204,8 @@ app.get("/dashboard", (req, res) => {
       <h1>📊 Dashboard Soporte</h1>
 
       <div class="grid">
-        <div class="card">
-          <canvas id="line"></canvas>
-        </div>
-        <div class="card">
-          <canvas id="pie"></canvas>
-        </div>
+        <div class="card"><canvas id="line"></canvas></div>
+        <div class="card"><canvas id="pie"></canvas></div>
       </div>
 
       <script>
@@ -220,12 +240,8 @@ app.get("/dashboard", (req, res) => {
       </script>
 
     </body>
-    </html>
-  `);
+    </html >
+        `);
 });
 
-
-// 🟢 SERVER
-app.listen(PORT, () => {
-    console.log("🚀 Servidor corriendo en puerto " + PORT);
-});
+app.listen(PORT, () => console.log("🚀 Servidor activo"));
