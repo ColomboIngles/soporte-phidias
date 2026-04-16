@@ -48,31 +48,81 @@ app.get("/login-phidias", (req, res) => {
 <head>
   <title>Soporte TI</title>
   <style>
-    body { font-family: Arial; text-align:center; padding:40px; background:#f4f6f9;}
+    body {
+      font-family: Arial;
+      background:#f4f6f9;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      height:100vh;
+    }
+
+    .card {
+      background:white;
+      padding:30px;
+      border-radius:15px;
+      box-shadow:0 5px 20px rgba(0,0,0,0.1);
+      text-align:center;
+      width:320px;
+    }
+
     h2 { color:#1e593d; }
-    input { padding:10px; width:280px; border-radius:8px; }
-    button { padding:10px 20px; background:#1e593d; color:white; border:none; border-radius:8px; }
+
+    input {
+      padding:10px;
+      width:100%;
+      border-radius:8px;
+      border:1px solid #ccc;
+      margin-top:10px;
+    }
+
+    input:focus {
+      outline:none;
+      border:1px solid #1e593d;
+    }
+
+    button {
+      margin-top:15px;
+      padding:10px;
+      width:100%;
+      background:#1e593d;
+      color:white;
+      border:none;
+      border-radius:8px;
+      cursor:pointer;
+    }
+
+    button:hover {
+      background:#4a8c6a;
+    }
+
+    .logo {
+      width:80px;
+      margin-bottom:10px;
+    }
   </style>
 </head>
 
 <body>
+
+<div class="card">
+
+  <img src="https://via.placeholder.com/80" class="logo"/>
+
+  <h2>Soporte TI</h2>
+  <p>Ingrese su correo institucional</p>
+
+  <input id="correo" placeholder="correo@colomboingles.edu.co"/>
+  <button onclick="ingresar()">Ingresar</button>
+
+</div>
 
 <script>
   const emailGuardado = localStorage.getItem("email");
   if (emailGuardado) {
     window.location.href = "/login?email=" + emailGuardado;
   }
-</script>
 
-<h2>Soporte Tecnológico</h2>
-<p><b>Digite su correo institucional (solo la primera vez)</b></p>
-
-<input id="correo" placeholder="correo@colomboingles.edu.co"/>
-<br><br>
-
-<button onclick="ingresar()">Ingresar</button>
-
-<script>
   function ingresar() {
     let email = document.getElementById("correo").value;
 
@@ -101,6 +151,10 @@ app.get("/login", (req, res) => {
         return res.send("❌ Falta correo");
     }
 
+    if (!usuarios || usuarios.length === 0) {
+        return res.send("⚠️ No hay usuarios cargados");
+    }
+
     email = normalizarEmail(email);
 
     const usuario = usuarios.find(
@@ -120,7 +174,7 @@ app.get("/login", (req, res) => {
     // 🔐 TOKEN
     const tld = Math.floor(Date.now() / 1000);
     const string = `${SECRET}:${email}@${tld}`;
-    const tlh = crypto.createHash("md5").update(string).digest("hex");
+    const tlh = crypto.createHash("sha256").update(string).digest("hex");
 
     const url = `https://soportecolombo.lovable.app/?tli=${email}&tld=${tld}&tlh=${tlh}&autoTicket=true`;
 
