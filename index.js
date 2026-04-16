@@ -10,6 +10,7 @@ app.use(express.json());
 
 // 🔐 CONFIG
 const SECRET = process.env.SECRET || "Colombo2026_SoporteTI";
+const TOKEN_HASH_ALGO = process.env.TOKEN_HASH_ALGO || "md5";
 
 // 🟢 SUPABASE
 let supabase;
@@ -174,7 +175,7 @@ app.get("/login", (req, res) => {
     // 🔐 TOKEN
     const tld = Math.floor(Date.now() / 1000);
     const string = `${SECRET}:${email}@${tld}`;
-    const tlh = crypto.createHash("sha256").update(string).digest("hex");
+    const tlh = crypto.createHash(TOKEN_HASH_ALGO).update(string).digest("hex");
 
     const url = `https://soportecolombo.lovable.app/?tli=${email}&tld=${tld}&tlh=${tlh}&autoTicket=true`;
 
