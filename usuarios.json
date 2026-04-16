@@ -5,21 +5,6 @@
         "rol": "admin"
     },
     {
-        "email": "soporte@colomboingles.edu.co",
-        "nombre": "Soporte TI",
-        "rol": "admin"
-    },
-    {
-        "email": "docente1@colomboingles.edu.co",
-        "nombre": "Docente Ejemplo 1",
-        "rol": "usuario"
-    },
-    {
-        "email": "docente2@colomboingles.edu.co",
-        "nombre": "Docente Ejemplo 2",
-        "rol": "usuario"
-    },
-    {
         "email": "dianaaf14@hotmail.com",
         "nombre": "Acosta Freiles, Diana Milena",
         "rol": "usuario"
