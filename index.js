@@ -10,13 +10,10 @@ const PORT = process.env.PORT || 10000;
 app.use(express.json());
 app.use(cors({ origin: "*" }));
 
-// 📁 FRONTEND
-app.use(express.static("public"));
-
 // 🔐 CONFIG
 const SECRET = process.env.SECRET || "Colombo2026_SoporteTI";
 
-// 🟢 SUPABASE
+// 🔗 SUPABASE
 const supabase = createClient(
     process.env.SUPABASE_URL,
     process.env.SUPABASE_KEY
@@ -26,71 +23,83 @@ const supabase = createClient(
 let usuarios = [];
 try {
     usuarios = JSON.parse(fs.readFileSync("usuarios.json", "utf8"));
+    console.log("✅ usuarios cargados");
 } catch (e) {
     console.log("⚠️ usuarios.json no encontrado");
 }
 
 // ===============================
-// 🔐 LOGIN PHIDIAS (FIX)
+// 🔐 LOGIN PHIDIAS (AUTOLOGIN)
 // ===============================
 app.get("/login-phidias", (req, res) => {
     res.send(`
-<html>
-<body style="font-family:Arial;text-align:center;padding-top:100px;">
+  <html>
+  <body style="font-family:Arial;text-align:center;padding-top:100px;">
+  
+  <h2>Soporte TI</h2>
+  <p>Ingrese su correo institucional</p>
 
-<h2>Soporte TI</h2>
-<input id="correo" placeholder="correo@colomboingles.edu.co"/>
-<br><br>
-<button onclick="ingresar()">Ingresar</button>
+  <input id="correo" placeholder="correo@colomboingles.edu.co"/>
+  <br><br>
+  <button onclick="ingresar()">Ingresar</button>
 
-<script>
-const emailGuardado = localStorage.getItem("email");
-if (emailGuardado) {
-  window.location.href = "/login?email=" + emailGuardado;
-}
+  <script>
+    const emailGuardado = localStorage.getItem("email");
 
-function ingresar() {
-  let email = document.getElementById("correo").value;
-  if (!email) return alert("Ingrese correo");
+    // 🔥 AUTOLOGIN
+    if (emailGuardado) {
+      window.location.href = "/login?email=" + emailGuardado;
+    }
 
-  email = email.toLowerCase().trim();
-  localStorage.setItem("email", email);
+    function ingresar() {
+      let email = document.getElementById("correo").value;
 
-  window.location.href = "/login?email=" + email;
-}
-</script>
+      if (!email) return alert("Ingrese correo");
 
-</body>
-</html>
-    `);
+      email = email.toLowerCase().trim();
+      localStorage.setItem("email", email);
+
+      window.location.href = "/login?email=" + email;
+    }
+  </script>
+
+  </body>
+  </html>
+  `);
 });
 
 // ===============================
-// 🔐 LOGIN
+// 🔐 LOGIN → REDIRECCIÓN A LOVABLE
 // ===============================
 app.get("/login", (req, res) => {
     let email = (req.query.email || "").toLowerCase().trim();
 
-    const usuario = usuarios.find(u => u.email.toLowerCase() === email);
+    const usuario = usuarios.find(
+        (u) => u.email.toLowerCase() === email
+    );
 
     if (!usuario) {
         return res.send("❌ Usuario no autorizado");
     }
 
+    // 🔐 TOKEN
     const tld = Math.floor(Date.now() / 1000);
     const string = `${SECRET}:${email}@${tld}`;
     const tlh = crypto.createHash("md5").update(string).digest("hex");
 
-    const url = `/tickets.html?tli=${email}&tld=${tld}&tlh=${tlh}`;
+    // 🚀 REDIRECCIÓN A LOVABLE
+    const url = `https://soportecolombo.lovable.app/?tli=${email}&tld=${tld}&tlh=${tlh}&autoTicket=true`;
 
     res.redirect(url);
 });
 
 // ===============================
-// 📥 CREAR TICKET
+// 📥 WEBHOOK PARA LOVABLE
 // ===============================
 app.post("/webhook-ticket", async (req, res) => {
     try {
+        console.log("📥 Ticket desde Lovable:", req.body);
+
         const { email, titulo, descripcion, categoria, prioridad } = req.body;
 
         const { error } = await supabase.from("tickets").insert([
@@ -110,49 +119,26 @@ app.post("/webhook-ticket", async (req, res) => {
         res.json({ ok: true });
 
     } catch (err) {
-        console.error(err);
-        res.status(500).send("Error");
+        console.error("❌ ERROR:", err);
+        res.status(500).json({ message: "Error BD" });
     }
 });
 
 // ===============================
-// 📋 LISTAR
+// 📊 LISTAR TICKETS (API)
 // ===============================
 app.get("/tickets", async (req, res) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
         .from("tickets")
         .select("*")
         .order("fecha", { ascending: false });
 
-    res.json(data);
-});
-
-// ===============================
-// 🔎 DETALLE
-// ===============================
-app.get("/tickets/:id", async (req, res) => {
-    const { data } = await supabase
-        .from("tickets")
-        .select("*")
-        .eq("id", req.params.id);
-
-    if (!data || data.length === 0) {
-        return res.status(404).send("No encontrado");
+    if (error) {
+        console.error(error);
+        return res.status(500).send("Error");
     }
 
-    res.json(data[0]);
-});
-
-// ===============================
-// 🔥 CERRAR
-// ===============================
-app.put("/tickets/:id/cerrar", async (req, res) => {
-    await supabase
-        .from("tickets")
-        .update({ estado: "cerrado" })
-        .eq("id", req.params.id);
-
-    res.json({ ok: true });
+    res.json(data);
 });
 
 // ===============================
@@ -162,5 +148,5 @@ app.get("/", (req, res) => {
 
 // ===============================
 app.listen(PORT, () => {
-    console.log("🚀 Server activo en " + PORT);
+    console.log("🚀 Servidor activo en puerto " + PORT);
 });
