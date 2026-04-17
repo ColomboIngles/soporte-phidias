@@ -213,8 +213,13 @@ app.post("/webhook-ticket", async (req, res) => {
     ]);
 
     if (error) {
-        console.error("❌ Error BD:", error);
-        return res.status(500).send("Error BD");
+        console.error("❌ ERROR REAL SUPABASE:", error);
+        return res.status(500).json({
+            message: "Error BD",
+            detalle: error.message,
+            hint: error.hint,
+            code: error.code
+        });
     }
 
     res.sendStatus(200);
