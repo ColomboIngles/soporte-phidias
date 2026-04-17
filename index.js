@@ -5,6 +5,7 @@ const { createClient } = require("@supabase/supabase-js");
 const app = express();
 const PORT = process.env.PORT || 10000;
 
+// ✅ MIDDLEWARES
 app.use(express.json());
 
 app.use(cors({
@@ -12,6 +13,9 @@ app.use(cors({
     methods: ["GET", "POST", "PUT"],
     allowedHeaders: ["Content-Type"]
 }));
+
+// ✅ SERVIR FRONTEND
+app.use(express.static("public"));
 
 // 🔗 SUPABASE
 const supabase = createClient(
@@ -42,7 +46,7 @@ app.post("/webhook-ticket", async (req, res) => {
 
         if (error) throw error;
 
-        res.json(data);
+        res.json({ ok: true, data });
 
     } catch (err) {
         console.error("❌ ERROR CREATE:", err);
@@ -122,6 +126,13 @@ app.put("/tickets/:id/cerrar", async (req, res) => {
     }
 
     res.json({ ok: true });
+});
+
+// ===============================
+// 🏠 HOME → REDIRIGE
+// ===============================
+app.get("/", (req, res) => {
+    res.redirect("/tickets.html");
 });
 
 // ===============================
