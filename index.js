@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 10000;
 app.use(express.json());
 
 app.use(cors({
-    origin: "*", // luego puedes restringir a tu dominio Lovable
+    origin: "*", // luego restringes a tu dominio
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type"]
 }));
@@ -50,40 +50,26 @@ function normalizarEmail(email) {
     return email.toLowerCase().trim();
 }
 
-// 🚀 LOGIN DESDE PHIDIAS
+// 🚀 LOGIN
 app.get("/login-phidias", (req, res) => {
-    res.send(`<!DOCTYPE html>
+    res.send(`
 <html>
-<head>
-<title>Soporte TI</title>
-<style>
-body { font-family: Arial; background:#f4f6f9; display:flex; justify-content:center; align-items:center; height:100vh; }
-.card { background:white; padding:30px; border-radius:15px; box-shadow:0 5px 20px rgba(0,0,0,0.1); text-align:center; width:320px; }
-h2 { color:#1e593d; }
-input { padding:10px; width:100%; border-radius:8px; border:1px solid #ccc; margin-top:10px; }
-button { margin-top:15px; padding:10px; width:100%; background:#1e593d; color:white; border:none; border-radius:8px; cursor:pointer; }
-</style>
-</head>
 <body>
-<div class="card">
-<h2>Soporte TI</h2>
-<input id="correo" placeholder="correo@colomboingles.edu.co"/>
+<input id="correo" placeholder="correo"/>
 <button onclick="ingresar()">Ingresar</button>
-</div>
+
 <script>
-function ingresar() {
+function ingresar(){
   let email = document.getElementById("correo").value;
-  if (!email) return alert("Ingrese su correo");
-  email = email.toLowerCase().trim();
   localStorage.setItem("email", email);
-  window.location.href = "/login?email=" + email;
+  window.location.href="/login?email="+email;
 }
 </script>
 </body>
-</html>`);
+</html>
+`);
 });
 
-// 🔐 LOGIN
 app.get("/login", (req, res) => {
     let email = req.query.email;
 
@@ -95,15 +81,13 @@ app.get("/login", (req, res) => {
         (u) => normalizarEmail(u.email) === email
     );
 
-    if (!usuario) {
-        return res.send("❌ Usuario no autorizado");
-    }
+    if (!usuario) return res.send("❌ Usuario no autorizado");
 
     const tld = Math.floor(Date.now() / 1000);
     const string = `${SECRET}:${email}@${tld}`;
     const tlh = crypto.createHash(TOKEN_HASH_ALGO).update(string).digest("hex");
 
-    const url = `https://soportecolombo.lovable.app/?tli=${email}&tld=${tld}&tlh=${tlh}&autoTicket=true`;
+    const url = `https://soportecolombo.lovable.app/?tli=${email}&tld=${tld}&tlh=${tlh}`;
 
     res.redirect(url);
 });
@@ -111,18 +95,11 @@ app.get("/login", (req, res) => {
 // 📥 CREAR TICKET
 app.post("/webhook-ticket", async (req, res) => {
     try {
-        console.log("📥 REQUEST DESDE LOVABLE:", req.body);
-
-        if (!supabase) {
-            return res.status(500).send("Supabase no configurado");
-        }
+        console.log("📥 REQUEST:", req.body);
 
         let { email, titulo, descripcion, categoria, prioridad } = req.body;
 
-        // fallback por si Lovable no envía email
-        if (!email) {
-            email = "test@demo.com";
-        }
+        if (!email) email = "test@demo.com";
 
         const { data, error } = await supabase.from("tickets").insert([
             {
@@ -137,20 +114,15 @@ app.post("/webhook-ticket", async (req, res) => {
         ]);
 
         if (error) {
-            console.error("❌ ERROR REAL SUPABASE:", error);
-            return res.status(500).json({
-                message: "Error BD",
-                detalle: error.message,
-                code: error.code
-            });
+            console.error("❌ Error BD:", error);
+            return res.status(500).json(error);
         }
 
-        console.log("✅ Ticket creado:", data);
-        res.status(200).json({ message: "Ticket creado", data });
+        res.json({ ok: true, data });
 
     } catch (err) {
-        console.error("❌ ERROR SERVER:", err);
-        res.status(500).send("Error interno");
+        console.error("❌ Error server:", err);
+        res.status(500).send("Error");
     }
 });
 
@@ -163,7 +135,7 @@ app.get("/tickets", async (req, res) => {
             .order("fecha", { ascending: false });
 
         if (error) {
-            console.error("❌ Error obteniendo tickets:", error);
+            console.error("❌ Error listando:", error);
             return res.status(500).send("Error BD");
         }
 
@@ -171,20 +143,48 @@ app.get("/tickets", async (req, res) => {
 
     } catch (err) {
         console.error("❌ Error server:", err);
-        res.status(500).send("Error interno");
+        res.status(500).send("Error");
+    }
+});
+
+// 🔥 CERRAR TICKET (NUEVO)
+app.put("/tickets/:id/cerrar", async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { error } = await supabase
+            .from("tickets")
+            .update({ estado: "cerrado" })
+            .eq("id", id);
+
+        if (error) {
+            console.error("❌ Error cerrando:", error);
+            return res.status(500).send("Error BD");
+        }
+
+        res.json({ ok: true, message: "Ticket cerrado" });
+
+    } catch (err) {
+        console.error("❌ Error server:", err);
+        res.status(500).send("Error");
     }
 });
 
 // 📊 MÉTRICAS
 app.get("/metrics", async (req, res) => {
-    const { data, error } = await supabase.from("tickets").select("*");
+    try {
+        const { data, error } = await supabase.from("tickets").select("*");
 
-    if (error) return res.status(500).send("Error");
+        if (error) return res.status(500).send("Error");
 
-    const abiertos = data.filter(t => t.estado === "abierto").length;
-    const cerrados = data.filter(t => t.estado === "cerrado").length;
+        const abiertos = data.filter(t => t.estado === "abierto").length;
+        const cerrados = data.filter(t => t.estado === "cerrado").length;
 
-    res.json({ abiertos, cerrados });
+        res.json({ abiertos, cerrados });
+
+    } catch (err) {
+        res.status(500).send("Error");
+    }
 });
 
 // 🚀 SERVIDOR
