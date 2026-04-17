@@ -1,141 +1,166 @@
 ﻿const express = require("express");
 const cors = require("cors");
+const crypto = require("crypto");
+const fs = require("fs");
 const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// ✅ MIDDLEWARES
 app.use(express.json());
+app.use(cors({ origin: "*" }));
 
-app.use(cors({
-    origin: "*",
-    methods: ["GET", "POST", "PUT"],
-    allowedHeaders: ["Content-Type"]
-}));
-
-// ✅ SERVIR FRONTEND
+// 📁 FRONTEND
 app.use(express.static("public"));
 
-// 🔗 SUPABASE
+// 🔐 CONFIG
+const SECRET = process.env.SECRET || "Colombo2026_SoporteTI";
+
+// 🟢 SUPABASE
 const supabase = createClient(
     process.env.SUPABASE_URL,
     process.env.SUPABASE_KEY
 );
+
+// 📂 USUARIOS
+let usuarios = [];
+try {
+    usuarios = JSON.parse(fs.readFileSync("usuarios.json", "utf8"));
+} catch (e) {
+    console.log("⚠️ usuarios.json no encontrado");
+}
+
+// ===============================
+// 🔐 LOGIN PHIDIAS (FIX)
+// ===============================
+app.get("/login-phidias", (req, res) => {
+    res.send(`
+<html>
+<body style="font-family:Arial;text-align:center;padding-top:100px;">
+
+<h2>Soporte TI</h2>
+<input id="correo" placeholder="correo@colomboingles.edu.co"/>
+<br><br>
+<button onclick="ingresar()">Ingresar</button>
+
+<script>
+const emailGuardado = localStorage.getItem("email");
+if (emailGuardado) {
+  window.location.href = "/login?email=" + emailGuardado;
+}
+
+function ingresar() {
+  let email = document.getElementById("correo").value;
+  if (!email) return alert("Ingrese correo");
+
+  email = email.toLowerCase().trim();
+  localStorage.setItem("email", email);
+
+  window.location.href = "/login?email=" + email;
+}
+</script>
+
+</body>
+</html>
+    `);
+});
+
+// ===============================
+// 🔐 LOGIN
+// ===============================
+app.get("/login", (req, res) => {
+    let email = (req.query.email || "").toLowerCase().trim();
+
+    const usuario = usuarios.find(u => u.email.toLowerCase() === email);
+
+    if (!usuario) {
+        return res.send("❌ Usuario no autorizado");
+    }
+
+    const tld = Math.floor(Date.now() / 1000);
+    const string = `${SECRET}:${email}@${tld}`;
+    const tlh = crypto.createHash("md5").update(string).digest("hex");
+
+    const url = `/tickets.html?tli=${email}&tld=${tld}&tlh=${tlh}`;
+
+    res.redirect(url);
+});
 
 // ===============================
 // 📥 CREAR TICKET
 // ===============================
 app.post("/webhook-ticket", async (req, res) => {
     try {
-        console.log("📥 CREATE:", req.body);
+        const { email, titulo, descripcion, categoria, prioridad } = req.body;
 
-        let { email, titulo, descripcion, categoria, prioridad } = req.body;
-
-        const { data, error } = await supabase.from("tickets").insert([
+        const { error } = await supabase.from("tickets").insert([
             {
-                email: (email || "test@demo.com").toLowerCase().trim(),
+                email,
                 estado: "abierto",
                 fecha: new Date().toISOString(),
-                titulo: titulo || "Sin título",
-                descripcion: descripcion || "Sin descripción",
-                categoria: categoria || null,
-                prioridad: prioridad || null
+                titulo,
+                descripcion,
+                categoria,
+                prioridad
             }
         ]);
 
         if (error) throw error;
 
-        res.json({ ok: true, data });
+        res.json({ ok: true });
 
     } catch (err) {
-        console.error("❌ ERROR CREATE:", err);
+        console.error(err);
         res.status(500).send("Error");
     }
 });
 
 // ===============================
-// 📋 LISTAR TICKETS
+// 📋 LISTAR
 // ===============================
 app.get("/tickets", async (req, res) => {
-    const { data, error } = await supabase
+    const { data } = await supabase
         .from("tickets")
         .select("*")
         .order("fecha", { ascending: false });
-
-    if (error) {
-        console.error("❌ ERROR LIST:", error);
-        return res.status(500).send("Error BD");
-    }
 
     res.json(data);
 });
 
 // ===============================
-// 🔎 OBTENER TICKET POR ID (FIX)
+// 🔎 DETALLE
 // ===============================
 app.get("/tickets/:id", async (req, res) => {
-    try {
-        const id = (req.params.id || "").trim();
+    const { data } = await supabase
+        .from("tickets")
+        .select("*")
+        .eq("id", req.params.id);
 
-        console.log("🔎 ID recibido:", id);
-
-        if (!id) {
-            return res.status(400).json({ message: "ID inválido" });
-        }
-
-        const { data, error } = await supabase
-            .from("tickets")
-            .select("*")
-            .eq("id", id);
-
-        if (error) {
-            console.error("❌ ERROR BD:", error);
-            return res.status(500).send("Error BD");
-        }
-
-        if (!data || data.length === 0) {
-            console.log("❌ NO ENCONTRADO");
-            return res.status(404).json({ message: "Ticket no encontrado" });
-        }
-
-        res.json(data[0]);
-
-    } catch (err) {
-        console.error("❌ ERROR SERVER:", err);
-        res.status(500).send("Error interno");
+    if (!data || data.length === 0) {
+        return res.status(404).send("No encontrado");
     }
+
+    res.json(data[0]);
 });
 
 // ===============================
-// 🔥 CERRAR TICKET
+// 🔥 CERRAR
 // ===============================
 app.put("/tickets/:id/cerrar", async (req, res) => {
-    const id = (req.params.id || "").trim();
-
-    console.log("🔒 Cerrando ticket:", id);
-
-    const { error } = await supabase
+    await supabase
         .from("tickets")
         .update({ estado: "cerrado" })
-        .eq("id", id);
-
-    if (error) {
-        console.error("❌ ERROR CERRAR:", error);
-        return res.status(500).send("Error BD");
-    }
+        .eq("id", req.params.id);
 
     res.json({ ok: true });
 });
 
 // ===============================
-// 🏠 HOME → REDIRIGE
-// ===============================
 app.get("/", (req, res) => {
-    res.redirect("/tickets.html");
+    res.redirect("/login-phidias");
 });
 
 // ===============================
 app.listen(PORT, () => {
-    console.log("🚀 Server corriendo en puerto " + PORT);
+    console.log("🚀 Server activo en " + PORT);
 });
