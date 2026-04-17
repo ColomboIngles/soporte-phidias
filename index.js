@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 10000;
 app.use(express.json());
 
 app.use(cors({
-    origin: "*", // luego restringes a tu dominio
+    origin: "*",
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type"]
 }));
@@ -22,18 +22,14 @@ const TOKEN_HASH_ALGO = process.env.TOKEN_HASH_ALGO || "md5";
 
 // 🟢 SUPABASE
 let supabase;
-try {
-    if (process.env.SUPABASE_URL && process.env.SUPABASE_KEY) {
-        supabase = createClient(
-            process.env.SUPABASE_URL,
-            process.env.SUPABASE_KEY
-        );
-        console.log("✅ Supabase conectado");
-    } else {
-        console.log("⚠️ Supabase no configurado");
-    }
-} catch (error) {
-    console.error("❌ Error conectando Supabase:", error.message);
+if (process.env.SUPABASE_URL && process.env.SUPABASE_KEY) {
+    supabase = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_KEY
+    );
+    console.log("✅ Supabase conectado");
+} else {
+    console.log("⚠️ Supabase no configurado");
 }
 
 // 📂 USUARIOS
@@ -50,26 +46,46 @@ function normalizarEmail(email) {
     return email.toLowerCase().trim();
 }
 
-// 🚀 LOGIN
+// 🚀 LOGIN PHIDIAS (MEJORADO)
 app.get("/login-phidias", (req, res) => {
     res.send(`
+<!DOCTYPE html>
 <html>
 <body>
-<input id="correo" placeholder="correo"/>
+
+<h2>Soporte TI</h2>
+
+<input id="correo" placeholder="correo@colomboingles.edu.co"/>
 <button onclick="ingresar()">Ingresar</button>
 
 <script>
-function ingresar(){
+const emailGuardado = localStorage.getItem("email");
+
+if (emailGuardado) {
+  window.location.href = "/login?email=" + emailGuardado;
+}
+
+function ingresar() {
   let email = document.getElementById("correo").value;
+
+  if (!email) {
+    alert("Ingrese su correo");
+    return;
+  }
+
+  email = email.toLowerCase().trim();
   localStorage.setItem("email", email);
-  window.location.href="/login?email="+email;
+
+  window.location.href = "/login?email=" + email;
 }
 </script>
+
 </body>
 </html>
 `);
 });
 
+// 🔐 LOGIN
 app.get("/login", (req, res) => {
     let email = req.query.email;
 
@@ -81,7 +97,9 @@ app.get("/login", (req, res) => {
         (u) => normalizarEmail(u.email) === email
     );
 
-    if (!usuario) return res.send("❌ Usuario no autorizado");
+    if (!usuario) {
+        return res.send("❌ Usuario no autorizado");
+    }
 
     const tld = Math.floor(Date.now() / 1000);
     const string = `${SECRET}:${email}@${tld}`;
@@ -90,6 +108,16 @@ app.get("/login", (req, res) => {
     const url = `https://soportecolombo.lovable.app/?tli=${email}&tld=${tld}&tlh=${tlh}`;
 
     res.redirect(url);
+});
+
+// 🔄 LOGOUT
+app.get("/logout", (req, res) => {
+    res.send(`
+<script>
+localStorage.removeItem("email");
+window.location.href="/login-phidias";
+</script>
+`);
 });
 
 // 📥 CREAR TICKET
@@ -147,7 +175,30 @@ app.get("/tickets", async (req, res) => {
     }
 });
 
-// 🔥 CERRAR TICKET (NUEVO)
+// 🔎 OBTENER TICKET POR ID (SOLUCIÓN PROBLEMA 1)
+app.get("/tickets/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { data, error } = await supabase
+            .from("tickets")
+            .select("*")
+            .eq("id", id)
+            .single();
+
+        if (error || !data) {
+            return res.status(404).json({ message: "Ticket no encontrado" });
+        }
+
+        res.json(data);
+
+    } catch (err) {
+        console.error("❌ Error obteniendo ticket:", err);
+        res.status(500).send("Error interno");
+    }
+});
+
+// 🔥 CERRAR TICKET
 app.put("/tickets/:id/cerrar", async (req, res) => {
     try {
         const { id } = req.params;
