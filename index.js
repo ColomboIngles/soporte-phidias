@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 10000;
 app.use(express.json());
 
 app.use(cors({
-    origin: "*", // luego puedes cambiar a tu dominio de Lovable
+    origin: "*", // luego puedes restringir a tu dominio Lovable
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type"]
 }));
@@ -108,7 +108,7 @@ app.get("/login", (req, res) => {
     res.redirect(url);
 });
 
-// 📥 WEBHOOK
+// 📥 CREAR TICKET
 app.post("/webhook-ticket", async (req, res) => {
     try {
         console.log("📥 REQUEST DESDE LOVABLE:", req.body);
@@ -117,10 +117,11 @@ app.post("/webhook-ticket", async (req, res) => {
             return res.status(500).send("Supabase no configurado");
         }
 
-        const { email, titulo, descripcion, categoria, prioridad } = req.body;
+        let { email, titulo, descripcion, categoria, prioridad } = req.body;
 
+        // fallback por si Lovable no envía email
         if (!email) {
-            return res.status(400).send("Falta email");
+            email = "test@demo.com";
         }
 
         const { data, error } = await supabase.from("tickets").insert([
@@ -149,6 +150,27 @@ app.post("/webhook-ticket", async (req, res) => {
 
     } catch (err) {
         console.error("❌ ERROR SERVER:", err);
+        res.status(500).send("Error interno");
+    }
+});
+
+// 📋 LISTAR TICKETS
+app.get("/tickets", async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from("tickets")
+            .select("*")
+            .order("fecha", { ascending: false });
+
+        if (error) {
+            console.error("❌ Error obteniendo tickets:", error);
+            return res.status(500).send("Error BD");
+        }
+
+        res.json(data);
+
+    } catch (err) {
+        console.error("❌ Error server:", err);
         res.status(500).send("Error interno");
     }
 });
