@@ -38,6 +38,7 @@ const SUPABASE_KEY_ROLE = (() => {
         return "unknown";
     }
 })();
+const WEBHOOK_ENABLED = Boolean(WEBHOOK_SECRET) && SUPABASE_KEY_ROLE === "service_role";
 
 app.use(express.json());
 app.use(
@@ -190,6 +191,7 @@ app.get("/health", (_req, res) => {
             supabaseKeyRole: SUPABASE_KEY_ROLE,
             secret: Boolean(SECRET),
             webhookSecret: Boolean(WEBHOOK_SECRET),
+            webhookEnabled: WEBHOOK_ENABLED,
             allowedOrigins,
         },
     });
@@ -249,14 +251,12 @@ app.get("/login", (req, res) => {
 
 app.post("/webhook-ticket", async (req, res) => {
     try {
-        if (!WEBHOOK_SECRET || req.headers["x-webhook-secret"] !== WEBHOOK_SECRET) {
-            return res.status(401).json({ message: "Webhook no autorizado." });
+        if (!WEBHOOK_ENABLED) {
+            return res.status(404).json({ message: "Webhook no disponible." });
         }
 
-        if (SUPABASE_KEY_ROLE !== "service_role") {
-            return res.status(503).json({
-                message: "El webhook requiere SUPABASE_KEY con service_role en Render.",
-            });
+        if (req.headers["x-webhook-secret"] !== WEBHOOK_SECRET) {
+            return res.status(401).json({ message: "Webhook no autorizado." });
         }
 
         const payload = pickTicketPayload(req.body);
