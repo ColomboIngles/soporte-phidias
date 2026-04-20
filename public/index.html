@@ -1,0 +1,64 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Soporte TI</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+    <header>
+        <h2>🛠️ Soporte TI</h2>
+    </header>
+
+    <div class="container">
+
+        <div class="top">
+            <button onclick="abrirModal()">➕ Nuevo Ticket</button>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Título</th>
+                    <th>Estado</th>
+                    <th>Categoría</th>
+                    <th>Prioridad</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+
+            <tbody id="tabla"></tbody>
+        </table>
+
+    </div>
+
+    <!-- MODAL -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <h3>Nuevo Ticket</h3>
+
+            <input id="titulo" placeholder="Título" />
+            <textarea id="descripcion" placeholder="Descripción"></textarea>
+
+            <select id="categoria">
+                <option value="software">Software</option>
+                <option value="hardware">Hardware</option>
+            </select>
+
+            <select id="prioridad">
+                <option value="low">Baja</option>
+                <option value="medium">Media</option>
+                <option value="high">Alta</option>
+            </select>
+
+            <button onclick="crearTicket()">Crear</button>
+            <button onclick="cerrarModal()">Cancelar</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+
+</body>
+</html>
