@@ -9,8 +9,9 @@ export default function EditarTicket() {
     const [form, setForm] = useState({});
 
     useEffect(() => {
+        if (!id) return;
         API.get(`/tickets/${id}`).then((res) => setForm(res.data));
-    }, []);
+    }, [id]);
 
     async function guardar() {
         await API.put(`/tickets/${id}`, form);

@@ -15,5 +15,5 @@ export default function useRealtimeTickets(onChange) {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, []);
+    }, [onChange]);
 }

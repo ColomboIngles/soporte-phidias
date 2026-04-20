@@ -9,24 +9,24 @@ export default function TicketDetalle() {
     const [user, setUser] = useState(null);
 
     useEffect(() => {
+        async function cargar() {
+            const { data } = await supabase
+                .from("tickets")
+                .select("*")
+                .eq("id", id)
+                .single();
+
+            setTicket(data);
+        }
+
+        async function obtenerUsuario() {
+            const { data } = await supabase.auth.getUser();
+            setUser(data.user);
+        }
+
         cargar();
         obtenerUsuario();
     }, [id]);
-
-    async function obtenerUsuario() {
-        const { data } = await supabase.auth.getUser();
-        setUser(data.user);
-    }
-
-    async function cargar() {
-        const { data } = await supabase
-            .from("tickets")
-            .select("*")
-            .eq("id", id)
-            .single();
-
-        setTicket(data);
-    }
 
     async function cambiarEstado(nuevoEstado) {
         if (!ticket) return;
@@ -47,8 +47,13 @@ export default function TicketDetalle() {
                 mensaje: `El ticket "${ticket.titulo}" cambió a ${nuevoEstado}`,
             },
         ]);
+        const { data } = await supabase
+            .from("tickets")
+            .select("*")
+            .eq("id", id)
+            .single();
 
-        cargar();
+        setTicket(data);
     }
 
     if (!ticket) return <p className="p-6">Cargando...</p>;

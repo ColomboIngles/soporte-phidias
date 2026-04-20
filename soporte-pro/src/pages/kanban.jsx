@@ -18,6 +18,28 @@ export default function Kanban() {
     const [usuarios, setUsuarios] = useState([]);
 
     useEffect(() => {
+        async function cargar() {
+            const { data } = await supabase.from("tickets").select("*");
+
+            const nuevo = {
+                abierto: { ...base.abierto, items: [] },
+                en_proceso: { ...base.en_proceso, items: [] },
+                cerrado: { ...base.cerrado, items: [] },
+            };
+
+            (data || []).forEach((t) => {
+                const estado = t.estado || "abierto";
+                if (nuevo[estado]) nuevo[estado].items.push(t);
+            });
+
+            setColumnas(nuevo);
+        }
+
+        async function cargarUsuarios() {
+            const { data } = await supabase.from("usuarios").select("*");
+            setUsuarios(data || []);
+        }
+
         cargar();
         cargarUsuarios();
 
@@ -33,24 +55,6 @@ export default function Kanban() {
 
         return () => supabase.removeChannel(channel);
     }, []);
-
-    async function cargar() {
-        const { data } = await supabase.from("tickets").select("*");
-
-        const nuevo = { ...base };
-
-        data.forEach((t) => {
-            const estado = t.estado || "abierto";
-            if (nuevo[estado]) nuevo[estado].items.push(t);
-        });
-
-        setColumnas(nuevo);
-    }
-
-    async function cargarUsuarios() {
-        const { data } = await supabase.from("usuarios").select("*");
-        setUsuarios(data || []);
-    }
 
     async function actualizarEstado(id, estado) {
         await supabase

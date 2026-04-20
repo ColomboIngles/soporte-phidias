@@ -7,7 +7,7 @@ import {
     Tooltip,
     ResponsiveContainer,
 } from "recharts";
-import Skeleton from "../components/Skeleton";
+import Skeleton from "../components/skeleton";
 
 const COLORS = ["#4f46e5", "#f59e0b", "#22c55e"];
 
@@ -16,6 +16,13 @@ export default function Dashboard() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        async function cargar() {
+            setLoading(true);
+            const { data } = await supabase.from("tickets").select("*");
+            setTickets(data || []);
+            setLoading(false);
+        }
+
         cargar();
 
         const channel = supabase
@@ -29,13 +36,6 @@ export default function Dashboard() {
 
         return () => supabase.removeChannel(channel);
     }, []);
-
-    async function cargar() {
-        setLoading(true);
-        const { data } = await supabase.from("tickets").select("*");
-        setTickets(data || []);
-        setLoading(false);
-    }
 
     // 📊 KPIs
     const abiertos = tickets.filter(t => t.estado === "abierto").length;

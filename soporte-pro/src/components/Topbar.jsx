@@ -1,6 +1,6 @@
 import { supabase } from "../services/supabase";
 import { Bell, Moon, Sun } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 export default function Topbar({ user }) {
     const [dark, setDark] = useState(
@@ -20,7 +20,7 @@ export default function Topbar({ user }) {
 
     async function logout() {
         await supabase.auth.signOut();
-        location.reload();
+        window.location.reload();
     }
 
     return (

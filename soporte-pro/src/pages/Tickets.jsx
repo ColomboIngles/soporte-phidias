@@ -10,11 +10,36 @@ export default function Tickets({ role }) {
     const navigate = useNavigate();
 
     useEffect(() => {
+        async function obtenerUsuario() {
+            const { data } = await supabase.auth.getUser();
+            setUser(data.user);
+        }
+
         obtenerUsuario();
     }, []);
 
     useEffect(() => {
-        if (user) cargar();
+        if (!user) return undefined;
+
+        async function cargar() {
+            let query = supabase.from("tickets").select("*");
+
+            if (role === "usuario") {
+                query = query.eq("email", user.email);
+            }
+
+            if (role === "tecnico") {
+                query = query.eq("asignado_a", user.id);
+            }
+
+            const { data } = await query.order("created_at", {
+                ascending: false,
+            });
+
+            setTickets(data || []);
+        }
+
+        cargar();
 
         const channel = supabase
             .channel("tickets-realtime")
@@ -26,31 +51,7 @@ export default function Tickets({ role }) {
             .subscribe();
 
         return () => supabase.removeChannel(channel);
-    }, [user]);
-
-    async function obtenerUsuario() {
-        const { data } = await supabase.auth.getUser();
-        setUser(data.user);
-    }
-
-    async function cargar() {
-        let query = supabase.from("tickets").select("*");
-
-        // 🔐 FILTRO POR ROL
-        if (role === "usuario") {
-            query = query.eq("email", user.email);
-        }
-
-        if (role === "tecnico") {
-            query = query.eq("asignado_a", user.id);
-        }
-
-        const { data } = await query.order("created_at", {
-            ascending: false,
-        });
-
-        setTickets(data || []);
-    }
+    }, [role, user]);
 
     async function cerrar(t) {
         await supabase

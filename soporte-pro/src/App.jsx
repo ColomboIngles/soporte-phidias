@@ -9,34 +9,53 @@ import Topbar from "./components/Topbar";
 import Dashboard from "./pages/Dashboard";
 import Tickets from "./pages/Tickets";
 import TicketDetalle from "./pages/TicketDetalle";
-import Kanban from "./pages/Kanban";
+import Kanban from "./pages/kanban";
 import Usuarios from "./pages/Usuarios";
 import Login from "./pages/Login";
+import NuevoTicket from "./pages/NuevoTicket";
+import EditarTicket from "./pages/EditarTicket";
 
 function App() {
     const [session, setSession] = useState(null);
     const [rol, setRol] = useState(null);
 
     useEffect(() => {
+        let isMounted = true;
+
         supabase.auth.getSession().then(async ({ data }) => {
+            if (!isMounted) return;
             setSession(data.session);
 
             if (data.session?.user) {
                 await crearUsuarioSiNoExiste(data.session.user);
                 const r = await obtenerRol(data.session.user.id);
-                setRol(r);
+                if (isMounted) {
+                    setRol(r);
+                }
             }
         });
 
-        supabase.auth.onAuthStateChange(async (_, session) => {
+        const {
+            data: { subscription },
+        } = supabase.auth.onAuthStateChange(async (_, session) => {
+            if (!isMounted) return;
             setSession(session);
 
             if (session?.user) {
                 await crearUsuarioSiNoExiste(session.user);
                 const r = await obtenerRol(session.user.id);
-                setRol(r);
+                if (isMounted) {
+                    setRol(r);
+                }
+            } else {
+                setRol(null);
             }
         });
+
+        return () => {
+            isMounted = false;
+            subscription.unsubscribe();
+        };
     }, []);
 
     if (!session) return <Login />;
@@ -60,7 +79,9 @@ function App() {
                         <Routes>
                             <Route path="/" element={<Dashboard />} />
                             <Route path="/tickets" element={<Tickets role={rol} />} />
+                            <Route path="/tickets/nuevo" element={<NuevoTicket />} />
                             <Route path="/tickets/:id" element={<TicketDetalle />} />
+                            <Route path="/tickets/:id/editar" element={<EditarTicket />} />
                             <Route path="/kanban" element={<Kanban />} />
 
                             {rol === "admin" && (

@@ -5,6 +5,20 @@ export default function useNotifications(user) {
     const [notificaciones, setNotificaciones] = useState([]);
 
     useEffect(() => {
+        if (!user) {
+            return undefined;
+        }
+
+        async function cargar() {
+            const { data } = await supabase
+                .from("notificaciones")
+                .select("*")
+                .eq("usuario", user)
+                .order("created_at", { ascending: false });
+
+            setNotificaciones(data || []);
+        }
+
         cargar();
 
         const channel = supabase
@@ -23,15 +37,5 @@ export default function useNotifications(user) {
         return () => supabase.removeChannel(channel);
     }, [user]);
 
-    async function cargar() {
-        const { data } = await supabase
-            .from("notificaciones")
-            .select("*")
-            .eq("usuario", user)
-            .order("created_at", { ascending: false });
-
-        setNotificaciones(data || []);
-    }
-
-    return notificaciones;
+    return user ? notificaciones : [];
 }

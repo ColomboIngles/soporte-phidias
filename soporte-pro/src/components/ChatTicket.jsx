@@ -6,6 +6,16 @@ export default function ChatTicket({ ticketId, user }) {
   const [texto, setTexto] = useState("");
 
   useEffect(() => {
+    async function cargar() {
+      const { data } = await supabase
+        .from("comentarios")
+        .select("*")
+        .eq("ticket_id", ticketId)
+        .order("created_at");
+
+      setMensajes(data || []);
+    }
+
     cargar();
 
     const channel = supabase
@@ -26,16 +36,6 @@ export default function ChatTicket({ ticketId, user }) {
 
     return () => supabase.removeChannel(channel);
   }, [ticketId]);
-
-  async function cargar() {
-    const { data } = await supabase
-      .from("comentarios")
-      .select("*")
-      .eq("ticket_id", ticketId)
-      .order("created_at");
-
-    setMensajes(data || []);
-  }
 
   async function enviar() {
     if (!texto) return;

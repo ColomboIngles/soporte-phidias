@@ -9,7 +9,10 @@ import {
 export default function Sidebar({ rol }) {
     const location = useLocation();
 
-    const item = (path, label, Icon) => (
+    const item = (path, label, icon) => {
+        const IconComponent = icon;
+
+        return (
         <Link
             to={path}
             className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all
@@ -18,10 +21,11 @@ export default function Sidebar({ rol }) {
                     : "text-gray-400 hover:bg-white/5 hover:text-white"
                 }`}
         >
-            <Icon size={18} />
+            <IconComponent size={18} />
             {label}
         </Link>
     );
+    };
 
     return (
         <div className="w-64 h-full p-4 backdrop-blur-xl bg-white/5 border-r border-white/10">
