@@ -1,5 +1,6 @@
-﻿import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { LoaderCircle, ShieldCheck } from "lucide-react";
 import { supabase } from "./services/supabase";
 import { crearUsuarioSiNoExiste, obtenerRol } from "./services/usuarios";
 
@@ -11,45 +12,75 @@ import Tickets from "./pages/Tickets";
 import TicketDetalle from "./pages/TicketDetalle";
 import Kanban from "./pages/kanban";
 import Usuarios from "./pages/Usuarios";
+import Auditoria from "./pages/Auditoria";
 import Login from "./pages/Login";
 import NuevoTicket from "./pages/NuevoTicket";
 import EditarTicket from "./pages/EditarTicket";
+import { ToastProvider } from "./components/ToastProvider";
+
+function AppBootSplash() {
+    return (
+        <div className="flex min-h-screen items-center justify-center px-4">
+            <div className="glass-panel w-full max-w-xl rounded-[2rem] p-8 text-center">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl border border-cyan-400/20 bg-cyan-400/10">
+                    <ShieldCheck className="h-7 w-7 text-cyan-300" />
+                </div>
+
+                <h1 className="mt-6 text-3xl font-semibold tracking-tight text-white">
+                    Preparando tu workspace
+                </h1>
+                <p className="mt-3 text-sm leading-6 text-slate-400">
+                    Estamos validando sesión, permisos y contexto inicial para evitar que el panel aparezca a medio cargar.
+                </p>
+
+                <div className="mt-8 inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-300">
+                    <LoaderCircle className="h-4 w-4 animate-spin text-cyan-300" />
+                    Cargando entorno seguro...
+                </div>
+            </div>
+        </div>
+    );
+}
 
 function App() {
     const [session, setSession] = useState(null);
     const [rol, setRol] = useState(null);
+    const [bootstrapping, setBootstrapping] = useState(true);
 
     useEffect(() => {
         let isMounted = true;
 
-        supabase.auth.getSession().then(async ({ data }) => {
+        async function hydrateSession(nextSession) {
             if (!isMounted) return;
-            setSession(data.session);
 
-            if (data.session?.user) {
-                await crearUsuarioSiNoExiste(data.session.user);
-                const r = await obtenerRol(data.session.user.id);
+            setSession(nextSession);
+
+            if (!nextSession?.user) {
+                setRol(null);
                 if (isMounted) {
-                    setRol(r);
+                    setBootstrapping(false);
                 }
+                return;
             }
+
+            await crearUsuarioSiNoExiste(nextSession.user);
+            const nextRol = await obtenerRol(nextSession.user.id);
+
+            if (!isMounted) return;
+
+            setRol(nextRol);
+            setBootstrapping(false);
+        }
+
+        supabase.auth.getSession().then(({ data }) => {
+            hydrateSession(data.session);
         });
 
         const {
             data: { subscription },
-        } = supabase.auth.onAuthStateChange(async (_, session) => {
-            if (!isMounted) return;
-            setSession(session);
-
-            if (session?.user) {
-                await crearUsuarioSiNoExiste(session.user);
-                const r = await obtenerRol(session.user.id);
-                if (isMounted) {
-                    setRol(r);
-                }
-            } else {
-                setRol(null);
-            }
+        } = supabase.auth.onAuthStateChange((_, nextSession) => {
+            setBootstrapping(true);
+            hydrateSession(nextSession);
         });
 
         return () => {
@@ -58,43 +89,44 @@ function App() {
         };
     }, []);
 
-    if (!session) return <Login />;
-
     return (
-        <BrowserRouter>
-            <div className="flex h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 text-white">
+        <ToastProvider>
+            {bootstrapping ? (
+                <AppBootSplash />
+            ) : !session ? (
+                <Login />
+            ) : (
+                <BrowserRouter>
+                    <div className="flex min-h-screen bg-transparent text-white">
+                        <Sidebar rol={rol} />
 
-                {/* SIDEBAR */}
-                <Sidebar rol={rol} />
+                        <div className="flex min-h-screen flex-1 flex-col">
+                            <Topbar user={session.user} />
 
-                {/* CONTENIDO */}
-                <div className="flex-1 flex flex-col">
+                            <main className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6">
+                                <Routes>
+                                    <Route path="/" element={<Dashboard />} />
+                                    <Route path="/tickets" element={<Tickets role={rol} />} />
+                                    <Route path="/tickets/nuevo" element={<NuevoTicket />} />
+                                    <Route path="/tickets/:id" element={<TicketDetalle />} />
+                                    <Route path="/tickets/:id/editar" element={<EditarTicket />} />
+                                    <Route path="/kanban" element={<Kanban />} />
 
-                    {/* TOPBAR */}
-                    <Topbar user={session.user} />
+                                    {rol === "admin" && (
+                                        <>
+                                            <Route path="/usuarios" element={<Usuarios />} />
+                                            <Route path="/auditoria" element={<Auditoria />} />
+                                        </>
+                                    )}
 
-                    {/* MAIN */}
-                    <div className="flex-1 overflow-y-auto p-6">
-
-                        <Routes>
-                            <Route path="/" element={<Dashboard />} />
-                            <Route path="/tickets" element={<Tickets role={rol} />} />
-                            <Route path="/tickets/nuevo" element={<NuevoTicket />} />
-                            <Route path="/tickets/:id" element={<TicketDetalle />} />
-                            <Route path="/tickets/:id/editar" element={<EditarTicket />} />
-                            <Route path="/kanban" element={<Kanban />} />
-
-                            {rol === "admin" && (
-                                <Route path="/usuarios" element={<Usuarios />} />
-                            )}
-
-                            <Route path="*" element={<Navigate to="/" />} />
-                        </Routes>
-
+                                    <Route path="*" element={<Navigate to="/" />} />
+                                </Routes>
+                            </main>
+                        </div>
                     </div>
-                </div>
-            </div>
-        </BrowserRouter>
+                </BrowserRouter>
+            )}
+        </ToastProvider>
     );
 }
 

@@ -15,7 +15,7 @@ export default function Filters({ onFilter }) {
             >
                 <option value="">Todos</option>
                 <option value="abierto">Abierto</option>
-                <option value="proceso">Proceso</option>
+                <option value="en_proceso">En proceso</option>
                 <option value="cerrado">Cerrado</option>
             </select>
 

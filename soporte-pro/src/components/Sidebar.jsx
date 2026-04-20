@@ -3,50 +3,72 @@ import {
     LayoutDashboard,
     Ticket,
     KanbanSquare,
-    Users
+    Users,
+    ShieldCheck,
+    Sparkles,
 } from "lucide-react";
 
 export default function Sidebar({ rol }) {
     const location = useLocation();
 
-    const item = (path, label, icon) => {
+    function item(path, label, icon) {
         const IconComponent = icon;
+        const active = location.pathname === path;
 
         return (
-        <Link
-            to={path}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all
-      ${location.pathname === path
-                    ? "bg-indigo-600 text-white shadow-lg"
-                    : "text-gray-400 hover:bg-white/5 hover:text-white"
+            <Link
+                to={path}
+                className={`group flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium ${
+                    active
+                        ? "border border-cyan-400/20 bg-cyan-400/12 text-white shadow-[0_12px_40px_rgba(56,189,248,0.18)]"
+                        : "border border-transparent text-slate-400 hover:border-white/10 hover:bg-white/[0.06] hover:text-white"
                 }`}
-        >
-            <IconComponent size={18} />
-            {label}
-        </Link>
-    );
-    };
+            >
+                <span
+                    className={`flex h-9 w-9 items-center justify-center rounded-2xl ${
+                        active
+                            ? "bg-cyan-400/15 text-cyan-200"
+                            : "bg-white/[0.04] text-slate-400 group-hover:bg-white/10 group-hover:text-slate-200"
+                    }`}
+                >
+                    <IconComponent size={17} />
+                </span>
+                <span>{label}</span>
+            </Link>
+        );
+    }
 
     return (
-        <div className="w-64 h-full p-4 backdrop-blur-xl bg-white/5 border-r border-white/10">
-
-            <div className="mb-8 px-2">
-                <h1 className="text-xl font-bold">🚀 Soporte</h1>
-                <p className="text-xs text-gray-400">SaaS PRO</p>
+        <aside className="relative hidden h-full w-72 shrink-0 border-r border-white/10 bg-slate-950/45 p-5 backdrop-blur-2xl lg:flex lg:flex-col">
+            <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.04] p-4 shadow-[0_20px_60px_rgba(15,23,42,0.24)]">
+                <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-200">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Soporte Pro
+                </div>
+                <h1 className="mt-4 text-xl font-semibold tracking-tight text-white">
+                    Workspace SaaS
+                </h1>
+                <p className="mt-2 text-sm leading-6 text-slate-400">
+                    Gestión centralizada de tickets, analítica y operación técnica.
+                </p>
             </div>
 
-            <nav className="space-y-2">
+            <nav className="mt-6 space-y-2">
                 {item("/", "Dashboard", LayoutDashboard)}
                 {item("/tickets", "Tickets", Ticket)}
                 {item("/kanban", "Kanban", KanbanSquare)}
-
-                {rol === "admin" &&
-                    item("/usuarios", "Usuarios", Users)}
+                {rol === "admin" && item("/usuarios", "Usuarios", Users)}
+                {rol === "admin" && item("/auditoria", "Auditoría", ShieldCheck)}
             </nav>
 
-            <div className="absolute bottom-4 left-4 text-xs text-gray-500">
-                Rol: {rol}
+            <div className="mt-auto rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                    Rol activo
+                </p>
+                <p className="mt-2 text-sm font-semibold capitalize text-white">
+                    {rol || "cargando"}
+                </p>
             </div>
-        </div>
+        </aside>
     );
 }
