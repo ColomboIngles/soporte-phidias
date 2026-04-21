@@ -1,12 +1,9 @@
 import { useEffect, useState } from "react";
 import { KanbanSquare } from "lucide-react";
+import { DragDropContext, Draggable, Droppable } from "@hello-pangea/dnd";
 import { supabase } from "../services/supabase";
-import { crearNotificacion } from "../services/notificaciones";
-import {
-    DragDropContext,
-    Droppable,
-    Draggable,
-} from "@hello-pangea/dnd";
+import API from "../services/api";
+import { useToast } from "../hooks/useToast";
 import {
     elegirTecnicoConMenosTickets,
     obtenerTecnicos,
@@ -14,6 +11,7 @@ import {
 } from "../services/asignacion";
 import Skeleton from "../components/skeleton";
 import EmptyState from "../components/EmptyState";
+import { isAdminRole } from "../utils/permissions";
 
 const base = {
     abierto: { name: "Abiertos", items: [] },
@@ -21,11 +19,14 @@ const base = {
     cerrado: { name: "Cerrados", items: [] },
 };
 
-export default function Kanban() {
+export default function Kanban({ rol }) {
     const [columnas, setColumnas] = useState(base);
     const [tecnicos, setTecnicos] = useState([]);
     const [tickets, setTickets] = useState([]);
     const [loading, setLoading] = useState(true);
+    const { showToast } = useToast();
+
+    const canAssign = isAdminRole(rol);
 
     useEffect(() => {
         async function cargarTickets() {
@@ -86,47 +87,71 @@ export default function Kanban() {
     }, []);
 
     async function actualizarEstado(id, estado) {
-        await supabase
-            .from("tickets")
-            .update({
+        try {
+            await API.put(`/tickets/${id}`, {
                 estado,
-                updated_at: new Date(),
-            })
-            .eq("id", id);
+            });
+        } catch (error) {
+            showToast({
+                type: "error",
+                title: "No se pudo mover el ticket",
+                message:
+                    error.response?.data?.message ||
+                    error.message ||
+                    "Intenta nuevamente en unos segundos.",
+            });
+        }
     }
 
     async function asignar(id, tecnicoId, titulo) {
-        await supabase
-            .from("tickets")
-            .update({
+        try {
+            await API.put(`/tickets/${id}`, {
                 asignado_a: tecnicoId || null,
-                updated_at: new Date(),
-            })
-            .eq("id", id);
+            });
 
-        setTickets((prev) =>
-            prev.map((ticket) =>
-                ticket.id === id ? { ...ticket, asignado_a: tecnicoId || null } : ticket
-            )
-        );
+            setTickets((prev) =>
+                prev.map((ticket) =>
+                    ticket.id === id
+                        ? { ...ticket, asignado_a: tecnicoId || null }
+                        : ticket
+                )
+            );
 
-        await crearNotificacion(
-            "admin@correo.com",
-            `Ticket "${titulo}" asignado`
-        );
+            showToast({
+                type: "success",
+                title: tecnicoId ? "Técnico asignado" : "Asignación removida",
+                message: tecnicoId
+                    ? `“${titulo}” ya tiene responsable.`
+                    : `“${titulo}” volvió a quedar sin asignación.`,
+            });
+        } catch (error) {
+            showToast({
+                type: "error",
+                title: "No se pudo actualizar la asignación",
+                message:
+                    error.response?.data?.message ||
+                    error.message ||
+                    "Intenta nuevamente en unos segundos.",
+            });
+        }
     }
 
     async function autoAsignar(ticket) {
         const tecnico = elegirTecnicoConMenosTickets(tickets, tecnicos);
-        if (!tecnico) return;
+        if (!tecnico) {
+            showToast({
+                type: "info",
+                title: "No hay técnicos disponibles",
+                message: "Crea o habilita usuarios con rol técnico para usar autoasignación.",
+            });
+            return;
+        }
 
         await asignar(ticket.id, tecnico.id, ticket.titulo);
     }
 
     function getSLAColor(ticket) {
-        const horas =
-            (new Date() - new Date(ticket.created_at)) /
-            (1000 * 60 * 60);
+        const horas = (new Date() - new Date(ticket.created_at)) / (1000 * 60 * 60);
 
         if (horas > ticket.tiempo_resolucion) return "bg-red-500";
         if (horas > ticket.tiempo_respuesta) return "bg-yellow-400";
@@ -154,11 +179,6 @@ export default function Kanban() {
         });
 
         await actualizarEstado(moved.id, destination.droppableId);
-
-        await crearNotificacion(
-            "admin@correo.com",
-            `Ticket "${moved.titulo}" movido a ${destination.droppableId}`
-        );
     };
 
     if (loading) {
@@ -176,33 +196,34 @@ export default function Kanban() {
                     Flujo operativo por columnas
                 </h1>
                 <p className="mt-2 text-sm leading-6 text-slate-400">
-                    Arrastra tickets, asigna técnicos y prioriza trabajo desde una vista visual más clara.
+                    Arrastra tickets, actualiza estados y coordina trabajo con una vista visual más clara.
                 </p>
             </section>
 
-            <div className="flex gap-4 mb-6 text-sm">
+            <div className="mb-6 flex gap-4 text-sm">
                 <span className="flex items-center gap-1">
-                    <span className="w-3 h-3 bg-green-500 rounded-full" /> OK
+                    <span className="h-3 w-3 rounded-full bg-green-500" /> OK
                 </span>
                 <span className="flex items-center gap-1">
-                    <span className="w-3 h-3 bg-yellow-400 rounded-full" /> Riesgo
+                    <span className="h-3 w-3 rounded-full bg-yellow-400" /> Riesgo
                 </span>
                 <span className="flex items-center gap-1">
-                    <span className="w-3 h-3 bg-red-500 rounded-full" /> Vencido
+                    <span className="h-3 w-3 rounded-full bg-red-500" /> Vencido
                 </span>
             </div>
 
             <DragDropContext onDragEnd={onDragEnd}>
-                <div className="grid md:grid-cols-3 gap-6">
+                <div className="grid gap-6 md:grid-cols-3">
                     {tickets.length === 0 && (
                         <div className="md:col-span-3">
                             <EmptyState
                                 icon={KanbanSquare}
                                 title="No hay tickets para organizar"
-                                description="Cuando entren tickets al sistema podrás moverlos entre columnas y asignarlos a técnicos desde aquí."
+                                description="Cuando entren tickets al sistema podrás moverlos entre columnas y asignarlos desde aquí."
                             />
                         </div>
                     )}
+
                     {Object.entries(columnas).map(([id, col]) => (
                         <div key={id} className="glass-panel rounded-[1.75rem] p-4">
                             <h2 className="mb-4 font-semibold text-white">{col.name}</h2>
@@ -212,7 +233,7 @@ export default function Kanban() {
                                     <div
                                         ref={provided.innerRef}
                                         {...provided.droppableProps}
-                                        className="space-y-3 min-h-[200px]"
+                                        className="min-h-[200px] space-y-3"
                                     >
                                         {col.items.map((ticket, index) => (
                                             <Draggable
@@ -227,37 +248,67 @@ export default function Kanban() {
                                                         {...dragProvided.dragHandleProps}
                                                         className="glass-card soft-hover rounded-[1.5rem] p-4"
                                                     >
-                                                        <div className="flex justify-between">
-                                                            <p className="font-medium text-white">{ticket.titulo}</p>
-                                                            <span className={`w-3 h-3 rounded-full ${getSLAColor(ticket)}`} />
+                                                        <div className="flex justify-between gap-3">
+                                                            <p className="font-medium text-white">
+                                                                {ticket.titulo}
+                                                            </p>
+                                                            <span
+                                                                className={`h-3 w-3 rounded-full ${getSLAColor(
+                                                                    ticket
+                                                                )}`}
+                                                            />
                                                         </div>
 
-                                                        <p className="text-xs mt-2 text-slate-300">{ticket.prioridad}</p>
+                                                        <p className="mt-2 text-xs text-slate-300">
+                                                            {ticket.prioridad}
+                                                        </p>
                                                         <p className="mt-1 text-xs text-slate-400">
-                                                            {resolverNombreTecnico(tecnicos, ticket.asignado_a)}
+                                                            {resolverNombreTecnico(
+                                                                tecnicos,
+                                                                ticket.asignado_a
+                                                            )}
                                                         </p>
 
-                                                        <select
-                                                            className="mt-2 w-full rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-xs outline-none"
-                                                            value={ticket.asignado_a || ""}
-                                                            onChange={(event) =>
-                                                                asignar(ticket.id, event.target.value, ticket.titulo)
-                                                            }
-                                                        >
-                                                            <option value="">Sin asignar</option>
-                                                            {tecnicos.map((tecnico) => (
-                                                                <option key={tecnico.id} value={tecnico.id}>
-                                                                    {tecnico.nombre || tecnico.email}
-                                                                </option>
-                                                            ))}
-                                                        </select>
+                                                        {canAssign ? (
+                                                            <>
+                                                                <select
+                                                                    className="mt-2 w-full rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-xs outline-none"
+                                                                    value={ticket.asignado_a || ""}
+                                                                    onChange={(event) =>
+                                                                        asignar(
+                                                                            ticket.id,
+                                                                            event.target.value,
+                                                                            ticket.titulo
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <option value="">Sin asignar</option>
+                                                                    {tecnicos.map((tecnico) => (
+                                                                        <option
+                                                                            key={tecnico.id}
+                                                                            value={tecnico.id}
+                                                                        >
+                                                                            {tecnico.nombre || tecnico.email}
+                                                                        </option>
+                                                                    ))}
+                                                                </select>
 
-                                                        <button
-                                                            onClick={() => autoAsignar(ticket)}
-                                                            className="mt-2 w-full rounded-lg border border-sky-400/20 bg-sky-400/10 px-3 py-2 text-xs font-medium text-sky-200 transition hover:bg-sky-400/15"
-                                                        >
-                                                            Auto asignar
-                                                        </button>
+                                                                <button
+                                                                    onClick={() => autoAsignar(ticket)}
+                                                                    className="mt-2 w-full rounded-lg border border-sky-400/20 bg-sky-400/10 px-3 py-2 text-xs font-medium text-sky-200 transition hover:bg-sky-400/15"
+                                                                >
+                                                                    Auto asignar
+                                                                </button>
+                                                            </>
+                                                        ) : (
+                                                            <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-slate-300">
+                                                                Responsable:{" "}
+                                                                {resolverNombreTecnico(
+                                                                    tecnicos,
+                                                                    ticket.asignado_a
+                                                                )}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 )}
                                             </Draggable>

@@ -7,6 +7,7 @@ import {
     Sparkles,
 } from "lucide-react";
 import { supabase } from "../services/supabase";
+import API from "../services/api";
 
 const MotionDiv = motion.div;
 
@@ -117,16 +118,16 @@ export default function ChatTicket({ ticketId, user }) {
         setSending(true);
         setError("");
 
-        const { error: insertError } = await supabase.from("comentarios").insert([
-            {
-                ticket_id: ticketId,
-                usuario: user,
+        try {
+            await API.post(`/tickets/${ticketId}/comments`, {
                 mensaje: contenido,
-            },
-        ]);
-
-        if (insertError) {
-            setError(insertError.message || "No se pudo enviar el mensaje.");
+            });
+        } catch (error) {
+            setError(
+                error.response?.data?.message ||
+                    error.message ||
+                    "No se pudo enviar el mensaje."
+            );
             setSending(false);
             return;
         }

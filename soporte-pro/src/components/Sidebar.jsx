@@ -1,15 +1,26 @@
 import { Link, useLocation } from "react-router-dom";
 import {
-    LayoutDashboard,
-    Ticket,
     KanbanSquare,
-    Users,
+    LayoutDashboard,
     ShieldCheck,
     Sparkles,
+    Ticket,
+    Users,
 } from "lucide-react";
+import { getNavigationItems, isEndUserRole } from "../utils/permissions";
+
+const ICONS = {
+    dashboard: LayoutDashboard,
+    tickets: Ticket,
+    kanban: KanbanSquare,
+    usuarios: Users,
+    auditoria: ShieldCheck,
+};
 
 export default function Sidebar({ rol }) {
     const location = useLocation();
+    const navigationItems = getNavigationItems(rol);
+    const isEndUser = isEndUserRole(rol);
 
     function item(path, label, icon) {
         const IconComponent = icon;
@@ -46,19 +57,19 @@ export default function Sidebar({ rol }) {
                     Soporte Pro
                 </div>
                 <h1 className="mt-4 text-xl font-semibold tracking-tight text-white">
-                    Workspace SaaS
+                    {isEndUser ? "Seguimiento de tickets" : "Workspace SaaS"}
                 </h1>
                 <p className="mt-2 text-sm leading-6 text-slate-400">
-                    Gestión centralizada de tickets, analítica y operación técnica.
+                    {isEndUser
+                        ? "Consulta el estado de tus solicitudes, adjunta evidencias y conversa con soporte en tiempo real."
+                        : "Gestión centralizada de tickets, analítica y operación técnica."}
                 </p>
             </div>
 
             <nav className="mt-6 space-y-2">
-                {item("/", "Dashboard", LayoutDashboard)}
-                {item("/tickets", "Tickets", Ticket)}
-                {item("/kanban", "Kanban", KanbanSquare)}
-                {rol === "admin" && item("/usuarios", "Usuarios", Users)}
-                {rol === "admin" && item("/auditoria", "Auditoría", ShieldCheck)}
+                {navigationItems.map((navItem) =>
+                    item(navItem.path, navItem.label, ICONS[navItem.key])
+                )}
             </nav>
 
             <div className="mt-auto rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4">

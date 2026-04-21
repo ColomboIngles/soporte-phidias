@@ -17,6 +17,14 @@ import Login from "./pages/Login";
 import NuevoTicket from "./pages/NuevoTicket";
 import EditarTicket from "./pages/EditarTicket";
 import { ToastProvider } from "./components/ToastProvider";
+import {
+    canAccessDashboard,
+    canAccessKanban,
+    canAccessTicketEdit,
+    canAccessUserAdmin,
+    canCreateTickets,
+    getHomeRouteByRole,
+} from "./utils/permissions";
 
 function AppBootSplash() {
     return (
@@ -89,6 +97,8 @@ function App() {
         };
     }, []);
 
+    const homeRoute = getHomeRouteByRole(rol);
+
     return (
         <ToastProvider>
             {bootstrapping ? (
@@ -101,25 +111,64 @@ function App() {
                         <Sidebar rol={rol} />
 
                         <div className="flex min-h-screen flex-1 flex-col">
-                            <Topbar user={session.user} />
+                            <Topbar user={session.user} rol={rol} />
 
                             <main className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6">
                                 <Routes>
-                                    <Route path="/" element={<Dashboard />} />
+                                    <Route
+                                        path="/"
+                                        element={
+                                            canAccessDashboard(rol) ? (
+                                                <Dashboard />
+                                            ) : (
+                                                <Navigate to="/tickets" replace />
+                                            )
+                                        }
+                                    />
                                     <Route path="/tickets" element={<Tickets role={rol} />} />
-                                    <Route path="/tickets/nuevo" element={<NuevoTicket />} />
-                                    <Route path="/tickets/:id" element={<TicketDetalle />} />
-                                    <Route path="/tickets/:id/editar" element={<EditarTicket />} />
-                                    <Route path="/kanban" element={<Kanban />} />
+                                    <Route
+                                        path="/tickets/nuevo"
+                                        element={
+                                            canCreateTickets(rol) ? (
+                                                <NuevoTicket rol={rol} />
+                                            ) : (
+                                                <Navigate to={homeRoute} replace />
+                                            )
+                                        }
+                                    />
+                                    <Route
+                                        path="/tickets/:id"
+                                        element={<TicketDetalle rol={rol} />}
+                                    />
+                                    <Route
+                                        path="/tickets/:id/editar"
+                                        element={
+                                            canAccessTicketEdit(rol) ? (
+                                                <EditarTicket />
+                                            ) : (
+                                                <Navigate to="/tickets" replace />
+                                            )
+                                        }
+                                    />
+                                    <Route
+                                        path="/kanban"
+                                        element={
+                                            canAccessKanban(rol) ? (
+                                                <Kanban rol={rol} />
+                                            ) : (
+                                                <Navigate to="/tickets" replace />
+                                            )
+                                        }
+                                    />
 
-                                    {rol === "admin" && (
+                                    {canAccessUserAdmin(rol) && (
                                         <>
                                             <Route path="/usuarios" element={<Usuarios />} />
                                             <Route path="/auditoria" element={<Auditoria />} />
                                         </>
                                     )}
 
-                                    <Route path="*" element={<Navigate to="/" />} />
+                                    <Route path="*" element={<Navigate to={homeRoute} replace />} />
                                 </Routes>
                             </main>
                         </div>

@@ -15,9 +15,9 @@ import {
     X,
 } from "lucide-react";
 import { supabase } from "../services/supabase";
+import API from "../services/api";
 import ChatTicket from "../components/ChatTicket";
 import { useToast } from "../hooks/useToast";
-import { obtenerRol } from "../services/usuarios";
 import {
     STORAGE_BUCKET,
     STORAGE_SETUP_SQL,
@@ -26,6 +26,7 @@ import {
     obtenerUrlDescarga,
     subirAdjuntoTicket,
 } from "../services/storage";
+import { canManageTicketState, isAdminRole } from "../utils/permissions";
 
 const MotionDiv = motion.div;
 
@@ -42,11 +43,11 @@ function formatSize(size = 0) {
     return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export default function TicketDetalle() {
+export default function TicketDetalle({ rol }) {
     const { id } = useParams();
     const [ticket, setTicket] = useState(null);
     const [user, setUser] = useState(null);
-    const [rol, setRol] = useState(null);
+    const [ticketError, setTicketError] = useState("");
     const [adjuntos, setAdjuntos] = useState([]);
     const [cargandoAdjuntos, setCargandoAdjuntos] = useState(true);
     const [subiendo, setSubiendo] = useState(false);
@@ -59,6 +60,8 @@ export default function TicketDetalle() {
     const [previewingId, setPreviewingId] = useState(null);
     const inputRef = useRef(null);
     const { showToast } = useToast();
+    const canManageState = canManageTicketState(rol);
+    const canSeeStorageConfig = isAdminRole(rol);
 
     const storageConfig = useMemo(
         () => ({
@@ -73,14 +76,21 @@ export default function TicketDetalle() {
         let isMounted = true;
 
         async function cargarTicket() {
-            const { data } = await supabase
+            const { data, error } = await supabase
                 .from("tickets")
                 .select("*")
                 .eq("id", id)
-                .single();
+                .maybeSingle();
 
             if (isMounted) {
+                if (error || !data) {
+                    setTicket(null);
+                    setTicketError("No tienes acceso a este ticket o ya no existe.");
+                    return;
+                }
+
                 setTicket(data);
+                setTicketError("");
             }
         }
 
@@ -89,12 +99,6 @@ export default function TicketDetalle() {
 
             if (isMounted) {
                 setUser(data.user);
-                if (data.user?.id) {
-                    const nextRol = await obtenerRol(data.user.id);
-                    if (isMounted) {
-                        setRol(nextRol);
-                    }
-                }
             }
         }
 
@@ -148,30 +152,30 @@ export default function TicketDetalle() {
     }, [id, showToast]);
 
     async function cambiarEstado(nuevoEstado) {
-        if (!ticket) return;
+        if (!ticket || !canManageState) return;
 
-        await supabase
-            .from("tickets")
-            .update({
+        try {
+            const response = await API.put(`/tickets/${id}`, {
                 estado: nuevoEstado,
-                updated_at: new Date(),
-            })
-            .eq("id", id);
+            });
 
-        await supabase.from("notificaciones").insert([
-            {
-                usuario: ticket.email || "admin@correo.com",
-                mensaje: `El ticket "${ticket.titulo}" cambió a ${nuevoEstado}`,
-            },
-        ]);
+            setTicket(response.data);
 
-        const { data } = await supabase
-            .from("tickets")
-            .select("*")
-            .eq("id", id)
-            .single();
-
-        setTicket(data);
+            showToast({
+                type: "success",
+                title: "Estado actualizado",
+                message: `“${ticket.titulo}” ahora está en ${nuevoEstado.replace("_", " ")}.`,
+            });
+        } catch (error) {
+            showToast({
+                type: "error",
+                title: "No se pudo actualizar el estado",
+                message:
+                    error.response?.data?.message ||
+                    error.message ||
+                    "Intenta nuevamente en unos segundos.",
+            });
+        }
     }
 
     async function procesarArchivos(fileList) {
@@ -302,6 +306,16 @@ export default function TicketDetalle() {
         );
     }
 
+    if (ticketError) {
+        return (
+            <div className="p-6">
+                <div className="rounded-[2rem] border border-rose-400/20 bg-rose-400/10 p-6 text-sm text-rose-100">
+                    {ticketError}
+                </div>
+            </div>
+        );
+    }
+
     if (!ticket) {
         return <p className="p-6">Cargando...</p>;
     }
@@ -323,17 +337,23 @@ export default function TicketDetalle() {
                         </p>
                     </div>
 
-                    <div className="rounded-3xl border border-white/10 bg-slate-950/55 p-4 text-sm text-slate-300 backdrop-blur-xl">
-                        <p className="text-xs uppercase tracking-[0.16em] text-slate-400">
-                            Storage activo
-                        </p>
-                        <p className="mt-2 font-medium text-white">
-                            Bucket: {storageConfig.bucket}
-                        </p>
-                        <p className="mt-1 text-xs text-slate-400">
-                            Tabla: {storageConfig.table}
-                        </p>
-                    </div>
+                    {canSeeStorageConfig ? (
+                        <div className="rounded-3xl border border-white/10 bg-slate-950/55 p-4 text-sm text-slate-300 backdrop-blur-xl">
+                            <p className="text-xs uppercase tracking-[0.16em] text-slate-400">
+                                Storage activo
+                            </p>
+                            <p className="mt-2 font-medium text-white">
+                                Bucket: {storageConfig.bucket}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-400">
+                                Tabla: {storageConfig.table}
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-4 text-sm text-cyan-50 backdrop-blur-xl">
+                            Sigue el avance aquí, usa el chat para hablar con soporte y adjunta evidencias cuando lo necesites.
+                        </div>
+                    )}
                 </div>
 
                 <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -355,26 +375,32 @@ export default function TicketDetalle() {
                     </div>
                 </div>
 
-                <div className="mt-6 flex flex-wrap gap-3">
-                    <button
-                        onClick={() => cambiarEstado("abierto")}
-                        className="rounded-2xl border border-yellow-400/30 bg-yellow-400/15 px-4 py-2 text-sm font-medium text-yellow-100 transition hover:-translate-y-0.5 hover:bg-yellow-400/20"
-                    >
-                        Reabrir
-                    </button>
-                    <button
-                        onClick={() => cambiarEstado("en_proceso")}
-                        className="rounded-2xl border border-sky-400/30 bg-sky-400/15 px-4 py-2 text-sm font-medium text-sky-100 transition hover:-translate-y-0.5 hover:bg-sky-400/20"
-                    >
-                        En proceso
-                    </button>
-                    <button
-                        onClick={() => cambiarEstado("cerrado")}
-                        className="rounded-2xl border border-emerald-400/30 bg-emerald-400/15 px-4 py-2 text-sm font-medium text-emerald-100 transition hover:-translate-y-0.5 hover:bg-emerald-400/20"
-                    >
-                        Cerrar
-                    </button>
-                </div>
+                {canManageState ? (
+                    <div className="mt-6 flex flex-wrap gap-3">
+                        <button
+                            onClick={() => cambiarEstado("abierto")}
+                            className="rounded-2xl border border-yellow-400/30 bg-yellow-400/15 px-4 py-2 text-sm font-medium text-yellow-100 transition hover:-translate-y-0.5 hover:bg-yellow-400/20"
+                        >
+                            Reabrir
+                        </button>
+                        <button
+                            onClick={() => cambiarEstado("en_proceso")}
+                            className="rounded-2xl border border-sky-400/30 bg-sky-400/15 px-4 py-2 text-sm font-medium text-sky-100 transition hover:-translate-y-0.5 hover:bg-sky-400/20"
+                        >
+                            En proceso
+                        </button>
+                        <button
+                            onClick={() => cambiarEstado("cerrado")}
+                            className="rounded-2xl border border-emerald-400/30 bg-emerald-400/15 px-4 py-2 text-sm font-medium text-emerald-100 transition hover:-translate-y-0.5 hover:bg-emerald-400/20"
+                        >
+                            Cerrar
+                        </button>
+                    </div>
+                ) : (
+                    <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-300">
+                        Puedes seguir el avance del ticket desde aquí. Los cambios de estado los gestiona el equipo de soporte.
+                    </div>
+                )}
             </section>
 
             <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
@@ -444,10 +470,12 @@ export default function TicketDetalle() {
                                 Suelta tus archivos aquí o haz clic para seleccionar desde tu equipo. La carga se guarda en Supabase Storage.
                             </p>
 
-                            <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-300">
-                                <CloudUpload className="h-3.5 w-3.5 text-cyan-300" />
-                                Bucket configurado: {storageConfig.bucket}
-                            </div>
+                            {canSeeStorageConfig && (
+                                <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-300">
+                                    <CloudUpload className="h-3.5 w-3.5 text-cyan-300" />
+                                    Bucket configurado: {storageConfig.bucket}
+                                </div>
+                            )}
 
                             <AnimatePresence>
                                 {subiendo && (
@@ -603,14 +631,16 @@ export default function TicketDetalle() {
                         </div>
                     )}
 
-                    <details className="mt-6 rounded-3xl border border-white/10 bg-slate-950/35 p-4 text-sm text-slate-300">
-                        <summary className="cursor-pointer list-none font-medium text-white">
-                            Ver configuración Storage sugerida
-                        </summary>
-                        <pre className="mt-4 overflow-x-auto whitespace-pre-wrap rounded-2xl border border-white/10 bg-black/20 p-4 text-xs leading-6 text-slate-300">
-                            {storageConfig.setupSql}
-                        </pre>
-                    </details>
+                    {canSeeStorageConfig && (
+                        <details className="mt-6 rounded-3xl border border-white/10 bg-slate-950/35 p-4 text-sm text-slate-300">
+                            <summary className="cursor-pointer list-none font-medium text-white">
+                                Ver configuración Storage sugerida
+                            </summary>
+                            <pre className="mt-4 overflow-x-auto whitespace-pre-wrap rounded-2xl border border-white/10 bg-black/20 p-4 text-xs leading-6 text-slate-300">
+                                {storageConfig.setupSql}
+                            </pre>
+                        </details>
+                    )}
                 </div>
 
                 <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.24)] backdrop-blur-2xl">

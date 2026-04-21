@@ -1,11 +1,15 @@
-import { supabase } from "../services/supabase";
-import { Bell, Moon, Search, Sun } from "lucide-react";
 import { useState } from "react";
+import { Moon, Search, Sun } from "lucide-react";
+import { supabase } from "../services/supabase";
+import Notifications from "./Notifications";
+import { isEndUserRole } from "../utils/permissions";
 
-export default function Topbar({ user }) {
+export default function Topbar({ user, rol }) {
     const [dark, setDark] = useState(
         document.documentElement.classList.contains("dark")
     );
+
+    const isEndUser = isEndUserRole(rol);
 
     function toggleTheme() {
         if (dark) {
@@ -27,19 +31,24 @@ export default function Topbar({ user }) {
         <header className="sticky top-0 z-20 border-b border-white/10 bg-slate-950/55 px-4 py-4 backdrop-blur-2xl sm:px-6">
             <div className="flex items-center justify-between gap-4">
                 <div className="hidden flex-1 lg:block">
-                    <div className="flex max-w-md items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 shadow-inner shadow-black/10">
-                        <Search className="h-4 w-4 text-slate-500" />
-                        <input
-                            placeholder="Buscar tickets, usuarios o estados..."
-                            className="w-full bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
-                        />
-                    </div>
+                    {isEndUser ? (
+                        <div className="flex max-w-md items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-300 shadow-inner shadow-black/10">
+                            <Search className="h-4 w-4 text-cyan-300" />
+                            Sigue el estado de tus tickets, adjuntos y mensajes desde un solo lugar.
+                        </div>
+                    ) : (
+                        <div className="flex max-w-md items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 shadow-inner shadow-black/10">
+                            <Search className="h-4 w-4 text-slate-500" />
+                            <input
+                                placeholder="Buscar tickets, usuarios o estados..."
+                                className="w-full bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
+                            />
+                        </div>
+                    )}
                 </div>
 
                 <div className="ml-auto flex items-center gap-3">
-                    <button className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-slate-300 hover:border-white/15 hover:bg-white/[0.08] hover:text-white">
-                        <Bell size={18} />
-                    </button>
+                    <Notifications user={user.email} />
 
                     <button
                         onClick={toggleTheme}

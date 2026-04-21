@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { FilePlus2 } from "lucide-react";
-import API from "../services/api";
 import { useNavigate } from "react-router-dom";
+import API from "../services/api";
 import { supabase } from "../services/supabase";
 import { useToast } from "../hooks/useToast";
 import { registrarAuditoria } from "../services/audit";
@@ -15,13 +15,35 @@ export default function NuevoTicket() {
         descripcion: "",
         categoria: "Software",
         prioridad: "media",
+        whatsapp: "",
     });
 
+    function updateField(field, value) {
+        setForm((prev) => ({
+            ...prev,
+            [field]: value,
+        }));
+    }
+
     async function guardar() {
+        if (!form.titulo.trim() || !form.descripcion.trim()) {
+            showToast({
+                type: "info",
+                title: "Completa los campos obligatorios",
+                message: "El título y la descripción son necesarios para registrar el ticket.",
+            });
+            return;
+        }
+
         try {
             const [{ data: authData }, response] = await Promise.all([
                 supabase.auth.getUser(),
-                API.post("/tickets", form),
+                API.post("/tickets", {
+                    ...form,
+                    titulo: form.titulo.trim(),
+                    descripcion: form.descripcion.trim(),
+                    whatsapp: form.whatsapp.trim() || undefined,
+                }),
             ]);
 
             let ticketId =
@@ -35,7 +57,7 @@ export default function NuevoTicket() {
                     .from("tickets")
                     .select("id")
                     .eq("email", authData.user.email)
-                    .eq("titulo", form.titulo)
+                    .eq("titulo", form.titulo.trim())
                     .order("created_at", { ascending: false })
                     .limit(1)
                     .maybeSingle();
@@ -52,7 +74,7 @@ export default function NuevoTicket() {
             showToast({
                 type: "success",
                 title: "Ticket creado",
-                message: "El nuevo ticket quedó registrado correctamente.",
+                message: "El nuevo ticket quedó registrado y ya podrás seguir sus cambios desde el historial.",
             });
 
             navigate("/tickets");
@@ -60,7 +82,10 @@ export default function NuevoTicket() {
             showToast({
                 type: "error",
                 title: "No se pudo crear el ticket",
-                message: error.message || "Revisa los datos e intenta nuevamente.",
+                message:
+                    error.response?.data?.message ||
+                    error.message ||
+                    "Revisa los datos e intenta nuevamente.",
             });
         }
     }
@@ -76,7 +101,7 @@ export default function NuevoTicket() {
                     Crear incidencia
                 </h1>
                 <p className="mt-2 text-sm leading-6 text-slate-400">
-                    Registra el caso con un formulario más claro, espaciado y consistente con el workspace.
+                    Registra el caso y luego sigue su avance desde la conversación, adjuntos y notificaciones del sistema.
                 </p>
             </section>
 
@@ -85,18 +110,20 @@ export default function NuevoTicket() {
                     <input
                         placeholder="Título del ticket"
                         className="field-shell w-full"
-                        onChange={(e) => setForm({ ...form, titulo: e.target.value })}
+                        value={form.titulo}
+                        onChange={(event) => updateField("titulo", event.target.value)}
                     />
 
                     <textarea
                         placeholder="Describe con detalle el problema o requerimiento"
                         className="field-shell min-h-36 w-full resize-none"
-                        onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
+                        value={form.descripcion}
+                        onChange={(event) => updateField("descripcion", event.target.value)}
                     />
 
                     <div className="grid gap-4 md:grid-cols-2">
                         <select
-                            onChange={(e) => setForm({ ...form, categoria: e.target.value })}
+                            onChange={(event) => updateField("categoria", event.target.value)}
                             className="field-shell w-full"
                             value={form.categoria}
                         >
@@ -106,7 +133,7 @@ export default function NuevoTicket() {
                         </select>
 
                         <select
-                            onChange={(e) => setForm({ ...form, prioridad: e.target.value })}
+                            onChange={(event) => updateField("prioridad", event.target.value)}
                             className="field-shell w-full"
                             value={form.prioridad}
                         >
@@ -115,12 +142,23 @@ export default function NuevoTicket() {
                             <option value="alta">Alta</option>
                         </select>
                     </div>
+
+                    <input
+                        placeholder="WhatsApp para notificaciones (opcional)"
+                        className="field-shell w-full"
+                        value={form.whatsapp}
+                        onChange={(event) => updateField("whatsapp", event.target.value)}
+                    />
+                </div>
+
+                <div className="mt-6 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm text-cyan-50">
+                    Recibirás novedades dentro de la app. Si el backend tiene Resend y WhatsApp Cloud API configurados, también se enviarán avisos por correo y WhatsApp.
                 </div>
 
                 <div className="mt-6 flex flex-wrap gap-3">
                     <button
                         onClick={guardar}
-                        className="rounded-2xl bg-gradient-to-r from-cyan-400 to-indigo-500 px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_48px_rgba(56,189,248,0.28)] hover:-translate-y-0.5"
+                        className="rounded-2xl bg-gradient-to-r from-cyan-400 to-indigo-500 px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_48px_rgba(56,189,248,0.28)] transition hover:-translate-y-0.5"
                     >
                         Crear ticket
                     </button>
