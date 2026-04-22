@@ -2,11 +2,9 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./index.css";
+import { initializeTheme } from "./utils/theme";
 
-// activar dark mode guardado
-if (localStorage.getItem("theme") === "dark") {
-    document.documentElement.classList.add("dark");
-}
+initializeTheme();
 
 ReactDOM.createRoot(document.getElementById("root")).render(
     <React.StrictMode>

@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { supabase } from "../services/supabase";
 import API from "../services/api";
+import { ITEM_TRANSITION } from "./motion-presets";
 
 const MotionDiv = motion.div;
 
@@ -54,7 +55,7 @@ export default function ChatTicket({ ticketId, user }) {
             if (!activo) return;
 
             if (fetchError) {
-                setError(fetchError.message || "No se pudo cargar la conversación.");
+                setError(fetchError.message || "No se pudo cargar la conversacion.");
                 setMensajes([]);
             } else {
                 setMensajes(data || []);
@@ -144,26 +145,29 @@ export default function ChatTicket({ ticketId, user }) {
     }
 
     return (
-        <div className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-950/45 shadow-[0_24px_70px_rgba(15,23,42,0.3)] backdrop-blur-2xl">
-            <div className="border-b border-white/10 bg-white/[0.03] px-5 py-4">
-                <div className="flex items-center justify-between gap-3">
+        <div
+            className="app-surface-elevated overflow-hidden rounded-[1.75rem]"
+            style={{ boxShadow: "var(--app-shadow-lg)" }}
+        >
+            <div className="border-b border-[color:var(--app-border)] bg-[color:var(--app-surface-muted)] px-4 py-4 sm:px-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-400/10 text-cyan-200">
+                        <div className="app-surface flex h-11 w-11 items-center justify-center rounded-2xl text-[color:var(--app-accent)]">
                             <MessageSquareText className="h-5 w-5" />
                         </div>
 
                         <div>
-                            <h3 className="text-sm font-semibold text-white">
-                                Conversación del ticket
+                            <h3 className="text-sm font-semibold text-[color:var(--app-text-primary)]">
+                                Conversacion del ticket
                             </h3>
-                            <p className="mt-1 text-xs text-slate-400">
+                            <p className="mt-1 text-xs text-[color:var(--app-text-secondary)]">
                                 Chat en tiempo real tipo Slack con seguimiento contextual.
                             </p>
                         </div>
                     </div>
 
-                    <div className="hidden items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] uppercase tracking-[0.18em] text-slate-300 sm:inline-flex">
-                        <Sparkles className="h-3.5 w-3.5 text-cyan-300" />
+                    <div className="app-surface-muted inline-flex self-start items-center gap-2 rounded-full px-3 py-1.5 text-[11px] uppercase tracking-[0.18em] text-[color:var(--app-text-secondary)]">
+                        <Sparkles className="h-3.5 w-3.5 text-[color:var(--app-accent)]" />
                         Realtime
                     </div>
                 </div>
@@ -172,25 +176,29 @@ export default function ChatTicket({ ticketId, user }) {
             <div className="relative">
                 <div
                     ref={scrollRef}
-                    className="h-[480px] overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.08),_transparent_35%),linear-gradient(180deg,rgba(15,23,42,0.35)_0%,rgba(15,23,42,0.08)_100%)] px-4 py-5 sm:px-5"
+                    className="h-[58vh] min-h-[22rem] max-h-[32rem] overflow-y-auto px-4 py-5 sm:h-[480px] sm:max-h-none sm:px-5"
+                    style={{
+                        background:
+                            "radial-gradient(circle at top, color-mix(in srgb, var(--brand-secondary) 10%, transparent) 0%, transparent 34%), linear-gradient(180deg, color-mix(in srgb, var(--app-bg-elevated) 72%, var(--app-surface) 28%) 0%, color-mix(in srgb, var(--app-surface-muted) 88%, transparent) 100%)",
+                    }}
                 >
                     {loading ? (
                         <div className="flex h-full items-center justify-center">
-                            <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300">
-                                <LoaderCircle className="h-4 w-4 animate-spin text-cyan-300" />
-                                Cargando conversación...
+                            <div className="app-surface-muted inline-flex items-center gap-3 rounded-full px-4 py-2 text-sm text-[color:var(--app-text-secondary)]">
+                                <LoaderCircle className="h-4 w-4 animate-spin text-[color:var(--app-accent)]" />
+                                Cargando conversacion...
                             </div>
                         </div>
                     ) : mensajes.length === 0 ? (
                         <div className="flex h-full items-center justify-center">
-                            <div className="max-w-md rounded-[1.5rem] border border-dashed border-white/10 bg-white/[0.03] px-6 py-8 text-center">
-                                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-3xl border border-cyan-400/20 bg-cyan-400/10">
-                                    <MessageSquareText className="h-6 w-6 text-cyan-300" />
+                            <div className="max-w-md rounded-[1.5rem] border border-dashed border-[color:var(--app-border)] bg-[color:var(--app-surface-muted)] px-6 py-8 text-center">
+                                <div className="app-surface mx-auto flex h-14 w-14 items-center justify-center rounded-3xl text-[color:var(--app-accent)]">
+                                    <MessageSquareText className="h-6 w-6" />
                                 </div>
-                                <h4 className="mt-4 text-base font-semibold text-white">
-                                    Empieza la conversación
+                                <h4 className="mt-4 text-base font-semibold text-[color:var(--app-text-primary)]">
+                                    Empieza la conversacion
                                 </h4>
-                                <p className="mt-2 text-sm leading-6 text-slate-400">
+                                <p className="mt-2 text-sm leading-6 text-[color:var(--app-text-secondary)]">
                                     Usa este espacio para registrar contexto, avances y respuestas del ticket en tiempo real.
                                 </p>
                             </div>
@@ -205,39 +213,61 @@ export default function ChatTicket({ ticketId, user }) {
                                         <MotionDiv
                                             key={mensaje.id}
                                             layout
-                                            initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                                            initial={{ opacity: 0, y: 8, scale: 0.992 }}
                                             animate={{ opacity: 1, y: 0, scale: 1 }}
-                                            exit={{ opacity: 0, y: -10 }}
-                                            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                                            exit={{ opacity: 0, y: -6, scale: 0.994 }}
+                                            transition={ITEM_TRANSITION}
                                             className={`flex ${esPropio ? "justify-end" : "justify-start"}`}
                                         >
                                             <div
-                                                className={`flex max-w-[88%] items-end gap-3 sm:max-w-[75%] ${
+                                                className={`flex max-w-[94%] items-end gap-2.5 sm:max-w-[75%] sm:gap-3 ${
                                                     esPropio ? "flex-row-reverse" : "flex-row"
                                                 }`}
                                             >
                                                 <div
-                                                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border text-xs font-semibold uppercase tracking-[0.12em] ${
+                                                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl border text-[11px] font-semibold uppercase tracking-[0.12em] sm:h-9 sm:w-9 sm:text-xs ${
                                                         esPropio
-                                                            ? "border-cyan-400/30 bg-cyan-400/15 text-cyan-100"
-                                                            : "border-white/10 bg-white/5 text-slate-200"
+                                                            ? "border-[color:color-mix(in_srgb,var(--brand-secondary)_20%,transparent)] bg-[color:color-mix(in_srgb,var(--brand-secondary)_14%,transparent)] text-[color:var(--app-accent)]"
+                                                            : "border-[color:var(--app-border)] bg-[color:var(--app-surface-muted)] text-[color:var(--app-text-secondary)]"
                                                     }`}
                                                 >
                                                     {construirIniciales(mensaje.usuario)}
                                                 </div>
 
                                                 <div
-                                                    className={`rounded-[1.6rem] border px-4 py-3 shadow-[0_18px_45px_rgba(15,23,42,0.18)] ${
+                                                    className={`rounded-[1.45rem] border px-3.5 py-3 sm:rounded-[1.6rem] sm:px-4 ${
                                                         esPropio
-                                                            ? "border-cyan-300/20 bg-gradient-to-br from-cyan-400/20 via-sky-400/15 to-indigo-500/15 text-white"
-                                                            : "border-white/10 bg-white/[0.04] text-slate-100"
+                                                            ? "text-[color:var(--app-text-primary)]"
+                                                            : "text-[color:var(--app-text-primary)]"
                                                     }`}
+                                                    style={
+                                                        esPropio
+                                                            ? {
+                                                                  borderColor:
+                                                                      "color-mix(in srgb, var(--brand-secondary) 18%, transparent)",
+                                                                  background:
+                                                                      "linear-gradient(145deg, color-mix(in srgb, var(--brand-secondary) 12%, var(--app-surface-strong) 88%), color-mix(in srgb, var(--brand-highlight) 10%, var(--app-surface) 90%))",
+                                                                  boxShadow: "var(--app-shadow-md)",
+                                                              }
+                                                            : {
+                                                                  borderColor: "var(--app-border)",
+                                                                  background:
+                                                                      "color-mix(in srgb, var(--app-surface-strong) 88%, transparent)",
+                                                                  boxShadow: "var(--app-shadow-sm)",
+                                                              }
+                                                    }
                                                 >
-                                                    <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-slate-400">
-                                                        <span className={esPropio ? "text-cyan-200" : "text-slate-300"}>
-                                                            {esPropio ? "Tú" : mensaje.usuario}
+                                                    <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-[color:var(--app-text-tertiary)]">
+                                                        <span
+                                                            className={
+                                                                esPropio
+                                                                    ? "text-[color:var(--app-accent)]"
+                                                                    : "text-[color:var(--app-text-secondary)]"
+                                                            }
+                                                        >
+                                                            {esPropio ? "Tu" : mensaje.usuario}
                                                         </span>
-                                                        <span className="h-1 w-1 rounded-full bg-slate-500" />
+                                                        <span className="h-1 w-1 rounded-full bg-[color:var(--app-muted-soft)]" />
                                                         <span>{formatearHora(mensaje.created_at)}</span>
                                                     </div>
 
@@ -255,15 +285,24 @@ export default function ChatTicket({ ticketId, user }) {
                     )}
                 </div>
 
-                <div className="border-t border-white/10 bg-slate-950/75 px-4 py-4 backdrop-blur-2xl sm:px-5">
+                <div className="sticky bottom-0 border-t border-[color:var(--app-border)] bg-[color:color-mix(in_srgb,var(--app-surface-strong)_92%,transparent)] px-4 py-4 backdrop-blur-2xl sm:px-5">
                     {error && (
-                        <div className="mb-3 rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
+                        <div
+                            className="mb-3 rounded-2xl px-4 py-3 text-sm"
+                            style={{
+                                border: "1px solid color-mix(in srgb, var(--brand-danger) 20%, transparent)",
+                                background:
+                                    "color-mix(in srgb, var(--brand-danger) 10%, var(--app-surface-strong) 90%)",
+                                color:
+                                    "color-mix(in srgb, var(--brand-danger) 82%, var(--app-text-strong) 18%)",
+                            }}
+                        >
                             {error}
                         </div>
                     )}
 
-                    <div className="flex items-end gap-3">
-                        <div className="flex-1 rounded-[1.6rem] border border-white/10 bg-white/[0.04] px-4 py-3 shadow-inner shadow-black/10">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                        <div className="flex-1 rounded-[1.6rem] border border-[color:var(--app-border)] bg-[color:var(--app-surface-muted)] px-4 py-3 shadow-inner shadow-[rgba(29,35,32,0.06)]">
                             <textarea
                                 ref={textareaRef}
                                 value={texto}
@@ -271,7 +310,7 @@ export default function ChatTicket({ ticketId, user }) {
                                 onChange={(event) => setTexto(event.target.value)}
                                 onKeyDown={manejarKeyDown}
                                 placeholder="Escribe un mensaje y presiona Enter para enviar..."
-                                className="max-h-40 min-h-[24px] w-full resize-none bg-transparent text-sm leading-6 text-white outline-none placeholder:text-slate-500"
+                                className="max-h-40 min-h-[24px] w-full resize-none bg-transparent text-sm leading-6 text-[color:var(--app-text-primary)] outline-none placeholder:text-[color:var(--app-text-tertiary)]"
                             />
                         </div>
 
@@ -279,7 +318,7 @@ export default function ChatTicket({ ticketId, user }) {
                             type="button"
                             onClick={enviar}
                             disabled={!texto.trim() || sending}
-                            className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-indigo-500 text-white shadow-[0_18px_40px_rgba(56,189,248,0.32)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:translate-y-0"
+                            className="app-button app-button-primary inline-flex h-12 w-full shrink-0 items-center justify-center gap-2 rounded-2xl px-4 text-[color:var(--app-bg-elevated)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:translate-y-0 sm:w-12 sm:px-0"
                             aria-label="Enviar mensaje"
                         >
                             {sending ? (
@@ -287,8 +326,15 @@ export default function ChatTicket({ ticketId, user }) {
                             ) : (
                                 <SendHorizonal className="h-5 w-5" />
                             )}
+                            <span className="text-sm font-medium sm:hidden">
+                                Enviar mensaje
+                            </span>
                         </button>
                     </div>
+
+                    <p className="mt-3 text-xs text-[color:var(--app-text-tertiary)]">
+                        Presiona Enter para enviar y Shift + Enter para agregar una nueva linea.
+                    </p>
                 </div>
             </div>
         </div>

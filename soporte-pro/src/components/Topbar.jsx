@@ -1,26 +1,16 @@
-import { useState } from "react";
-import { Moon, Search, Sun } from "lucide-react";
+import { Menu, Search, ShieldCheck } from "lucide-react";
 import { supabase } from "../services/supabase";
 import Notifications from "./Notifications";
+import ThemeToggle from "./ThemeToggle";
 import { isEndUserRole } from "../utils/permissions";
+import { MotionItem, MotionSection, MotionStagger } from "./AppMotion";
 
-export default function Topbar({ user, rol }) {
-    const [dark, setDark] = useState(
-        document.documentElement.classList.contains("dark")
-    );
+function getUserInitial(email) {
+    return String(email || "?").charAt(0).toUpperCase();
+}
 
+export default function Topbar({ user, rol, onOpenSidebar }) {
     const isEndUser = isEndUserRole(rol);
-
-    function toggleTheme() {
-        if (dark) {
-            document.documentElement.classList.remove("dark");
-            localStorage.setItem("theme", "light");
-        } else {
-            document.documentElement.classList.add("dark");
-            localStorage.setItem("theme", "dark");
-        }
-        setDark(!dark);
-    }
 
     async function logout() {
         await supabase.auth.signOut();
@@ -28,47 +18,79 @@ export default function Topbar({ user, rol }) {
     }
 
     return (
-        <header className="sticky top-0 z-20 border-b border-white/10 bg-slate-950/55 px-4 py-4 backdrop-blur-2xl sm:px-6">
-            <div className="flex items-center justify-between gap-4">
-                <div className="hidden flex-1 lg:block">
+        <header className="app-topbar-shell sticky top-0 z-20 px-4 py-4 sm:px-6">
+            <div className="flex items-center gap-3">
+                <button
+                    type="button"
+                    onClick={onOpenSidebar}
+                    className="app-icon-button lg:hidden"
+                    aria-label="Abrir menu lateral"
+                >
+                    <Menu className="h-4 w-4" />
+                </button>
+
+                <MotionSection className="min-w-0 flex-1">
                     {isEndUser ? (
-                        <div className="flex max-w-md items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-300 shadow-inner shadow-black/10">
-                            <Search className="h-4 w-4 text-cyan-300" />
-                            Sigue el estado de tus tickets, adjuntos y mensajes desde un solo lugar.
+                        <div className="app-search-shell">
+                            <ShieldCheck className="h-4 w-4 shrink-0 text-[color:var(--app-accent)]" />
+                            <div className="min-w-0">
+                                <p className="truncate text-sm font-medium text-[color:var(--app-text-primary)]">
+                                    Sigue tus tickets, adjuntos y mensajes
+                                </p>
+                                <p className="truncate text-xs text-[color:var(--app-text-tertiary)]">
+                                    Un solo espacio para dar contexto, conversar y recibir novedades.
+                                </p>
+                            </div>
                         </div>
                     ) : (
-                        <div className="flex max-w-md items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 shadow-inner shadow-black/10">
-                            <Search className="h-4 w-4 text-slate-500" />
-                            <input
-                                placeholder="Buscar tickets, usuarios o estados..."
-                                className="w-full bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
-                            />
+                        <div className="app-search-shell">
+                            <Search className="h-4 w-4 shrink-0 text-[color:var(--app-accent)]" />
+                            <input placeholder="Buscar tickets, usuarios, tecnicos o estados..." />
                         </div>
                     )}
-                </div>
+                </MotionSection>
 
-                <div className="ml-auto flex items-center gap-3">
-                    <Notifications user={user.email} />
+                <MotionStagger
+                    className="ml-auto flex items-center gap-3"
+                    delayChildren={0.06}
+                    staggerChildren={0.05}
+                >
+                    <MotionItem>
+                        <Notifications user={user.email} />
+                    </MotionItem>
+                    <MotionItem>
+                        <ThemeToggle compact />
+                    </MotionItem>
+                    <MotionItem>
+                        <div className="app-surface flex items-center gap-3 rounded-[1.2rem] px-3 py-2.5">
+                            <div
+                                className="flex h-11 w-11 items-center justify-center rounded-[1rem] text-sm font-semibold text-[color:var(--app-accent)]"
+                                style={{
+                                    background:
+                                        "linear-gradient(135deg, color-mix(in srgb, var(--brand-secondary) 16%, transparent), color-mix(in srgb, var(--brand-highlight) 12%, transparent))",
+                                }}
+                            >
+                                {getUserInitial(user.email)}
+                            </div>
 
-                    <button
-                        onClick={toggleTheme}
-                        className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-slate-300 hover:border-white/15 hover:bg-white/[0.08] hover:text-white"
-                    >
-                        {dark ? <Sun size={18} /> : <Moon size={18} />}
-                    </button>
+                            <div className="hidden min-w-0 sm:block">
+                                <p className="max-w-[14rem] truncate text-sm font-semibold text-[color:var(--app-text-primary)]">
+                                    {user.email}
+                                </p>
+                                <p className="text-xs capitalize text-[color:var(--app-text-tertiary)]">
+                                    {rol || "usuario"}
+                                </p>
+                            </div>
 
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-right">
-                        <p className="max-w-[220px] truncate text-sm font-semibold text-white">
-                            {user.email}
-                        </p>
-                        <button
-                            onClick={logout}
-                            className="mt-1 text-xs font-medium text-rose-300 hover:text-rose-200"
-                        >
-                            Cerrar sesión
-                        </button>
-                    </div>
-                </div>
+                            <button
+                                onClick={logout}
+                                className="app-button app-button-ghost h-10 px-3 text-xs font-semibold"
+                            >
+                                Salir
+                            </button>
+                        </div>
+                    </MotionItem>
+                </MotionStagger>
             </div>
         </header>
     );

@@ -12,12 +12,22 @@ import {
     Paperclip,
     Trash2,
     UploadCloud,
-    X,
 } from "lucide-react";
 import { supabase } from "../services/supabase";
 import API from "../services/api";
 import ChatTicket from "../components/ChatTicket";
 import { useToast } from "../hooks/useToast";
+import ModalShell from "../components/ModalShell";
+import ConfirmDialog from "../components/ConfirmDialog";
+import Button from "../components/ui/Button";
+import SectionHeader from "../components/ui/SectionHeader";
+import Surface from "../components/ui/Surface";
+import {
+    MotionItem,
+    MotionPage,
+    MotionSection,
+    MotionStagger,
+} from "../components/AppMotion";
 import {
     STORAGE_BUCKET,
     STORAGE_SETUP_SQL,
@@ -54,6 +64,7 @@ export default function TicketDetalle({ rol }) {
     const [dragActive, setDragActive] = useState(false);
     const [descargandoId, setDescargandoId] = useState(null);
     const [eliminandoId, setEliminandoId] = useState(null);
+    const [adjuntoToDelete, setAdjuntoToDelete] = useState(null);
     const [previewAdjunto, setPreviewAdjunto] = useState(null);
     const [previewUrl, setPreviewUrl] = useState("");
     const [previewLoading, setPreviewLoading] = useState(false);
@@ -116,7 +127,7 @@ export default function TicketDetalle({ rol }) {
                     showToast({
                         type: "error",
                         title: "No se pudieron cargar los adjuntos",
-                        message: error.message || "Verifica la configuración de Storage en Supabase.",
+                        message: error.message || "Verifica la configuracion de Storage en Supabase.",
                     });
                 }
             } finally {
@@ -164,7 +175,7 @@ export default function TicketDetalle({ rol }) {
             showToast({
                 type: "success",
                 title: "Estado actualizado",
-                message: `“${ticket.titulo}” ahora está en ${nuevoEstado.replace("_", " ")}.`,
+                message: `"${ticket.titulo}" ahora esta en ${nuevoEstado.replace("_", " ")}.`,
             });
         } catch (error) {
             showToast({
@@ -208,7 +219,7 @@ export default function TicketDetalle({ rol }) {
         } catch (error) {
             showToast({
                 type: "error",
-                title: "Falló la subida",
+                title: "Fallo la subida",
                 message: error.message || "Revisa Storage y vuelve a intentar.",
             });
         } finally {
@@ -255,22 +266,23 @@ export default function TicketDetalle({ rol }) {
         }
     }
 
-    async function eliminarAdjunto(adjunto) {
-        if (!confirm(`¿Eliminar el archivo "${adjunto.nombre}"?`)) {
-            return;
-        }
+    async function confirmarEliminarAdjunto() {
+        if (!adjuntoToDelete) return;
 
         try {
-            setEliminandoId(adjunto.id);
-            await eliminarAdjuntoTicket(adjunto.id, adjunto.path);
+            setEliminandoId(adjuntoToDelete.id);
+            await eliminarAdjuntoTicket(adjuntoToDelete.id, adjuntoToDelete.path);
 
-            setAdjuntos((prev) => prev.filter((item) => item.id !== adjunto.id));
+            setAdjuntos((prev) =>
+                prev.filter((item) => item.id !== adjuntoToDelete.id)
+            );
 
             showToast({
                 type: "success",
                 title: "Adjunto eliminado",
-                message: `“${adjunto.nombre}” se eliminó correctamente.`,
+                message: `"${adjuntoToDelete.nombre}" se elimino correctamente.`,
             });
+            setAdjuntoToDelete(null);
         } catch (error) {
             showToast({
                 type: "error",
@@ -309,7 +321,16 @@ export default function TicketDetalle({ rol }) {
     if (ticketError) {
         return (
             <div className="p-6">
-                <div className="rounded-[2rem] border border-rose-400/20 bg-rose-400/10 p-6 text-sm text-rose-100">
+                <div
+                    className="app-surface rounded-[2rem] p-6 text-sm"
+                    style={{
+                        borderColor:
+                            "color-mix(in srgb, var(--brand-danger) 22%, transparent)",
+                        background:
+                            "color-mix(in srgb, var(--brand-danger) 12%, var(--app-surface) 88%)",
+                        color: "color-mix(in srgb, var(--brand-danger) 78%, var(--app-text-strong) 22%)",
+                    }}
+                >
                     {ticketError}
                 </div>
             </div>
@@ -317,112 +338,154 @@ export default function TicketDetalle({ rol }) {
     }
 
     if (!ticket) {
-        return <p className="p-6">Cargando...</p>;
+        return (
+            <div className="p-6">
+                <div className="app-surface rounded-[2rem] p-6 text-sm text-[color:var(--app-text-secondary)]">
+                    Cargando ticket...
+                </div>
+            </div>
+        );
     }
 
     return (
-        <div className="space-y-6 p-6">
-            <section className="rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.28)] backdrop-blur-2xl">
+        <MotionPage className="space-y-5 p-4 sm:space-y-6 sm:p-6">
+            <MotionSection
+                className="app-surface-hero rounded-[2rem] p-5 sm:p-6"
+                style={{ boxShadow: "var(--app-shadow-lg)" }}
+            >
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
                     <div>
-                        <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">
+                        <div className="app-kicker w-max">
                             <Paperclip className="h-3.5 w-3.5" />
                             Ticket #{ticket.id}
                         </div>
-                        <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white">
+                        <h1 className="mt-4 text-3xl font-semibold tracking-tight text-[color:var(--app-text-primary)]">
                             {ticket.titulo}
                         </h1>
-                        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
+                        <p className="mt-3 max-w-3xl text-sm leading-7 text-[color:var(--app-text-secondary)]">
                             {ticket.descripcion}
                         </p>
                     </div>
 
                     {canSeeStorageConfig ? (
-                        <div className="rounded-3xl border border-white/10 bg-slate-950/55 p-4 text-sm text-slate-300 backdrop-blur-xl">
-                            <p className="text-xs uppercase tracking-[0.16em] text-slate-400">
+                        <Surface variant="muted" className="rounded-3xl p-4 text-sm">
+                            <p className="text-xs uppercase tracking-[0.16em] text-[color:var(--app-text-tertiary)]">
                                 Storage activo
                             </p>
-                            <p className="mt-2 font-medium text-white">
+                            <p className="mt-2 font-medium text-[color:var(--app-text-primary)]">
                                 Bucket: {storageConfig.bucket}
                             </p>
-                            <p className="mt-1 text-xs text-slate-400">
+                            <p className="mt-1 text-xs text-[color:var(--app-text-tertiary)]">
                                 Tabla: {storageConfig.table}
                             </p>
-                        </div>
+                        </Surface>
                     ) : (
-                        <div className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-4 text-sm text-cyan-50 backdrop-blur-xl">
-                            Sigue el avance aquí, usa el chat para hablar con soporte y adjunta evidencias cuando lo necesites.
+                        <div className="app-surface-muted rounded-3xl p-4 text-sm leading-7 text-[color:var(--app-text-primary)]">
+                            Sigue el avance aqui, usa el chat para hablar con soporte y adjunta evidencias cuando lo necesites.
                         </div>
                     )}
                 </div>
 
-                <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    <div className="rounded-3xl border border-white/10 bg-slate-950/45 p-4">
-                        <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Estado</p>
-                        <p className="mt-2 text-sm font-semibold capitalize text-white">{ticket.estado}</p>
-                    </div>
-                    <div className="rounded-3xl border border-white/10 bg-slate-950/45 p-4">
-                        <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Prioridad</p>
-                        <p className="mt-2 text-sm font-semibold text-white">{ticket.prioridad}</p>
-                    </div>
-                    <div className="rounded-3xl border border-white/10 bg-slate-950/45 p-4">
-                        <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Categoría</p>
-                        <p className="mt-2 text-sm font-semibold text-white">{ticket.categoria}</p>
-                    </div>
-                    <div className="rounded-3xl border border-white/10 bg-slate-950/45 p-4">
-                        <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Fecha</p>
-                        <p className="mt-2 text-sm font-semibold text-white">{formatDate(ticket.created_at)}</p>
-                    </div>
+                <div className="mt-6 grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
+                    <Surface variant="muted" className="rounded-3xl p-4">
+                        <p className="text-xs uppercase tracking-[0.16em] text-[color:var(--app-text-tertiary)]">Estado</p>
+                        <p className="mt-2 text-sm font-semibold capitalize text-[color:var(--app-text-primary)]">{ticket.estado}</p>
+                    </Surface>
+                    <Surface variant="muted" className="rounded-3xl p-4">
+                        <p className="text-xs uppercase tracking-[0.16em] text-[color:var(--app-text-tertiary)]">Prioridad</p>
+                        <p className="mt-2 text-sm font-semibold text-[color:var(--app-text-primary)]">{ticket.prioridad}</p>
+                    </Surface>
+                    <Surface variant="muted" className="rounded-3xl p-4">
+                        <p className="text-xs uppercase tracking-[0.16em] text-[color:var(--app-text-tertiary)]">Categoria</p>
+                        <p className="mt-2 text-sm font-semibold text-[color:var(--app-text-primary)]">{ticket.categoria}</p>
+                    </Surface>
+                    <Surface variant="muted" className="rounded-3xl p-4">
+                        <p className="text-xs uppercase tracking-[0.16em] text-[color:var(--app-text-tertiary)]">Fecha</p>
+                        <p className="mt-2 text-sm font-semibold text-[color:var(--app-text-primary)]">{formatDate(ticket.created_at)}</p>
+                    </Surface>
                 </div>
 
                 {canManageState ? (
-                    <div className="mt-6 flex flex-wrap gap-3">
-                        <button
+                    <div className="mt-6 grid gap-3 sm:flex sm:flex-wrap">
+                        <Button
                             onClick={() => cambiarEstado("abierto")}
-                            className="rounded-2xl border border-yellow-400/30 bg-yellow-400/15 px-4 py-2 text-sm font-medium text-yellow-100 transition hover:-translate-y-0.5 hover:bg-yellow-400/20"
+                            variant="secondary"
+                            className="w-full sm:w-auto"
+                            style={{
+                                borderColor:
+                                    "color-mix(in srgb, var(--brand-warning) 22%, transparent)",
+                                background:
+                                    "color-mix(in srgb, var(--brand-warning) 12%, var(--app-surface-strong) 88%)",
+                                color:
+                                    "color-mix(in srgb, var(--brand-warning) 82%, var(--app-text-strong) 18%)",
+                            }}
                         >
                             Reabrir
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                             onClick={() => cambiarEstado("en_proceso")}
-                            className="rounded-2xl border border-sky-400/30 bg-sky-400/15 px-4 py-2 text-sm font-medium text-sky-100 transition hover:-translate-y-0.5 hover:bg-sky-400/20"
+                            variant="secondary"
+                            className="w-full sm:w-auto"
+                            style={{
+                                borderColor:
+                                    "color-mix(in srgb, var(--brand-secondary) 22%, transparent)",
+                                background:
+                                    "color-mix(in srgb, var(--brand-secondary) 12%, var(--app-surface-strong) 88%)",
+                                color:
+                                    "color-mix(in srgb, var(--brand-secondary) 82%, var(--app-text-strong) 18%)",
+                            }}
                         >
                             En proceso
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                             onClick={() => cambiarEstado("cerrado")}
-                            className="rounded-2xl border border-emerald-400/30 bg-emerald-400/15 px-4 py-2 text-sm font-medium text-emerald-100 transition hover:-translate-y-0.5 hover:bg-emerald-400/20"
+                            variant="secondary"
+                            className="w-full sm:w-auto"
+                            style={{
+                                borderColor:
+                                    "color-mix(in srgb, var(--brand-success) 22%, transparent)",
+                                background:
+                                    "color-mix(in srgb, var(--brand-success) 12%, var(--app-surface-strong) 88%)",
+                                color:
+                                    "color-mix(in srgb, var(--brand-success) 82%, var(--app-text-strong) 18%)",
+                            }}
                         >
                             Cerrar
-                        </button>
+                        </Button>
                     </div>
                 ) : (
-                    <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-300">
-                        Puedes seguir el avance del ticket desde aquí. Los cambios de estado los gestiona el equipo de soporte.
+                    <div className="app-surface-muted mt-6 rounded-2xl px-4 py-3 text-sm text-[color:var(--app-text-secondary)]">
+                        Puedes seguir el avance del ticket desde aqui. Los cambios de estado los gestiona el equipo de soporte.
                     </div>
                 )}
-            </section>
+            </MotionSection>
 
-            <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-                <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.24)] backdrop-blur-2xl">
-                    <div className="flex items-center justify-between gap-4">
-                        <div>
-                            <h2 className="text-xl font-semibold text-white">
-                                Archivos adjuntos
-                            </h2>
-                            <p className="mt-1 text-sm text-slate-400">
-                                Arrastra documentos, imágenes o evidencias directamente al ticket.
-                            </p>
-                        </div>
+            <MotionStagger
+                className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]"
+                delayChildren={0.08}
+            >
+                <MotionItem>
+                    <Surface
+                        variant="default"
+                        className="rounded-[2rem] p-5 sm:p-6"
+                        style={{ boxShadow: "var(--app-shadow-lg)" }}
+                    >
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <SectionHeader
+                            title="Archivos adjuntos"
+                            description="Arrastra documentos, imagenes o evidencias directamente al ticket."
+                            icon={Paperclip}
+                            className="flex-1"
+                        />
 
-                        <div className="rounded-2xl border border-white/10 bg-slate-950/50 px-3 py-2 text-right">
-                            <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">
+                        <Surface variant="muted" className="rounded-2xl px-3 py-2 text-right">
+                            <p className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--app-text-tertiary)]">
                                 Archivos
                             </p>
-                            <p className="mt-1 text-lg font-semibold text-white">
+                            <p className="mt-1 text-lg font-semibold text-[color:var(--app-text-primary)]">
                                 {adjuntos.length}
                             </p>
-                        </div>
+                        </Surface>
                     </div>
 
                     <div
@@ -436,10 +499,10 @@ export default function TicketDetalle({ rol }) {
                         }}
                         onDrop={handleDrop}
                         onClick={() => inputRef.current?.click()}
-                        className={`mt-6 cursor-pointer rounded-[1.75rem] border border-dashed p-6 transition ${
+                        className={`mt-6 cursor-pointer rounded-[1.75rem] border border-dashed p-5 transition sm:p-6 ${
                             dragActive
-                                ? "border-cyan-300/70 bg-cyan-400/10 shadow-[0_0_0_1px_rgba(103,232,249,0.25)]"
-                                : "border-white/12 bg-slate-950/35 hover:border-cyan-300/40 hover:bg-white/8"
+                                ? "border-[color:var(--app-accent)] bg-[color:var(--app-accent-soft)] shadow-[0_0_0_1px_var(--app-ring)]"
+                                : "border-[color:var(--app-border)] bg-[color:var(--app-surface-muted)] hover:border-[color:var(--app-border-strong)] hover:bg-[color:var(--app-surface-strong)]"
                         }`}
                     >
                         <input
@@ -454,25 +517,25 @@ export default function TicketDetalle({ rol }) {
                             <MotionDiv
                                 animate={subiendo ? { scale: [1, 1.06, 1] } : { scale: 1 }}
                                 transition={{ repeat: subiendo ? Infinity : 0, duration: 1.4 }}
-                                className="flex h-16 w-16 items-center justify-center rounded-3xl border border-white/10 bg-white/10"
+                                className="app-surface-muted flex h-14 w-14 items-center justify-center rounded-3xl sm:h-16 sm:w-16"
                             >
                                 {subiendo ? (
-                                    <LoaderCircle className="h-7 w-7 animate-spin text-cyan-300" />
+                                    <LoaderCircle className="h-7 w-7 animate-spin text-[color:var(--app-accent)]" />
                                 ) : (
-                                    <UploadCloud className="h-7 w-7 text-cyan-300" />
+                                    <UploadCloud className="h-7 w-7 text-[color:var(--app-accent)]" />
                                 )}
                             </MotionDiv>
 
-                            <h3 className="mt-4 text-lg font-semibold text-white">
+                            <h3 className="mt-4 text-base font-semibold text-[color:var(--app-text-primary)] sm:text-lg">
                                 {subiendo ? "Subiendo archivos..." : "Drag & drop premium"}
                             </h3>
-                            <p className="mt-2 max-w-md text-sm leading-6 text-slate-400">
-                                Suelta tus archivos aquí o haz clic para seleccionar desde tu equipo. La carga se guarda en Supabase Storage.
+                            <p className="mt-2 max-w-md text-sm leading-6 text-[color:var(--app-text-secondary)]">
+                                Suelta tus archivos aqui o haz clic para seleccionar desde tu equipo. La carga se guarda en Supabase Storage.
                             </p>
 
                             {canSeeStorageConfig && (
-                                <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-300">
-                                    <CloudUpload className="h-3.5 w-3.5 text-cyan-300" />
+                                <div className="app-surface-muted mt-5 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs text-[color:var(--app-text-secondary)]">
+                                    <CloudUpload className="h-3.5 w-3.5 text-[color:var(--app-accent)]" />
                                     Bucket configurado: {storageConfig.bucket}
                                 </div>
                             )}
@@ -485,9 +548,9 @@ export default function TicketDetalle({ rol }) {
                                         exit={{ opacity: 0, y: -8 }}
                                         className="mt-5 w-full max-w-md"
                                     >
-                                        <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                                        <div className="h-2 overflow-hidden rounded-full bg-[color:var(--app-border)]">
                                             <MotionDiv
-                                                className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-sky-300 to-indigo-400"
+                                                className="h-full rounded-full bg-gradient-to-r from-[color:var(--brand-secondary)] via-[color:var(--app-accent)] to-[color:var(--brand-highlight)]"
                                                 initial={{ x: "-35%" }}
                                                 animate={{ x: ["-35%", "100%"] }}
                                                 transition={{ repeat: Infinity, duration: 1.2, ease: "linear" }}
@@ -502,161 +565,124 @@ export default function TicketDetalle({ rol }) {
 
                     <div className="mt-6 space-y-3">
                         {cargandoAdjuntos ? (
-                            <div className="rounded-3xl border border-white/10 bg-slate-950/35 p-5 text-sm text-slate-400">
+                            <div className="app-surface-muted rounded-3xl p-5 text-sm text-[color:var(--app-text-secondary)]">
                                 Cargando adjuntos...
                             </div>
                         ) : adjuntos.length === 0 ? (
-                            <div className="rounded-3xl border border-white/10 bg-slate-950/35 p-5 text-sm text-slate-400">
-                                Todavía no hay archivos cargados para este ticket.
+                            <div className="app-surface-muted rounded-3xl p-5 text-sm text-[color:var(--app-text-secondary)]">
+                                Todavia no hay archivos cargados para este ticket.
                             </div>
                         ) : (
-                            adjuntos.map((adjunto) => (
-                                <div
+                            <MotionStagger className="space-y-3" delayChildren={0.02} staggerChildren={0.05}>
+                                {adjuntos.map((adjunto) => (
+                                <MotionItem
                                     key={adjunto.id}
-                                    className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-slate-950/45 p-4 shadow-[0_14px_40px_rgba(15,23,42,0.2)] md:flex-row md:items-center md:justify-between"
+                                    className="app-surface-muted flex flex-col gap-4 rounded-3xl p-4 md:flex-row md:items-center md:justify-between"
+                                    style={{ boxShadow: "var(--app-shadow-md)" }}
                                 >
                                     <div className="flex min-w-0 items-start gap-3">
-                                        <div className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
-                                            <FileText className="h-5 w-5 text-cyan-300" />
+                                        <div className="app-surface flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl">
+                                            <FileText className="h-5 w-5 text-[color:var(--app-accent)]" />
                                         </div>
 
                                         <div className="min-w-0">
-                                            <p className="truncate text-sm font-semibold text-white">
+                                            <p className="truncate text-sm font-semibold text-[color:var(--app-text-primary)]">
                                                 {adjunto.nombre}
                                             </p>
-                                            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                                            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[color:var(--app-text-tertiary)]">
                                                 <span>{formatSize(adjunto.size)}</span>
-                                                <span className="h-1 w-1 rounded-full bg-slate-600" />
+                                                <span className="h-1 w-1 rounded-full bg-[color:var(--app-muted-soft)]" />
                                                 <span>{adjunto.usuario || "Sistema"}</span>
-                                                <span className="h-1 w-1 rounded-full bg-slate-600" />
+                                                <span className="h-1 w-1 rounded-full bg-[color:var(--app-muted-soft)]" />
                                                 <span>{formatDate(adjunto.created_at)}</span>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="flex flex-wrap items-center gap-2">
+                                    <div className="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
                                         {esPreviewable(adjunto) && (
-                                            <button
+                                            <Button
                                                 onClick={() => previsualizarAdjunto(adjunto)}
-                                                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-100 transition hover:-translate-y-0.5 hover:bg-cyan-400/15"
+                                                variant="secondary"
+                                                className="w-full sm:w-auto"
                                             >
                                                 {previewLoading && previewingId === adjunto.id ? (
-                                                    <LoaderCircle className="h-4 w-4 animate-spin text-cyan-200" />
+                                                    <LoaderCircle className="h-4 w-4 animate-spin text-[color:var(--app-accent)]" />
                                                 ) : (
-                                                    <Eye className="h-4 w-4 text-cyan-200" />
+                                                    <Eye className="h-4 w-4 text-[color:var(--app-accent)]" />
                                                 )}
                                                 Vista previa
-                                            </button>
+                                            </Button>
                                         )}
 
-                                        <button
+                                        <Button
                                             onClick={() => descargarAdjunto(adjunto)}
-                                            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:-translate-y-0.5 hover:bg-white/10"
+                                            variant="secondary"
+                                            className="w-full sm:w-auto"
                                         >
                                             {descargandoId === adjunto.id ? (
-                                                <LoaderCircle className="h-4 w-4 animate-spin text-cyan-300" />
+                                                <LoaderCircle className="h-4 w-4 animate-spin text-[color:var(--app-accent)]" />
                                             ) : (
-                                                <Download className="h-4 w-4 text-cyan-300" />
+                                                <Download className="h-4 w-4 text-[color:var(--app-accent)]" />
                                             )}
                                             Descargar
-                                        </button>
+                                        </Button>
 
                                         {puedeEliminarAdjunto(adjunto) && (
-                                            <button
-                                                onClick={() => eliminarAdjunto(adjunto)}
-                                                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-2 text-sm font-medium text-rose-100 transition hover:-translate-y-0.5 hover:bg-rose-400/15"
+                                            <Button
+                                                onClick={() => setAdjuntoToDelete(adjunto)}
+                                                variant="danger"
+                                                className="w-full sm:w-auto"
                                             >
                                                 {eliminandoId === adjunto.id ? (
-                                                    <LoaderCircle className="h-4 w-4 animate-spin text-rose-200" />
+                                                    <LoaderCircle
+                                                        className="h-4 w-4 animate-spin"
+                                                        style={{
+                                                            color: "color-mix(in srgb, var(--brand-danger) 82%, white 18%)",
+                                                        }}
+                                                    />
                                                 ) : (
-                                                    <Trash2 className="h-4 w-4 text-rose-200" />
+                                                    <Trash2
+                                                        className="h-4 w-4"
+                                                        style={{
+                                                            color: "color-mix(in srgb, var(--brand-danger) 82%, white 18%)",
+                                                        }}
+                                                    />
                                                 )}
                                                 Eliminar
-                                            </button>
+                                            </Button>
                                         )}
                                     </div>
-                                </div>
-                            ))
+                                </MotionItem>
+                            ))}
+                            </MotionStagger>
                         )}
                     </div>
 
-                    {previewAdjunto && previewUrl && (
-                        <div className="mt-6 rounded-[1.75rem] border border-white/10 bg-slate-950/45 p-4">
-                            <div className="flex items-center justify-between gap-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-400/10">
-                                        {previewAdjunto.tipo?.startsWith("image/") ? (
-                                            <ImageIcon className="h-5 w-5 text-cyan-300" />
-                                        ) : (
-                                            <FileText className="h-5 w-5 text-cyan-300" />
-                                        )}
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-semibold text-white">
-                                            {previewAdjunto.nombre}
-                                        </p>
-                                        <p className="text-xs text-slate-400">
-                                            Vista previa segura del adjunto
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <button
-                                    onClick={() => {
-                                        setPreviewAdjunto(null);
-                                        setPreviewUrl("");
-                                    }}
-                                    className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 p-2 text-slate-300 transition hover:bg-white/10 hover:text-white"
-                                    aria-label="Cerrar vista previa"
-                                >
-                                    <X className="h-4 w-4" />
-                                </button>
-                            </div>
-
-                            <div className="mt-4 overflow-hidden rounded-[1.5rem] border border-white/10 bg-black/20">
-                                {previewAdjunto.tipo?.startsWith("image/") ? (
-                                    <img
-                                        src={previewUrl}
-                                        alt={previewAdjunto.nombre}
-                                        className="max-h-[560px] w-full object-contain"
-                                    />
-                                ) : (
-                                    <iframe
-                                        src={previewUrl}
-                                        title={previewAdjunto.nombre}
-                                        className="h-[560px] w-full"
-                                    />
-                                )}
-                            </div>
-                        </div>
-                    )}
-
                     {canSeeStorageConfig && (
-                        <details className="mt-6 rounded-3xl border border-white/10 bg-slate-950/35 p-4 text-sm text-slate-300">
-                            <summary className="cursor-pointer list-none font-medium text-white">
-                                Ver configuración Storage sugerida
+                        <details className="app-surface-muted mt-6 rounded-3xl p-4 text-sm text-[color:var(--app-text-secondary)]">
+                            <summary className="cursor-pointer list-none font-medium text-[color:var(--app-text-primary)]">
+                                Ver configuracion Storage sugerida
                             </summary>
-                            <pre className="mt-4 overflow-x-auto whitespace-pre-wrap rounded-2xl border border-white/10 bg-black/20 p-4 text-xs leading-6 text-slate-300">
+                            <pre className="mt-4 overflow-x-auto whitespace-pre-wrap rounded-2xl border border-[color:var(--app-border)] bg-[color:var(--app-bg-elevated)] p-4 text-xs leading-6 text-[color:var(--app-text-secondary)]">
                                 {storageConfig.setupSql}
                             </pre>
                         </details>
                     )}
-                </div>
+                    </Surface>
+                </MotionItem>
 
-                <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.24)] backdrop-blur-2xl">
-                    <div className="flex items-center gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-400/20 bg-emerald-400/10">
-                            <CheckCircle2 className="h-5 w-5 text-emerald-300" />
-                        </div>
-                        <div>
-                            <h2 className="text-xl font-semibold text-white">
-                                Conversación del ticket
-                            </h2>
-                            <p className="text-sm text-slate-400">
-                                Seguimiento contextual y colaboración en tiempo real.
-                            </p>
-                        </div>
-                    </div>
+                <MotionItem>
+                    <Surface
+                        variant="default"
+                        className="rounded-[2rem] p-5 sm:p-6"
+                        style={{ boxShadow: "var(--app-shadow-lg)" }}
+                    >
+                    <SectionHeader
+                        title="Conversacion del ticket"
+                        description="Seguimiento contextual y colaboracion en tiempo real."
+                        icon={CheckCircle2}
+                    />
 
                     <div className="mt-6">
                         {user && (
@@ -666,8 +692,51 @@ export default function TicketDetalle({ rol }) {
                             />
                         )}
                     </div>
+                    </Surface>
+                </MotionItem>
+            </MotionStagger>
+
+            <ModalShell
+                open={Boolean(previewAdjunto && previewUrl)}
+                onClose={() => {
+                    setPreviewAdjunto(null);
+                    setPreviewUrl("");
+                }}
+                title={previewAdjunto?.nombre || "Vista previa"}
+                description="Vista previa segura del adjunto seleccionado."
+                icon={previewAdjunto?.tipo?.startsWith("image/") ? ImageIcon : FileText}
+                widthClassName="max-w-5xl"
+            >
+                <div className="overflow-hidden rounded-[1.5rem] border border-[color:var(--app-border)] bg-[color:var(--app-bg-elevated)]">
+                    {previewAdjunto?.tipo?.startsWith("image/") ? (
+                        <img
+                            src={previewUrl}
+                            alt={previewAdjunto?.nombre || "Adjunto"}
+                            className="max-h-[72vh] w-full object-contain"
+                        />
+                    ) : (
+                        <iframe
+                            src={previewUrl}
+                            title={previewAdjunto?.nombre || "Adjunto"}
+                            className="h-[72vh] w-full"
+                        />
+                    )}
                 </div>
-            </section>
-        </div>
+            </ModalShell>
+
+            <ConfirmDialog
+                open={Boolean(adjuntoToDelete)}
+                onClose={() => setAdjuntoToDelete(null)}
+                onConfirm={confirmarEliminarAdjunto}
+                title="Eliminar adjunto"
+                description={
+                    adjuntoToDelete
+                        ? `Se eliminara "${adjuntoToDelete.nombre}" del ticket y del almacenamiento.`
+                        : ""
+                }
+                confirmLabel="Eliminar adjunto"
+                busy={eliminandoId === adjuntoToDelete?.id}
+            />
+        </MotionPage>
     );
 }

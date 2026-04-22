@@ -3,40 +3,102 @@ import { ShieldCheck, Users as UsersIcon } from "lucide-react";
 import { supabase } from "../services/supabase";
 import Skeleton from "../components/skeleton";
 import EmptyState from "../components/EmptyState";
+import ConfirmDialog from "../components/ConfirmDialog";
+import { useToast } from "../hooks/useToast";
+import { MotionPage, MotionSection } from "../components/AppMotion";
+import Button from "../components/ui/Button";
+
+function roleChipClass(rol) {
+    if (rol === "admin") return "status-chip status-chip-cerrado";
+    if (rol === "tecnico") return "status-chip status-chip-en-proceso";
+    return "status-chip status-chip-abierto";
+}
 
 export default function Usuarios() {
     const [usuarios, setUsuarios] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [savingRoleId, setSavingRoleId] = useState(null);
+    const [usuarioToDelete, setUsuarioToDelete] = useState(null);
+    const [deletingId, setDeletingId] = useState(null);
+    const { showToast } = useToast();
 
     useEffect(() => {
-        cargar();
+        let activo = true;
+
+        async function cargarInicial() {
+            const { data } = await supabase
+                .from("usuarios")
+                .select("*")
+                .order("created_at", { ascending: false });
+
+            if (!activo) return;
+
+            setUsuarios(data || []);
+            setLoading(false);
+        }
+
+        cargarInicial();
+
+        return () => {
+            activo = false;
+        };
     }, []);
 
-    async function cargar() {
-        setLoading(true);
-        const { data } = await supabase
-            .from("usuarios")
-            .select("*")
-            .order("created_at", { ascending: false });
-
-        setUsuarios(data || []);
-        setLoading(false);
-    }
-
     async function cambiarRol(id, rol) {
-        await supabase
-            .from("usuarios")
-            .update({ rol })
-            .eq("id", id);
+        try {
+            setSavingRoleId(id);
 
-        cargar();
+            await supabase
+                .from("usuarios")
+                .update({ rol })
+                .eq("id", id);
+
+            setUsuarios((prev) =>
+                prev.map((usuario) =>
+                    usuario.id === id ? { ...usuario, rol } : usuario
+                )
+            );
+
+            showToast({
+                type: "success",
+                title: "Rol actualizado",
+                message: "Los permisos del usuario fueron ajustados.",
+            });
+        } catch (error) {
+            showToast({
+                type: "error",
+                title: "No se pudo actualizar el rol",
+                message: error.message || "Intenta nuevamente en unos segundos.",
+            });
+        } finally {
+            setSavingRoleId(null);
+        }
     }
 
-    async function eliminar(id) {
-        if (!confirm("¿Eliminar usuario?")) return;
+    async function confirmarEliminacion() {
+        if (!usuarioToDelete) return;
 
-        await supabase.from("usuarios").delete().eq("id", id);
-        cargar();
+        try {
+            setDeletingId(usuarioToDelete.id);
+            await supabase.from("usuarios").delete().eq("id", usuarioToDelete.id);
+            setUsuarios((prev) =>
+                prev.filter((usuario) => usuario.id !== usuarioToDelete.id)
+            );
+            showToast({
+                type: "success",
+                title: "Usuario eliminado",
+                message: "La cuenta fue removida del sistema.",
+            });
+            setUsuarioToDelete(null);
+        } catch (error) {
+            showToast({
+                type: "error",
+                title: "No se pudo eliminar el usuario",
+                message: error.message || "Intenta nuevamente en unos segundos.",
+            });
+        } finally {
+            setDeletingId(null);
+        }
     }
 
     if (loading) {
@@ -44,85 +106,122 @@ export default function Usuarios() {
     }
 
     return (
-        <div className="space-y-6">
-            <section className="glass-panel rounded-[2rem] p-6">
-                <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                    <div>
-                        <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">
-                            <ShieldCheck className="h-3.5 w-3.5" />
-                            Administración
+        <>
+            <MotionPage className="space-y-6">
+                <MotionSection className="app-surface-hero rounded-[2.2rem] p-6">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                        <div>
+                            <div className="app-kicker">
+                                <ShieldCheck className="h-3.5 w-3.5" />
+                                Administracion
+                            </div>
+                            <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+                                Usuarios del sistema
+                            </h1>
+                            <p className="mt-3 text-sm leading-7 text-slate-400">
+                                Gestiona roles y accesos desde una vista limpia, mas ordenada y facil de auditar.
+                            </p>
                         </div>
-                        <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white">
-                            Usuarios del sistema
-                        </h1>
-                        <p className="mt-2 text-sm leading-6 text-slate-400">
-                            Gestiona roles y accesos desde una vista limpia y operativa.
-                        </p>
-                    </div>
 
-                    <div className="glass-card rounded-[1.5rem] px-4 py-3">
-                        <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
-                            Total usuarios
-                        </p>
-                        <p className="mt-2 text-2xl font-semibold text-white">
-                            {usuarios.length}
-                        </p>
+                        <div className="app-surface-muted rounded-[1.5rem] px-4 py-3">
+                            <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
+                                Total usuarios
+                            </p>
+                            <p className="mt-2 text-2xl font-semibold text-white">
+                                {usuarios.length}
+                            </p>
+                        </div>
                     </div>
-                </div>
-            </section>
+                </MotionSection>
 
-            <section className="glass-panel rounded-[2rem] p-5">
-                {usuarios.length === 0 ? (
-                    <EmptyState
-                        icon={UsersIcon}
-                        title="Sin usuarios registrados"
-                        description="Cuando existan usuarios en Supabase aparecerán aquí con sus roles y acciones disponibles."
-                    />
-                ) : (
-                    <div className="overflow-hidden rounded-[1.5rem] border border-white/10">
-                        <table className="w-full text-sm">
-                            <thead className="bg-white/[0.06] text-slate-300">
-                                <tr>
-                                    <th className="p-4 text-left">Email</th>
-                                    <th className="text-left">Nombre</th>
-                                    <th className="text-left">Rol</th>
-                                    <th className="text-left">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {usuarios.map((usuario) => (
-                                    <tr
-                                        key={usuario.id}
-                                        className="border-t border-white/10 bg-slate-950/20 hover:bg-white/[0.04]"
-                                    >
-                                        <td className="p-4 text-slate-200">{usuario.email}</td>
-                                        <td className="text-slate-300">{usuario.nombre}</td>
-                                        <td>
-                                            <select
-                                                value={usuario.rol}
-                                                onChange={(e) => cambiarRol(usuario.id, e.target.value)}
-                                                className="rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-sm outline-none"
-                                            >
-                                                <option value="admin">Admin</option>
-                                                <option value="tecnico">Técnico</option>
-                                                <option value="usuario">Usuario</option>
-                                            </select>
-                                        </td>
-                                        <td>
-                                            <button
-                                                onClick={() => eliminar(usuario.id)}
-                                                className="rounded-xl border border-rose-400/20 bg-rose-400/10 px-3 py-2 text-xs font-medium text-rose-200 hover:bg-rose-400/15"
-                                            >
-                                                Eliminar
-                                            </button>
-                                        </td>
+                <MotionSection delay={0.08} className="glass-panel rounded-[2rem] p-3">
+                    {usuarios.length === 0 ? (
+                        <div className="p-2">
+                            <EmptyState
+                                icon={UsersIcon}
+                                eyebrow="Sin cuentas"
+                                title="Sin usuarios registrados"
+                                description="Cuando existan usuarios en Supabase apareceran aqui con sus roles y acciones disponibles."
+                            />
+                        </div>
+                    ) : (
+                        <div className="data-table-wrap overflow-x-auto">
+                            <table className="data-table min-w-[820px]">
+                                <thead>
+                                    <tr>
+                                        <th>Email</th>
+                                        <th>Nombre</th>
+                                        <th>Rol actual</th>
+                                        <th>Gestion</th>
+                                        <th>Acciones</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </section>
-        </div>
+                                </thead>
+                                <tbody>
+                                    {usuarios.map((usuario) => (
+                                        <tr key={usuario.id}>
+                                            <td>
+                                                <div className="font-semibold text-white">
+                                                    {usuario.email}
+                                                </div>
+                                                <div className="mt-1 text-xs text-slate-500">
+                                                    {usuario.id}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div className="text-sm text-slate-300">
+                                                    {usuario.nombre || "Sin nombre"}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span className={roleChipClass(usuario.rol)}>
+                                                    {usuario.rol}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <select
+                                                    value={usuario.rol}
+                                                    onChange={(event) =>
+                                                        cambiarRol(usuario.id, event.target.value)
+                                                    }
+                                                    disabled={savingRoleId === usuario.id}
+                                                    className="app-input-shell min-w-[180px] text-sm"
+                                                >
+                                                    <option value="admin">Admin</option>
+                                                    <option value="tecnico">Tecnico</option>
+                                                    <option value="usuario">Usuario</option>
+                                                </select>
+                                            </td>
+                                            <td>
+                                                <Button
+                                                    onClick={() => setUsuarioToDelete(usuario)}
+                                                    variant="danger"
+                                                    size="sm"
+                                                >
+                                                    Eliminar
+                                                </Button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </MotionSection>
+            </MotionPage>
+
+            <ConfirmDialog
+                open={Boolean(usuarioToDelete)}
+                onClose={() => setUsuarioToDelete(null)}
+                onConfirm={confirmarEliminacion}
+                title="Eliminar usuario"
+                description={
+                    usuarioToDelete
+                        ? `La cuenta ${usuarioToDelete.email} dejara de estar disponible en la aplicacion.`
+                        : ""
+                }
+                confirmLabel="Eliminar usuario"
+                busy={deletingId === usuarioToDelete?.id}
+            />
+        </>
     );
 }

@@ -20,7 +20,7 @@ export function resolverNombreTecnico(tecnicos, tecnicoId) {
     }
 
     const tecnico = tecnicos.find((item) => item.id === tecnicoId);
-    return tecnico?.nombre || tecnico?.email || "Técnico";
+    return tecnico?.nombre || tecnico?.email || "Tecnico";
 }
 
 export function elegirTecnicoConMenosTickets(tickets, tecnicos) {

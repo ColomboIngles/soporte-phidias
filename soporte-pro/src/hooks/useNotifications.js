@@ -22,13 +22,13 @@ export default function useNotifications(user) {
         cargar();
 
         const channel = supabase
-            .channel("notificaciones")
+            .channel(`notificaciones-${user}`)
             .on(
                 "postgres_changes",
                 { event: "INSERT", schema: "public", table: "notificaciones" },
-                payload => {
+                (payload) => {
                     if (payload.new.usuario === user) {
-                        setNotificaciones(prev => [payload.new, ...prev]);
+                        setNotificaciones((prev) => [payload.new, ...prev]);
                     }
                 }
             )

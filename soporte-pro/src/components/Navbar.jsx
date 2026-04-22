@@ -27,7 +27,7 @@ export default function Navbar() {
                     onClick={toggleTheme}
                     className="px-3 py-1 rounded-lg bg-gray-200 dark:bg-gray-700 hover:scale-105 transition"
                 >
-                    🌙
+                    Tema
                 </button>
 
                 <button

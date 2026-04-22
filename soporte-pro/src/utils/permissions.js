@@ -55,7 +55,7 @@ export function getNavigationItems(role) {
 
     if (canAccessUserAdmin(role)) {
         items.push({ path: "/usuarios", label: "Usuarios", key: "usuarios" });
-        items.push({ path: "/auditoria", label: "Auditoría", key: "auditoria" });
+        items.push({ path: "/auditoria", label: "Auditoria", key: "auditoria" });
     }
 
     return items;

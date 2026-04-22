@@ -10,24 +10,31 @@ import {
 import { supabase } from "../services/supabase";
 import { obtenerAuditoria } from "../services/audit";
 import Skeleton from "../components/skeleton";
+import EmptyState from "../components/EmptyState";
+import {
+    MotionItem,
+    MotionPage,
+    MotionSection,
+    MotionStagger,
+} from "../components/AppMotion";
 
 const ACTION_STYLES = {
     crear: {
-        label: "Creación",
+        label: "Creacion",
         icon: Plus,
         chipClassName: "bg-emerald-400/15 text-emerald-200 ring-1 ring-emerald-300/20",
         iconClassName: "text-emerald-300",
         lineClassName: "from-emerald-400/60 via-emerald-300/20 to-transparent",
     },
     editar: {
-        label: "Edición",
+        label: "Edicion",
         icon: Pencil,
         chipClassName: "bg-sky-400/15 text-sky-200 ring-1 ring-sky-300/20",
         iconClassName: "text-sky-300",
         lineClassName: "from-sky-400/60 via-sky-300/20 to-transparent",
     },
     eliminar: {
-        label: "Eliminación",
+        label: "Eliminacion",
         icon: Trash2,
         chipClassName: "bg-rose-400/15 text-rose-200 ring-1 ring-rose-300/20",
         iconClassName: "text-rose-300",
@@ -51,7 +58,7 @@ function formatoFecha(fecha) {
 
 function obtenerEstilo(accion) {
     return ACTION_STYLES[accion] || {
-        label: accion || "Acción",
+        label: accion || "Accion",
         icon: ShieldCheck,
         chipClassName: "bg-white/10 text-slate-100 ring-1 ring-white/15",
         iconClassName: "text-slate-200",
@@ -93,7 +100,7 @@ function TimelineItem({ item, isLast }) {
                             {item.usuario}
                         </p>
                         <p className="mt-1 text-sm text-slate-300">
-                            Registró una acción de <span className="text-white">{style.label.toLowerCase()}</span> sobre el ticket.
+                            Registro una accion de <span className="text-white">{style.label.toLowerCase()}</span> sobre el ticket.
                         </p>
                     </div>
 
@@ -152,19 +159,19 @@ export default function Auditoria() {
     }
 
     return (
-        <div className="space-y-6">
-            <section className="rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.28)] backdrop-blur-2xl">
+        <MotionPage className="space-y-6">
+            <MotionSection className="rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.28)] backdrop-blur-2xl">
                 <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                     <div>
                         <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">
                             <ShieldCheck className="h-3.5 w-3.5" />
-                            Auditoría
+                            Auditoria
                         </div>
                         <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white">
                             Historial de acciones
                         </h1>
                         <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
-                            Traza en tiempo real de movimientos críticos sobre tickets para seguimiento operativo y control interno.
+                            Traza en tiempo real de movimientos criticos sobre tickets para seguimiento operativo y control interno.
                         </p>
                     </div>
 
@@ -177,31 +184,34 @@ export default function Auditoria() {
                         </p>
                     </div>
                 </div>
-            </section>
+            </MotionSection>
 
-            <section className="rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.24)] backdrop-blur-2xl">
+            <MotionSection
+                delay={0.08}
+                className="rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.24)] backdrop-blur-2xl"
+            >
                 {historial.length === 0 ? (
-                    <div className="rounded-3xl border border-dashed border-white/10 bg-slate-950/35 px-6 py-12 text-center">
-                        <ShieldCheck className="mx-auto h-10 w-10 text-slate-400" />
-                        <h2 className="mt-4 text-lg font-semibold text-white">
-                            Sin eventos todavía
-                        </h2>
-                        <p className="mt-2 text-sm text-slate-400">
-                            Las acciones auditadas sobre tickets aparecerán aquí automáticamente.
-                        </p>
-                    </div>
+                    <EmptyState
+                        icon={ShieldCheck}
+                        eyebrow="Sin trazabilidad"
+                        title="Sin eventos todavia"
+                        description="Las acciones auditadas sobre tickets apareceran aqui automaticamente cuando empiecen a registrarse movimientos."
+                    />
                 ) : (
-                    <div className="space-y-5">
+                    <MotionStagger className="space-y-5">
                         {historial.map((item, index) => (
-                            <TimelineItem
+                            <MotionItem
                                 key={`${item.ticket_id}-${item.fecha}-${index}`}
-                                item={item}
-                                isLast={index === historial.length - 1}
-                            />
+                            >
+                                <TimelineItem
+                                    item={item}
+                                    isLast={index === historial.length - 1}
+                                />
+                            </MotionItem>
                         ))}
-                    </div>
+                    </MotionStagger>
                 )}
-            </section>
-        </div>
+            </MotionSection>
+        </MotionPage>
     );
 }

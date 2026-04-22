@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { ClipboardList } from "lucide-react";
+import {
+    Check,
+    ClipboardList,
+    Sparkles,
+    Trash2,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import API from "../services/api";
@@ -12,6 +17,14 @@ import {
 } from "../services/asignacion";
 import Skeleton from "../components/skeleton";
 import EmptyState from "../components/EmptyState";
+import ConfirmDialog from "../components/ConfirmDialog";
+import Button from "../components/ui/Button";
+import {
+    MotionItem,
+    MotionPage,
+    MotionSection,
+    MotionStagger,
+} from "../components/AppMotion";
 import {
     canCreateTickets,
     isAdminRole,
@@ -28,12 +41,26 @@ function formatTicketDate(value) {
     }).format(new Date(value));
 }
 
+function statusChipClass(estado) {
+    if (estado === "cerrado") return "status-chip status-chip-cerrado";
+    if (estado === "en_proceso") return "status-chip status-chip-en-proceso";
+    return "status-chip status-chip-abierto";
+}
+
+function priorityChipClass(prioridad) {
+    if (prioridad === "alta") return "priority-chip priority-chip-alta";
+    if (prioridad === "media") return "priority-chip priority-chip-media";
+    return "priority-chip priority-chip-baja";
+}
+
 export default function Tickets({ role }) {
     const [tickets, setTickets] = useState([]);
     const [filtro, setFiltro] = useState("todos");
     const [user, setUser] = useState(null);
     const [tecnicos, setTecnicos] = useState([]);
     const [asignandoId, setAsignandoId] = useState(null);
+    const [ticketToDelete, setTicketToDelete] = useState(null);
+    const [deletingId, setDeletingId] = useState(null);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
     const { showToast } = useToast();
@@ -116,9 +143,24 @@ export default function Tickets({ role }) {
 
     async function cerrar(ticket) {
         try {
-            await API.put(`/tickets/${ticket.id}`, {
+            const response = await API.put(`/tickets/${ticket.id}`, {
                 estado: "cerrado",
             });
+
+            setTickets((prev) =>
+                prev.map((item) =>
+                    item.id === ticket.id
+                        ? {
+                              ...item,
+                              ...response.data,
+                              estado: "cerrado",
+                              updated_at:
+                                  response.data?.updated_at ||
+                                  new Date().toISOString(),
+                          }
+                        : item
+                )
+            );
 
             await registrarAuditoria({
                 usuario: user,
@@ -129,7 +171,7 @@ export default function Tickets({ role }) {
             showToast({
                 type: "success",
                 title: "Ticket cerrado",
-                message: `“${ticket.titulo}” quedó marcado como cerrado.`,
+                message: `"${ticket.titulo}" quedo marcado como cerrado.`,
             });
         } catch (error) {
             showToast({
@@ -143,31 +185,32 @@ export default function Tickets({ role }) {
         }
     }
 
-    async function eliminar(ticket) {
-        if (!confirm("¿Eliminar ticket?")) {
-            showToast({
-                type: "info",
-                title: "Eliminación cancelada",
-                message: "El ticket se mantuvo sin cambios.",
-                duration: 2600,
-            });
-            return;
-        }
+    function requestDelete(ticket) {
+        setTicketToDelete(ticket);
+    }
+
+    async function confirmDelete() {
+        if (!ticketToDelete) return;
 
         try {
-            await API.delete(`/tickets/${ticket.id}`);
+            setDeletingId(ticketToDelete.id);
+            await API.delete(`/tickets/${ticketToDelete.id}`);
+            setTickets((prev) =>
+                prev.filter((item) => item.id !== ticketToDelete.id)
+            );
 
             await registrarAuditoria({
                 usuario: user,
                 accion: "eliminar",
-                ticketId: ticket.id,
+                ticketId: ticketToDelete.id,
             });
 
             showToast({
                 type: "success",
                 title: "Ticket eliminado",
-                message: `“${ticket.titulo}” salió del tablero correctamente.`,
+                message: `"${ticketToDelete.titulo}" salio del tablero correctamente.`,
             });
+            setTicketToDelete(null);
         } catch (error) {
             showToast({
                 type: "error",
@@ -175,8 +218,10 @@ export default function Tickets({ role }) {
                 message:
                     error.response?.data?.message ||
                     error.message ||
-                    "Verifica tu conexión e intenta otra vez.",
+                    "Verifica tu conexion e intenta otra vez.",
             });
+        } finally {
+            setDeletingId(null);
         }
     }
 
@@ -188,19 +233,27 @@ export default function Tickets({ role }) {
                 asignado_a: tecnicoId || null,
             });
 
+            setTickets((prev) =>
+                prev.map((item) =>
+                    item.id === ticket.id
+                        ? { ...item, asignado_a: tecnicoId || null }
+                        : item
+                )
+            );
+
             const nombreTecnico = resolverNombreTecnico(tecnicos, tecnicoId);
 
             showToast({
                 type: "success",
-                title: tecnicoId ? "Técnico asignado" : "Asignación removida",
+                title: tecnicoId ? "Tecnico asignado" : "Asignacion removida",
                 message: tecnicoId
-                    ? `“${ticket.titulo}” ahora pertenece a ${nombreTecnico}.`
-                    : `“${ticket.titulo}” quedó pendiente de asignación.`,
+                    ? `"${ticket.titulo}" ahora pertenece a ${nombreTecnico}.`
+                    : `"${ticket.titulo}" quedo pendiente de asignacion.`,
             });
         } catch (error) {
             showToast({
                 type: "error",
-                title: "No se pudo actualizar la asignación",
+                title: "No se pudo actualizar la asignacion",
                 message:
                     error.response?.data?.message ||
                     error.message ||
@@ -217,8 +270,9 @@ export default function Tickets({ role }) {
         if (!tecnico) {
             showToast({
                 type: "info",
-                title: "No hay técnicos disponibles",
-                message: "Crea o habilita usuarios con rol técnico para usar autoasignación.",
+                title: "No hay tecnicos disponibles",
+                message:
+                    "Crea o habilita usuarios con rol tecnico para usar autoasignacion.",
             });
             return;
         }
@@ -231,8 +285,14 @@ export default function Tickets({ role }) {
         const creado = new Date(ticket.created_at);
         const horas = (ahora - creado) / (1000 * 60 * 60);
 
-        if (horas > ticket.tiempo_resolucion) return "bg-red-500";
-        if (horas > ticket.tiempo_respuesta) return "bg-yellow-400";
+        if (ticket.tiempo_resolucion && horas > ticket.tiempo_resolucion) {
+            return "bg-red-500";
+        }
+
+        if (ticket.tiempo_respuesta && horas > ticket.tiempo_respuesta) {
+            return "bg-yellow-400";
+        }
+
         return "bg-green-500";
     }
 
@@ -249,190 +309,397 @@ export default function Tickets({ role }) {
     }
 
     return (
-        <div className="space-y-6 p-6">
-            <section className="glass-panel rounded-[2rem] p-6">
-                <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                    <div>
-                        <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">
-                            <ClipboardList className="h-3.5 w-3.5" />
-                            {isEndUser ? "Seguimiento personal" : "Operación tickets"}
+        <>
+            <MotionPage className="space-y-5 p-4 sm:space-y-6 sm:p-6">
+                <MotionSection className="app-surface-hero rounded-[2.2rem] p-5 sm:p-6">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                        <div>
+                            <div className="app-kicker">
+                                <ClipboardList className="h-3.5 w-3.5" />
+                                {isEndUser ? "Seguimiento personal" : "Operacion tickets"}
+                            </div>
+                            <h1 className="mt-4 text-3xl font-semibold tracking-tight text-[color:var(--app-text-primary)] sm:text-4xl">
+                                Tickets
+                            </h1>
+                            <p className="mt-3 text-sm leading-7 text-[color:var(--app-text-secondary)]">
+                                {isEndUser
+                                    ? "Crea solicitudes, consulta el estado de cada caso y manten la conversacion con soporte desde un solo flujo."
+                                    : "Gestiona soporte con mejor visibilidad, asignacion y acciones rapidas."}
+                            </p>
                         </div>
-                        <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white">
-                            Tickets
-                        </h1>
-                        <p className="mt-2 text-sm leading-6 text-slate-400">
-                            {isEndUser
-                                ? "Crea solicitudes, consulta el estado de cada caso y mantén la conversación con soporte desde un solo flujo."
-                                : "Gestiona soporte con mejor visibilidad, asignación y acciones rápidas."}
-                        </p>
+
+                        {canCreateTicket ? (
+                            <Button
+                                onClick={() => navigate("/tickets/nuevo")}
+                                className="w-full sm:w-auto"
+                            >
+                                + Nuevo ticket
+                            </Button>
+                        ) : null}
                     </div>
+                </MotionSection>
 
-                    {canCreateTicket && (
-                        <button
-                            onClick={() => navigate("/tickets/nuevo")}
-                            className="rounded-2xl bg-gradient-to-r from-cyan-400 to-indigo-500 px-4 py-3 text-sm font-semibold text-white shadow-[0_18px_48px_rgba(56,189,248,0.28)] transition hover:-translate-y-0.5"
-                        >
-                            + Nuevo Ticket
-                        </button>
-                    )}
-                </div>
-            </section>
+                <MotionSection
+                    delay={0.06}
+                    className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
+                >
+                    <p className="text-sm text-gray-500">
+                        {isEndUser
+                            ? "Sigue tus tickets activos, en proceso o cerrados."
+                            : "Filtra y administra el backlog operativo."}
+                    </p>
 
-            <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-500">
-                    {isEndUser
-                        ? "Sigue tus tickets activos, en proceso o cerrados."
-                        : "Filtra y administra el backlog operativo."}
-                </p>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-                {["todos", "abierto", "en_proceso", "cerrado"].map((item) => (
-                    <button
-                        key={item}
-                        onClick={() => setFiltro(item)}
-                        className={`rounded-xl px-4 py-2 text-sm capitalize ${
-                            filtro === item
-                                ? "bg-indigo-600 text-white"
-                                : "bg-gray-200 dark:bg-gray-800"
-                        }`}
-                    >
-                        {item.replace("_", " ")}
-                    </button>
-                ))}
-            </div>
-
-            <div className="glass-panel overflow-hidden rounded-[2rem]">
-                {filtrados.length === 0 ? (
-                    <div className="p-5">
-                        <EmptyState
-                            icon={ClipboardList}
-                            compact
-                            title="Sin tickets en esta vista"
-                            description={
-                                isEndUser
-                                    ? "Todavía no tienes tickets en este estado. Cuando abras uno nuevo podrás seguirlo desde aquí."
-                                    : "Ajusta los filtros o crea un nuevo ticket para empezar a trabajar sobre el flujo de soporte."
-                            }
-                            action={
-                                canCreateTicket ? (
-                                    <button
-                                        onClick={() => navigate("/tickets/nuevo")}
-                                        className="rounded-2xl bg-gradient-to-r from-cyan-400 to-indigo-500 px-4 py-3 text-sm font-semibold text-white shadow-[0_18px_48px_rgba(56,189,248,0.28)] transition hover:-translate-y-0.5"
-                                    >
-                                        Crear ticket
-                                    </button>
-                                ) : null
-                            }
-                        />
+                    <div className="hide-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
+                        {["todos", "abierto", "en_proceso", "cerrado"].map((item) => (
+                            <button
+                                key={item}
+                                onClick={() => setFiltro(item)}
+                                className={`app-button shrink-0 h-10 px-4 text-sm capitalize ${
+                                    filtro === item
+                                        ? "app-button-primary"
+                                        : "app-button-secondary"
+                                }`}
+                            >
+                                {item.replace("_", " ")}
+                            </button>
+                        ))}
                     </div>
-                ) : (
-                    <table className="w-full text-sm">
-                        <thead className="bg-white/[0.06] text-slate-300">
-                            <tr>
-                                <th className="p-4 text-left">Título</th>
-                                <th>Estado</th>
-                                <th>Prioridad</th>
-                                <th>{isEndUser ? "Responsable" : "Técnico"}</th>
-                                {showInternalMetrics && <th>SLA</th>}
-                                <th>{isEndUser ? "Actualización" : "Fecha"}</th>
-                                {isAdmin && <th>Acciones</th>}
-                            </tr>
-                        </thead>
+                </MotionSection>
 
-                        <tbody>
-                            {filtrados.map((ticket) => (
-                                <tr
-                                    key={ticket.id}
-                                    className="border-t border-white/10 bg-slate-950/20 hover:bg-white/[0.04]"
-                                >
-                                    <td
-                                        className="cursor-pointer p-4 font-medium"
-                                        onClick={() => navigate(`/tickets/${ticket.id}`)}
+                <MotionSection
+                    delay={0.1}
+                    className="glass-panel rounded-[2rem] p-3 sm:p-4"
+                >
+                    {filtrados.length === 0 ? (
+                        <div className="p-2">
+                            <EmptyState
+                                icon={ClipboardList}
+                                compact
+                                eyebrow={isEndUser ? "Sin seguimiento" : "Sin backlog"}
+                                title="Sin tickets en esta vista"
+                                description={
+                                    isEndUser
+                                        ? "Todavia no tienes tickets en este estado. Cuando abras uno nuevo podras seguirlo desde aqui."
+                                        : "Ajusta los filtros o crea un nuevo ticket para empezar a trabajar sobre el flujo de soporte."
+                                }
+                                action={
+                                    canCreateTicket ? (
+                                        <Button
+                                            onClick={() => navigate("/tickets/nuevo")}
+                                        >
+                                            Crear ticket
+                                        </Button>
+                                    ) : null
+                                }
+                            />
+                        </div>
+                    ) : (
+                        <>
+                            <MotionStagger className="space-y-3 lg:hidden">
+                                {filtrados.map((ticket) => (
+                                    <MotionItem
+                                        key={ticket.id}
+                                        className="app-surface-muted rounded-[1.6rem] p-4"
                                     >
-                                        {ticket.titulo}
-                                    </td>
+                                        <div className="flex items-start justify-between gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => navigate(`/tickets/${ticket.id}`)}
+                                                className="min-w-0 text-left"
+                                            >
+                                                <h3 className="text-base font-semibold text-[color:var(--app-text-primary)]">
+                                                    {ticket.titulo}
+                                                </h3>
+                                                <p className="mt-1 text-xs text-[color:var(--app-text-tertiary)]">
+                                                    #{ticket.id}
+                                                </p>
+                                            </button>
 
-                                    <td className="capitalize">
-                                        {ticket.estado.replace("_", " ")}
-                                    </td>
+                                            {showInternalMetrics ? (
+                                                <span
+                                                    className={`mt-1 inline-block h-3 w-3 shrink-0 rounded-full ${getSLAColor(
+                                                        ticket
+                                                    )}`}
+                                                    aria-label="Indicador SLA"
+                                                />
+                                            ) : null}
+                                        </div>
 
-                                    <td className="capitalize">{ticket.prioridad}</td>
+                                        <div className="mt-4 flex flex-wrap gap-2">
+                                            <span className={statusChipClass(ticket.estado)}>
+                                                {ticket.estado.replace("_", " ")}
+                                            </span>
+                                            <span className={priorityChipClass(ticket.prioridad)}>
+                                                {ticket.prioridad || "baja"}
+                                            </span>
+                                        </div>
 
-                                    <td>
-                                        {isAdmin ? (
-                                            <div className="min-w-[190px] space-y-2">
-                                                <div className="rounded-xl border border-white/10 bg-white/[0.05] p-1">
-                                                    <select
-                                                        value={ticket.asignado_a || ""}
-                                                        onChange={(event) =>
-                                                            actualizarAsignacion(ticket, event.target.value)
-                                                        }
-                                                        disabled={asignandoId === ticket.id}
-                                                        className="w-full rounded-lg bg-transparent px-2 py-1.5 text-xs outline-none"
-                                                    >
-                                                        <option value="">Sin asignar</option>
-                                                        {tecnicos.map((tecnico) => (
-                                                            <option key={tecnico.id} value={tecnico.id}>
-                                                                {tecnico.nombre || tecnico.email}
-                                                            </option>
-                                                        ))}
-                                                    </select>
+                                        <div className="app-surface mt-4 grid gap-3 rounded-[1.35rem] p-3 sm:grid-cols-2">
+                                            <div>
+                                                <p className="text-[11px] uppercase tracking-[0.16em] text-[color:var(--app-text-tertiary)]">
+                                                    {isEndUser ? "Responsable" : "Tecnico"}
+                                                </p>
+                                                <p className="mt-1 text-sm text-[color:var(--app-text-secondary)]">
+                                                    {resolverNombreTecnico(
+                                                        tecnicos,
+                                                        ticket.asignado_a
+                                                    )}
+                                                </p>
+                                            </div>
+
+                                            <div>
+                                                <p className="text-[11px] uppercase tracking-[0.16em] text-[color:var(--app-text-tertiary)]">
+                                                    {isEndUser ? "Actualizacion" : "Fecha"}
+                                                </p>
+                                                <p className="mt-1 text-sm text-[color:var(--app-text-secondary)]">
+                                                    {formatTicketDate(
+                                                        ticket.updated_at || ticket.created_at
+                                                    )}
+                                                </p>
+                                            </div>
+
+                                            {showInternalMetrics ? (
+                                                <div className="sm:col-span-2">
+                                                    <p className="text-[11px] uppercase tracking-[0.16em] text-[color:var(--app-text-tertiary)]">
+                                                        SLA
+                                                    </p>
+                                                    <div className="mt-1 inline-flex items-center gap-2 text-sm text-[color:var(--app-text-secondary)]">
+                                                        <span
+                                                            className={`inline-block h-3 w-3 rounded-full ${getSLAColor(
+                                                                ticket
+                                                            )}`}
+                                                        />
+                                                        Seguimiento activo
+                                                    </div>
                                                 </div>
+                                            ) : null}
+                                        </div>
 
-                                                <div className="text-[11px] text-slate-500">
-                                                    {resolverNombreTecnico(tecnicos, ticket.asignado_a)}
+                                        {isAdmin ? (
+                                            <div className="mt-4 space-y-3">
+                                                <select
+                                                    value={ticket.asignado_a || ""}
+                                                    onChange={(event) =>
+                                                        actualizarAsignacion(
+                                                            ticket,
+                                                            event.target.value
+                                                        )
+                                                    }
+                                                    disabled={asignandoId === ticket.id}
+                                                    className="app-input-shell w-full text-sm"
+                                                >
+                                                    <option value="">Sin asignar</option>
+                                                    {tecnicos.map((tecnico) => (
+                                                        <option
+                                                            key={tecnico.id}
+                                                            value={tecnico.id}
+                                                        >
+                                                            {tecnico.nombre || tecnico.email}
+                                                        </option>
+                                                    ))}
+                                                </select>
+
+                                                <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+                                                    <Button
+                                                        onClick={() => autoAsignar(ticket)}
+                                                        variant="secondary"
+                                                        iconLeft={Sparkles}
+                                                    >
+                                                        Auto asignar
+                                                    </Button>
+
+                                                    <Button
+                                                        onClick={() => cerrar(ticket)}
+                                                        variant="secondary"
+                                                        iconLeft={Check}
+                                                        aria-label={`Cerrar ${ticket.titulo}`}
+                                                    >
+                                                        Cerrar
+                                                    </Button>
+
+                                                    <Button
+                                                        onClick={() => requestDelete(ticket)}
+                                                        variant="danger"
+                                                        iconLeft={Trash2}
+                                                        aria-label={`Eliminar ${ticket.titulo}`}
+                                                    >
+                                                        Eliminar
+                                                    </Button>
                                                 </div>
                                             </div>
-                                        ) : (
-                                            <span className="text-xs text-slate-300">
-                                                {resolverNombreTecnico(tecnicos, ticket.asignado_a)}
-                                            </span>
-                                        )}
-                                    </td>
+                                        ) : null}
+                                    </MotionItem>
+                                ))}
+                            </MotionStagger>
 
-                                    {showInternalMetrics && (
-                                        <td>
-                                            <span
-                                                className={`inline-block h-3 w-3 rounded-full ${getSLAColor(
-                                                    ticket
-                                                )}`}
-                                            />
-                                        </td>
-                                    )}
+                            <div className="hidden lg:block">
+                                <div className="data-table-wrap overflow-x-auto">
+                                    <table className="data-table min-w-[980px]">
+                                        <thead>
+                                            <tr>
+                                                <th>Titulo</th>
+                                                <th>Estado</th>
+                                                <th>Prioridad</th>
+                                                <th>{isEndUser ? "Responsable" : "Tecnico"}</th>
+                                                {showInternalMetrics ? <th>SLA</th> : null}
+                                                <th>{isEndUser ? "Actualizacion" : "Fecha"}</th>
+                                                {isAdmin ? <th>Acciones</th> : null}
+                                            </tr>
+                                        </thead>
 
-                                    <td>{formatTicketDate(ticket.updated_at || ticket.created_at)}</td>
+                                        <tbody>
+                                            {filtrados.map((ticket) => (
+                                                <tr key={ticket.id}>
+                                                    <td>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => navigate(`/tickets/${ticket.id}`)}
+                                                            className="group text-left"
+                                                        >
+                                                            <div className="font-semibold text-[color:var(--app-text-primary)] transition group-hover:text-[color:var(--app-accent)]">
+                                                                {ticket.titulo}
+                                                            </div>
+                                                            <div className="mt-1 text-xs text-[color:var(--app-text-tertiary)]">
+                                                                #{ticket.id}
+                                                            </div>
+                                                        </button>
+                                                    </td>
 
-                                    {isAdmin && (
-                                        <td className="space-x-2">
-                                            <button
-                                                onClick={() => autoAsignar(ticket)}
-                                                className="rounded-lg bg-sky-500/15 px-2 py-1 text-xs font-medium text-sky-200 transition hover:bg-sky-500/25"
-                                            >
-                                                Auto
-                                            </button>
+                                                    <td>
+                                                        <span className={statusChipClass(ticket.estado)}>
+                                                            {ticket.estado.replace("_", " ")}
+                                                        </span>
+                                                    </td>
 
-                                            <button
-                                                onClick={() => cerrar(ticket)}
-                                                className="text-green-600 hover:scale-110"
-                                            >
-                                                ✔
-                                            </button>
+                                                    <td>
+                                                        <span className={priorityChipClass(ticket.prioridad)}>
+                                                            {ticket.prioridad || "baja"}
+                                                        </span>
+                                                    </td>
 
-                                            <button
-                                                onClick={() => eliminar(ticket)}
-                                                className="text-red-600 hover:scale-110"
-                                            >
-                                                🗑
-                                            </button>
-                                        </td>
-                                    )}
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                )}
-            </div>
-        </div>
+                                                    <td>
+                                                        {isAdmin ? (
+                                                            <div className="min-w-[220px] space-y-2">
+                                                                <select
+                                                                    value={ticket.asignado_a || ""}
+                                                                    onChange={(event) =>
+                                                                        actualizarAsignacion(
+                                                                            ticket,
+                                                                            event.target.value
+                                                                        )
+                                                                    }
+                                                                    disabled={asignandoId === ticket.id}
+                                                                    className="app-input-shell w-full text-xs"
+                                                                >
+                                                                    <option value="">Sin asignar</option>
+                                                                    {tecnicos.map((tecnico) => (
+                                                                        <option
+                                                                            key={tecnico.id}
+                                                                            value={tecnico.id}
+                                                                        >
+                                                                            {tecnico.nombre || tecnico.email}
+                                                                        </option>
+                                                                    ))}
+                                                                </select>
+
+                                                                <div className="text-[11px] text-[color:var(--app-text-tertiary)]">
+                                                                    {resolverNombreTecnico(
+                                                                        tecnicos,
+                                                                        ticket.asignado_a
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-sm text-[color:var(--app-text-secondary)]">
+                                                                {resolverNombreTecnico(
+                                                                    tecnicos,
+                                                                    ticket.asignado_a
+                                                                )}
+                                                            </span>
+                                                        )}
+                                                    </td>
+
+                                                    {showInternalMetrics ? (
+                                                        <td>
+                                                            <div className="inline-flex items-center gap-2">
+                                                                <span
+                                                                    className={`inline-block h-3 w-3 rounded-full ${getSLAColor(
+                                                                        ticket
+                                                                    )}`}
+                                                                />
+                                                                <span className="text-xs text-[color:var(--app-text-tertiary)]">
+                                                                    Seguimiento
+                                                                </span>
+                                                            </div>
+                                                        </td>
+                                                    ) : null}
+
+                                                    <td>
+                                                        <div className="text-sm text-[color:var(--app-text-secondary)]">
+                                                            {formatTicketDate(
+                                                                ticket.updated_at || ticket.created_at
+                                                            )}
+                                                        </div>
+                                                    </td>
+
+                                                    {isAdmin ? (
+                                                        <td>
+                                                            <div className="flex items-center gap-2">
+                                                                <Button
+                                                                    onClick={() => autoAsignar(ticket)}
+                                                                    variant="secondary"
+                                                                    size="sm"
+                                                                    iconLeft={Sparkles}
+                                                                >
+                                                                    Auto
+                                                                </Button>
+
+                                                                <Button
+                                                                    onClick={() => cerrar(ticket)}
+                                                                    variant="secondary"
+                                                                    size="sm"
+                                                                    className="w-10 px-0"
+                                                                    aria-label={`Cerrar ${ticket.titulo}`}
+                                                                >
+                                                                    <Check className="h-4 w-4" />
+                                                                </Button>
+
+                                                                <Button
+                                                                    onClick={() => requestDelete(ticket)}
+                                                                    variant="danger"
+                                                                    size="sm"
+                                                                    className="w-10 px-0"
+                                                                    aria-label={`Eliminar ${ticket.titulo}`}
+                                                                >
+                                                                    <Trash2 className="h-4 w-4" />
+                                                                </Button>
+                                                            </div>
+                                                        </td>
+                                                    ) : null}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </MotionSection>
+            </MotionPage>
+
+            <ConfirmDialog
+                open={Boolean(ticketToDelete)}
+                onClose={() => setTicketToDelete(null)}
+                onConfirm={confirmDelete}
+                title="Eliminar ticket"
+                description={
+                    ticketToDelete
+                        ? `Se eliminara "${ticketToDelete.titulo}" y dejara de estar disponible en el flujo de soporte.`
+                        : ""
+                }
+                confirmLabel="Eliminar ticket"
+                busy={deletingId === ticketToDelete?.id}
+            />
+        </>
     );
 }

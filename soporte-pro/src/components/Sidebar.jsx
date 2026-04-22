@@ -1,13 +1,22 @@
 import { Link, useLocation } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import {
+    ChevronLeft,
+    ChevronRight,
     KanbanSquare,
     LayoutDashboard,
     ShieldCheck,
     Sparkles,
     Ticket,
     Users,
+    X,
 } from "lucide-react";
 import { getNavigationItems, isEndUserRole } from "../utils/permissions";
+import { cn } from "../utils/cn";
+import { MotionItem, MotionSection, MotionStagger } from "./AppMotion";
+
+const MotionAside = motion.aside;
+const MotionDiv = motion.div;
 
 const ICONS = {
     dashboard: LayoutDashboard,
@@ -17,69 +26,201 @@ const ICONS = {
     auditoria: ShieldCheck,
 };
 
-export default function Sidebar({ rol }) {
+function SidebarNav({
+    rol,
+    collapsed = false,
+    onClose,
+    onToggleCollapse,
+    mobile = false,
+}) {
     const location = useLocation();
     const navigationItems = getNavigationItems(rol);
     const isEndUser = isEndUserRole(rol);
 
-    function item(path, label, icon) {
-        const IconComponent = icon;
-        const active = location.pathname === path;
-
-        return (
-            <Link
-                to={path}
-                className={`group flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium ${
-                    active
-                        ? "border border-cyan-400/20 bg-cyan-400/12 text-white shadow-[0_12px_40px_rgba(56,189,248,0.18)]"
-                        : "border border-transparent text-slate-400 hover:border-white/10 hover:bg-white/[0.06] hover:text-white"
-                }`}
-            >
-                <span
-                    className={`flex h-9 w-9 items-center justify-center rounded-2xl ${
-                        active
-                            ? "bg-cyan-400/15 text-cyan-200"
-                            : "bg-white/[0.04] text-slate-400 group-hover:bg-white/10 group-hover:text-slate-200"
-                    }`}
-                >
-                    <IconComponent size={17} />
-                </span>
-                <span>{label}</span>
-            </Link>
-        );
-    }
-
     return (
-        <aside className="relative hidden h-full w-72 shrink-0 border-r border-white/10 bg-slate-950/45 p-5 backdrop-blur-2xl lg:flex lg:flex-col">
-            <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.04] p-4 shadow-[0_20px_60px_rgba(15,23,42,0.24)]">
-                <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-200">
-                    <Sparkles className="h-3.5 w-3.5" />
-                    Soporte Pro
+        <div className="app-sidebar-shell brand-glow flex h-full flex-col p-4">
+            <MotionSection className="app-surface-hero rounded-[1.8rem] p-4">
+                <div className="flex items-start justify-between gap-3">
+                    <div className={cn("min-w-0", collapsed && !mobile && "hidden")}>
+                        <div className="brand-badge">
+                            <Sparkles className="h-3.5 w-3.5" />
+                            Soporte Pro
+                        </div>
+                        <h1 className="mt-4 text-[1.45rem] font-semibold tracking-tight text-[color:var(--app-text-primary)]">
+                            {isEndUser
+                                ? "Portal de seguimiento"
+                                : "Mesa de soporte premium"}
+                        </h1>
+                        <p className="mt-3 text-sm leading-6 text-[color:var(--app-text-secondary)]">
+                            {isEndUser
+                                ? "Consulta solicitudes, comparte evidencias y conversa con soporte en una experiencia mas clara y elegante."
+                                : "Operacion centralizada de tickets, analitica y seguimiento tecnico con look SaaS institucional."}
+                        </p>
+                    </div>
+
+                    <div className="flex shrink-0 gap-2">
+                        {mobile ? (
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="app-icon-button"
+                                aria-label="Cerrar navegacion"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={onToggleCollapse}
+                                className="app-icon-button hidden lg:inline-flex"
+                                aria-label={
+                                    collapsed
+                                        ? "Expandir sidebar"
+                                        : "Colapsar sidebar"
+                                }
+                            >
+                                {collapsed ? (
+                                    <ChevronRight className="h-4 w-4" />
+                                ) : (
+                                    <ChevronLeft className="h-4 w-4" />
+                                )}
+                            </button>
+                        )}
+                    </div>
                 </div>
-                <h1 className="mt-4 text-xl font-semibold tracking-tight text-white">
-                    {isEndUser ? "Seguimiento de tickets" : "Workspace SaaS"}
-                </h1>
-                <p className="mt-2 text-sm leading-6 text-slate-400">
-                    {isEndUser
-                        ? "Consulta el estado de tus solicitudes, adjunta evidencias y conversa con soporte en tiempo real."
-                        : "Gestión centralizada de tickets, analítica y operación técnica."}
-                </p>
-            </div>
 
-            <nav className="mt-6 space-y-2">
-                {navigationItems.map((navItem) =>
-                    item(navItem.path, navItem.label, ICONS[navItem.key])
+                {collapsed && !mobile ? (
+                    <div className="mt-4 flex justify-center">
+                        <div className="app-icon-badge">
+                            <Sparkles className="h-5 w-5" />
+                        </div>
+                    </div>
+                ) : (
+                    <div className="mt-5 flex gap-2">
+                        {[
+                            "var(--brand-primary)",
+                            "var(--brand-secondary)",
+                            "var(--app-accent)",
+                            "var(--brand-highlight)",
+                        ].map((color) => (
+                                <span
+                                    key={color}
+                                    className="h-3.5 w-3.5 rounded-full border border-[color:var(--app-border)] shadow-sm"
+                                    style={{ backgroundColor: color }}
+                                />
+                            ))}
+                    </div>
                 )}
-            </nav>
+            </MotionSection>
 
-            <div className="mt-auto rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+            <MotionStagger
+                className="mt-6 space-y-2"
+                delayChildren={0.06}
+                staggerChildren={0.05}
+            >
+                {navigationItems.map((navItem) => {
+                    const IconComponent = ICONS[navItem.key];
+                    const active =
+                        navItem.path === "/"
+                            ? location.pathname === "/"
+                            : location.pathname.startsWith(navItem.path);
+
+                    return (
+                        <MotionItem key={navItem.path}>
+                            <Link
+                                to={navItem.path}
+                                onClick={mobile ? onClose : undefined}
+                                data-active={active}
+                                title={collapsed && !mobile ? navItem.label : undefined}
+                                className="app-sidebar-link"
+                            >
+                                <span className="app-sidebar-icon">
+                                    <IconComponent className="h-4 w-4" />
+                                </span>
+                                <span
+                                    className={cn(
+                                        "truncate",
+                                        collapsed && !mobile && "hidden"
+                                    )}
+                                >
+                                    {navItem.label}
+                                </span>
+                            </Link>
+                        </MotionItem>
+                    );
+                })}
+            </MotionStagger>
+
+            <MotionSection
+                delay={0.14}
+                className={cn(
+                    "app-surface-muted mt-auto rounded-[1.55rem] p-4",
+                    collapsed && !mobile && "p-3 text-center"
+                )}
+            >
+                <p className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--app-text-tertiary)]">
                     Rol activo
                 </p>
-                <p className="mt-2 text-sm font-semibold capitalize text-white">
+                <p className="mt-2 text-sm font-semibold capitalize text-[color:var(--app-text-primary)]">
                     {rol || "cargando"}
                 </p>
-            </div>
-        </aside>
+                <p
+                    className={cn(
+                        "mt-2 text-xs leading-5 text-[color:var(--app-text-secondary)]",
+                        collapsed && !mobile && "hidden"
+                    )}
+                >
+                    Interfaz optimizada para un flujo mas claro, comercial y presentable.
+                </p>
+            </MotionSection>
+        </div>
+    );
+}
+
+export default function Sidebar({
+    rol,
+    isOpen = false,
+    onClose,
+    collapsed = false,
+    onToggleCollapse,
+}) {
+    return (
+        <>
+            <aside
+                className={cn(
+                    "hidden h-screen shrink-0 border-r border-transparent lg:block",
+                    collapsed ? "w-[6.75rem]" : "w-[19rem]"
+                )}
+            >
+                <SidebarNav
+                    rol={rol}
+                    collapsed={collapsed}
+                    onToggleCollapse={onToggleCollapse}
+                />
+            </aside>
+
+            <AnimatePresence>
+                {isOpen ? (
+                    <MotionDiv
+                        className="fixed inset-0 z-50 bg-[color:var(--app-overlay)] backdrop-blur-sm lg:hidden"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={onClose}
+                    >
+                        <MotionAside
+                            className="absolute inset-y-0 left-0 w-[min(22rem,88vw)]"
+                            initial={{ x: -32, opacity: 0 }}
+                            animate={{ x: 0, opacity: 1 }}
+                            exit={{ x: -32, opacity: 0 }}
+                            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                            onClick={(event) => event.stopPropagation()}
+                        >
+                            <SidebarNav rol={rol} mobile onClose={onClose} />
+                        </MotionAside>
+                    </MotionDiv>
+                ) : null}
+            </AnimatePresence>
+        </>
     );
 }

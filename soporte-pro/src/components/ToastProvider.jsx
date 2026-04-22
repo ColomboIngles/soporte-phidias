@@ -7,6 +7,7 @@ import {
     X,
 } from "lucide-react";
 import { ToastContext } from "../hooks/toast-context";
+import { TOAST_TRANSITION } from "./motion-presets";
 
 const TOAST_STYLES = {
     success: {
@@ -40,7 +41,7 @@ function buildToast(input) {
     }
 
     return {
-        title: input.title || "Notificación",
+        title: input.title || "Notificacion",
         message: input.message || "",
         type: input.type || "info",
         duration: input.duration ?? 4200,
@@ -56,10 +57,10 @@ function ToastCard({ toast, onDismiss }) {
     return (
         <MotionCard
             layout
-            initial={{ opacity: 0, x: 56, scale: 0.96, filter: "blur(8px)" }}
+            initial={{ opacity: 0, x: 32, scale: 0.985, filter: "blur(6px)" }}
             animate={{ opacity: 1, x: 0, scale: 1, filter: "blur(0px)" }}
-            exit={{ opacity: 0, x: 40, scale: 0.98, filter: "blur(6px)" }}
-            transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
+            exit={{ opacity: 0, x: 24, scale: 0.992, filter: "blur(4px)" }}
+            transition={TOAST_TRANSITION}
             className="relative w-full overflow-hidden rounded-2xl border border-white/15 bg-slate-950/85 p-4 text-white shadow-[0_20px_60px_rgba(15,23,42,0.45)] backdrop-blur-2xl"
         >
             <div
@@ -95,7 +96,7 @@ function ToastCard({ toast, onDismiss }) {
                     type="button"
                     onClick={() => onDismiss(toast.id)}
                     className="rounded-full p-1.5 text-slate-400 transition hover:bg-white/10 hover:text-white"
-                    aria-label="Cerrar notificación"
+                    aria-label="Cerrar notificacion"
                 >
                     <X className="h-4 w-4" />
                 </button>

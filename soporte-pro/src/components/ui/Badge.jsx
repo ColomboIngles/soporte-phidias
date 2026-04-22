@@ -1,12 +1,36 @@
-export default function Badge({ children, type }) {
-    const styles = {
-        abierto: "bg-yellow-100 text-yellow-700",
-        proceso: "bg-blue-100 text-blue-700",
-        cerrado: "bg-green-100 text-green-700",
-    };
+import { cn } from "../../utils/cn";
+
+const TONES = {
+    neutral: "app-badge app-badge-neutral",
+    success: "app-badge app-badge-success",
+    info: "app-badge app-badge-info",
+    warning: "app-badge app-badge-warning",
+    danger: "app-badge app-badge-danger",
+};
+
+const LEGACY_TONES = {
+    abierto: TONES.success,
+    proceso: TONES.info,
+    cerrado: TONES.neutral,
+};
+
+const SIZES = {
+    sm: "px-2.5 py-1 text-[0.64rem]",
+    md: "",
+    lg: "px-3.5 py-1.5 text-[0.76rem]",
+};
+
+export default function Badge({
+    children,
+    tone = "neutral",
+    type,
+    size = "md",
+    className,
+}) {
+    const resolvedTone = LEGACY_TONES[type] || TONES[tone] || TONES.neutral;
 
     return (
-        <span className={`px-2 py-1 text-xs rounded-full ${styles[type]}`}>
+        <span className={cn(resolvedTone, SIZES[size] || SIZES.md, className)}>
             {children}
         </span>
     );

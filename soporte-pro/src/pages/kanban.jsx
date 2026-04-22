@@ -1,9 +1,13 @@
-import { useEffect, useState } from "react";
-import { KanbanSquare } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
+import { KanbanSquare, LoaderCircle } from "lucide-react";
 import { DragDropContext, Draggable, Droppable } from "@hello-pangea/dnd";
 import { supabase } from "../services/supabase";
 import API from "../services/api";
 import { useToast } from "../hooks/useToast";
+import Button from "../components/ui/Button";
+import SectionHeader from "../components/ui/SectionHeader";
+import Surface from "../components/ui/Surface";
 import {
     elegirTecnicoConMenosTickets,
     obtenerTecnicos,
@@ -12,50 +16,182 @@ import {
 import Skeleton from "../components/skeleton";
 import EmptyState from "../components/EmptyState";
 import { isAdminRole } from "../utils/permissions";
+import { MotionItem, MotionPage, MotionSection, MotionStagger } from "../components/AppMotion";
 
 const base = {
     abierto: { name: "Abiertos", items: [] },
-    en_proceso: { name: "En Proceso", items: [] },
+    en_proceso: { name: "En proceso", items: [] },
     cerrado: { name: "Cerrados", items: [] },
 };
+
+function statusChipClass(estado) {
+    if (estado === "cerrado") return "status-chip status-chip-cerrado";
+    if (estado === "en_proceso") return "status-chip status-chip-en-proceso";
+    return "status-chip status-chip-abierto";
+}
+
+function priorityChipClass(prioridad) {
+    if (prioridad === "alta") return "priority-chip priority-chip-alta";
+    if (prioridad === "media") return "priority-chip priority-chip-media";
+    return "priority-chip priority-chip-baja";
+}
+
+function buildColumns(lista) {
+    const nuevo = {
+        abierto: { ...base.abierto, items: [] },
+        en_proceso: { ...base.en_proceso, items: [] },
+        cerrado: { ...base.cerrado, items: [] },
+    };
+
+    lista.forEach((ticket) => {
+        const estado = ticket.estado || "abierto";
+        if (nuevo[estado]) {
+            nuevo[estado].items.push(ticket);
+        }
+    });
+
+    return nuevo;
+}
+
+function patchColumnsTicket(columnas, ticketId, updater) {
+    return Object.fromEntries(
+        Object.entries(columnas).map(([columnId, column]) => [
+            columnId,
+            {
+                ...column,
+                items: column.items.map((ticket) =>
+                    ticket.id === ticketId ? updater(ticket) : ticket
+                ),
+            },
+        ])
+    );
+}
+
+function TicketCard({
+    ticket,
+    tecnicos,
+    canAssign,
+    movingTicketId,
+    onAssign,
+    onAutoAssign,
+    getSLAColor,
+}) {
+    return (
+        <div
+            className={`app-surface-muted app-surface-interactive cursor-grab rounded-[1.5rem] p-4 active:cursor-grabbing ${
+                movingTicketId === ticket.id ? "opacity-70" : ""
+            }`}
+        >
+            <div className="flex justify-between gap-3">
+                <div className="min-w-0">
+                    <p className="font-medium text-[color:var(--app-text-primary)]">
+                        {ticket.titulo}
+                    </p>
+                    <p className="mt-1 text-[11px] text-[color:var(--app-text-tertiary)]">
+                        #{ticket.id}
+                    </p>
+                </div>
+                <span
+                    className={`mt-1 h-3 w-3 shrink-0 rounded-full ${getSLAColor(
+                        ticket
+                    )}`}
+                />
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+                <span className={priorityChipClass(ticket.prioridad)}>
+                    {ticket.prioridad || "baja"}
+                </span>
+                <span className={statusChipClass(ticket.estado)}>
+                    {ticket.estado?.replace("_", " ") || "abierto"}
+                </span>
+            </div>
+
+            <p className="mt-3 text-xs leading-5 text-[color:var(--app-text-secondary)]">
+                {resolverNombreTecnico(tecnicos, ticket.asignado_a)}
+            </p>
+
+            {canAssign ? (
+                <div className="mt-3 space-y-2">
+                    <select
+                        className="app-input-shell w-full text-xs"
+                        value={ticket.asignado_a || ""}
+                        onChange={(event) => onAssign(ticket, event.target.value)}
+                    >
+                        <option value="">Sin asignar</option>
+                        {tecnicos.map((tecnico) => (
+                            <option key={tecnico.id} value={tecnico.id}>
+                                {tecnico.nombre || tecnico.email}
+                            </option>
+                        ))}
+                    </select>
+
+                    <Button
+                        onClick={() => onAutoAssign(ticket)}
+                        variant="secondary"
+                        size="sm"
+                        className="w-full"
+                    >
+                        Auto asignar
+                    </Button>
+                </div>
+            ) : (
+                <div className="app-surface mt-3 rounded-xl px-3 py-2 text-xs text-[color:var(--app-text-secondary)]">
+                    Responsable: {resolverNombreTecnico(tecnicos, ticket.asignado_a)}
+                </div>
+            )}
+
+            {movingTicketId === ticket.id && (
+                <div className="mt-3 inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-[color:var(--app-text-tertiary)]">
+                    <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                    Actualizando
+                </div>
+            )}
+        </div>
+    );
+}
 
 export default function Kanban({ rol }) {
     const [columnas, setColumnas] = useState(base);
     const [tecnicos, setTecnicos] = useState([]);
     const [tickets, setTickets] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [movingTicketId, setMovingTicketId] = useState(null);
     const { showToast } = useToast();
+    const dragPortal = useMemo(
+        () => (typeof document !== "undefined" ? document.body : null),
+        []
+    );
 
     const canAssign = isAdminRole(rol);
 
     useEffect(() => {
+        let activo = true;
+
         async function cargarTickets() {
             setLoading(true);
+
             const { data } = await supabase.from("tickets").select("*");
             const lista = data || [];
 
-            const nuevo = {
-                abierto: { ...base.abierto, items: [] },
-                en_proceso: { ...base.en_proceso, items: [] },
-                cerrado: { ...base.cerrado, items: [] },
-            };
-
-            lista.forEach((ticket) => {
-                const estado = ticket.estado || "abierto";
-                if (nuevo[estado]) nuevo[estado].items.push(ticket);
-            });
+            if (!activo) return;
 
             setTickets(lista);
-            setColumnas(nuevo);
+            setColumnas(buildColumns(lista));
             setLoading(false);
         }
 
         async function cargarTecnicos() {
             try {
                 const data = await obtenerTecnicos();
-                setTecnicos(data);
+
+                if (activo) {
+                    setTecnicos(data);
+                }
             } catch {
-                setTecnicos([]);
+                if (activo) {
+                    setTecnicos([]);
+                }
             }
         }
 
@@ -81,16 +217,27 @@ export default function Kanban({ rol }) {
             .subscribe();
 
         return () => {
+            activo = false;
             supabase.removeChannel(ticketsChannel);
             supabase.removeChannel(usuariosChannel);
         };
     }, []);
 
+    function updateTicketEverywhere(ticketId, updater) {
+        setTickets((prev) =>
+            prev.map((ticket) => (ticket.id === ticketId ? updater(ticket) : ticket))
+        );
+
+        setColumnas((prev) => patchColumnsTicket(prev, ticketId, updater));
+    }
+
     async function actualizarEstado(id, estado) {
         try {
-            await API.put(`/tickets/${id}`, {
+            const response = await API.put(`/tickets/${id}`, {
                 estado,
             });
+
+            return response.data;
         } catch (error) {
             showToast({
                 type: "error",
@@ -100,6 +247,8 @@ export default function Kanban({ rol }) {
                     error.message ||
                     "Intenta nuevamente en unos segundos.",
             });
+
+            return null;
         }
     }
 
@@ -109,25 +258,22 @@ export default function Kanban({ rol }) {
                 asignado_a: tecnicoId || null,
             });
 
-            setTickets((prev) =>
-                prev.map((ticket) =>
-                    ticket.id === id
-                        ? { ...ticket, asignado_a: tecnicoId || null }
-                        : ticket
-                )
-            );
+            updateTicketEverywhere(id, (ticket) => ({
+                ...ticket,
+                asignado_a: tecnicoId || null,
+            }));
 
             showToast({
                 type: "success",
-                title: tecnicoId ? "Técnico asignado" : "Asignación removida",
+                title: tecnicoId ? "Tecnico asignado" : "Asignacion removida",
                 message: tecnicoId
-                    ? `“${titulo}” ya tiene responsable.`
-                    : `“${titulo}” volvió a quedar sin asignación.`,
+                    ? `"${titulo}" ya tiene responsable.`
+                    : `"${titulo}" volvio a quedar sin asignacion.`,
             });
         } catch (error) {
             showToast({
                 type: "error",
-                title: "No se pudo actualizar la asignación",
+                title: "No se pudo actualizar la asignacion",
                 message:
                     error.response?.data?.message ||
                     error.message ||
@@ -138,11 +284,12 @@ export default function Kanban({ rol }) {
 
     async function autoAsignar(ticket) {
         const tecnico = elegirTecnicoConMenosTickets(tickets, tecnicos);
+
         if (!tecnico) {
             showToast({
                 type: "info",
-                title: "No hay técnicos disponibles",
-                message: "Crea o habilita usuarios con rol técnico para usar autoasignación.",
+                title: "No hay tecnicos disponibles",
+                message: "Crea o habilita usuarios con rol tecnico para usar autoasignacion.",
             });
             return;
         }
@@ -158,170 +305,223 @@ export default function Kanban({ rol }) {
         return "bg-green-500";
     }
 
-    const onDragEnd = async (result) => {
+    async function onDragEnd(result) {
         if (!result.destination) return;
 
         const { source, destination } = result;
 
+        if (
+            source.droppableId === destination.droppableId &&
+            source.index === destination.index
+        ) {
+            return;
+        }
+
         const sourceCol = columnas[source.droppableId];
         const destCol = columnas[destination.droppableId];
 
+        if (!sourceCol || !destCol) return;
+
+        if (source.droppableId === destination.droppableId) {
+            const reordered = [...sourceCol.items];
+            const [moved] = reordered.splice(source.index, 1);
+            reordered.splice(destination.index, 0, moved);
+
+            setColumnas((prev) => ({
+                ...prev,
+                [source.droppableId]: {
+                    ...sourceCol,
+                    items: reordered,
+                },
+            }));
+
+            return;
+        }
+
+        const previousColumns = columnas;
+        const previousTickets = tickets;
         const sourceItems = [...sourceCol.items];
         const destItems = [...destCol.items];
-
         const [moved] = sourceItems.splice(source.index, 1);
-        destItems.splice(destination.index, 0, moved);
+        const optimisticTicket = {
+            ...moved,
+            estado: destination.droppableId,
+            updated_at: new Date().toISOString(),
+        };
 
+        destItems.splice(destination.index, 0, optimisticTicket);
+
+        setMovingTicketId(moved.id);
         setColumnas({
             ...columnas,
             [source.droppableId]: { ...sourceCol, items: sourceItems },
             [destination.droppableId]: { ...destCol, items: destItems },
         });
+        setTickets((prev) =>
+            prev.map((ticket) =>
+                ticket.id === moved.id ? optimisticTicket : ticket
+            )
+        );
 
-        await actualizarEstado(moved.id, destination.droppableId);
-    };
+        const updatedTicket = await actualizarEstado(
+            moved.id,
+            destination.droppableId
+        );
+
+        if (!updatedTicket) {
+            setColumnas(previousColumns);
+            setTickets(previousTickets);
+            setMovingTicketId(null);
+            return;
+        }
+
+        updateTicketEverywhere(moved.id, (ticket) => ({
+            ...ticket,
+            ...updatedTicket,
+        }));
+        setMovingTicketId(null);
+    }
 
     if (loading) {
         return <Skeleton variant="table" />;
     }
 
     return (
-        <div className="p-6">
-            <section className="glass-panel rounded-[2rem] p-6">
-                <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">
+        <MotionPage className="space-y-5 p-4 sm:space-y-6 sm:p-6">
+            <MotionSection className="app-surface-hero rounded-[2rem] p-5 sm:p-6">
+                <div className="app-kicker w-max">
                     <KanbanSquare className="h-3.5 w-3.5" />
                     Vista Kanban
                 </div>
-                <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white">
+                <h1 className="mt-4 text-3xl font-semibold tracking-tight text-[color:var(--app-text-primary)]">
                     Flujo operativo por columnas
                 </h1>
-                <p className="mt-2 text-sm leading-6 text-slate-400">
-                    Arrastra tickets, actualiza estados y coordina trabajo con una vista visual más clara.
+                <p className="mt-3 text-sm leading-7 text-[color:var(--app-text-secondary)]">
+                    Arrastra tickets, actualiza estados y coordina trabajo con una vista visual mas clara.
                 </p>
-            </section>
+            </MotionSection>
 
-            <div className="mb-6 flex gap-4 text-sm">
-                <span className="flex items-center gap-1">
+            <MotionSection
+                delay={0.06}
+                className="mb-2 flex flex-wrap gap-3 text-sm sm:gap-4"
+            >
+                <span className="app-surface-muted inline-flex items-center gap-2 rounded-full px-3 py-2">
                     <span className="h-3 w-3 rounded-full bg-green-500" /> OK
                 </span>
-                <span className="flex items-center gap-1">
+                <span className="app-surface-muted inline-flex items-center gap-2 rounded-full px-3 py-2">
                     <span className="h-3 w-3 rounded-full bg-yellow-400" /> Riesgo
                 </span>
-                <span className="flex items-center gap-1">
+                <span className="app-surface-muted inline-flex items-center gap-2 rounded-full px-3 py-2">
                     <span className="h-3 w-3 rounded-full bg-red-500" /> Vencido
                 </span>
-            </div>
+            </MotionSection>
 
             <DragDropContext onDragEnd={onDragEnd}>
-                <div className="grid gap-6 md:grid-cols-3">
-                    {tickets.length === 0 && (
-                        <div className="md:col-span-3">
-                            <EmptyState
-                                icon={KanbanSquare}
-                                title="No hay tickets para organizar"
-                                description="Cuando entren tickets al sistema podrás moverlos entre columnas y asignarlos desde aquí."
-                            />
-                        </div>
-                    )}
-
-                    {Object.entries(columnas).map(([id, col]) => (
-                        <div key={id} className="glass-panel rounded-[1.75rem] p-4">
-                            <h2 className="mb-4 font-semibold text-white">{col.name}</h2>
-
-                            <Droppable droppableId={id}>
-                                {(provided) => (
-                                    <div
-                                        ref={provided.innerRef}
-                                        {...provided.droppableProps}
-                                        className="min-h-[200px] space-y-3"
-                                    >
-                                        {col.items.map((ticket, index) => (
-                                            <Draggable
-                                                key={ticket.id}
-                                                draggableId={ticket.id.toString()}
-                                                index={index}
-                                            >
-                                                {(dragProvided) => (
-                                                    <div
-                                                        ref={dragProvided.innerRef}
-                                                        {...dragProvided.draggableProps}
-                                                        {...dragProvided.dragHandleProps}
-                                                        className="glass-card soft-hover rounded-[1.5rem] p-4"
-                                                    >
-                                                        <div className="flex justify-between gap-3">
-                                                            <p className="font-medium text-white">
-                                                                {ticket.titulo}
-                                                            </p>
-                                                            <span
-                                                                className={`h-3 w-3 rounded-full ${getSLAColor(
-                                                                    ticket
-                                                                )}`}
-                                                            />
-                                                        </div>
-
-                                                        <p className="mt-2 text-xs text-slate-300">
-                                                            {ticket.prioridad}
-                                                        </p>
-                                                        <p className="mt-1 text-xs text-slate-400">
-                                                            {resolverNombreTecnico(
-                                                                tecnicos,
-                                                                ticket.asignado_a
-                                                            )}
-                                                        </p>
-
-                                                        {canAssign ? (
-                                                            <>
-                                                                <select
-                                                                    className="mt-2 w-full rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-xs outline-none"
-                                                                    value={ticket.asignado_a || ""}
-                                                                    onChange={(event) =>
-                                                                        asignar(
-                                                                            ticket.id,
-                                                                            event.target.value,
-                                                                            ticket.titulo
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    <option value="">Sin asignar</option>
-                                                                    {tecnicos.map((tecnico) => (
-                                                                        <option
-                                                                            key={tecnico.id}
-                                                                            value={tecnico.id}
-                                                                        >
-                                                                            {tecnico.nombre || tecnico.email}
-                                                                        </option>
-                                                                    ))}
-                                                                </select>
-
-                                                                <button
-                                                                    onClick={() => autoAsignar(ticket)}
-                                                                    className="mt-2 w-full rounded-lg border border-sky-400/20 bg-sky-400/10 px-3 py-2 text-xs font-medium text-sky-200 transition hover:bg-sky-400/15"
-                                                                >
-                                                                    Auto asignar
-                                                                </button>
-                                                            </>
-                                                        ) : (
-                                                            <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-slate-300">
-                                                                Responsable:{" "}
-                                                                {resolverNombreTecnico(
-                                                                    tecnicos,
-                                                                    ticket.asignado_a
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </Draggable>
-                                        ))}
-
-                                        {provided.placeholder}
+                {tickets.length === 0 ? (
+                    <EmptyState
+                        icon={KanbanSquare}
+                        eyebrow="Sin columnas activas"
+                        title="No hay tickets para organizar"
+                        description="Cuando entren tickets al sistema podras moverlos entre columnas y asignarlos desde aqui."
+                    />
+                ) : (
+                    <MotionSection
+                        delay={0.1}
+                        className="hide-scrollbar overflow-x-auto pb-2 md:overflow-visible"
+                    >
+                        <MotionStagger className="flex snap-x snap-mandatory gap-4 sm:gap-5 md:grid md:grid-cols-3 md:gap-6">
+                            {Object.entries(columnas).map(([id, col]) => (
+                                <MotionItem
+                                    key={id}
+                                    className="app-surface min-w-[86vw] shrink-0 snap-start rounded-[1.75rem] p-4 sm:min-w-[23.5rem] sm:p-5 md:min-w-0 md:shrink"
+                                    style={{ boxShadow: "var(--app-shadow-md)" }}
+                                >
+                                    <div className="mb-4 flex items-center justify-between gap-3">
+                                        <SectionHeader
+                                            title={col.name}
+                                            description={`${col.items.length} ticket(s) en esta etapa.`}
+                                            className="flex-1 gap-2 lg:flex-col lg:items-start lg:justify-start"
+                                        />
+                                        <span className="app-surface-muted rounded-full px-3 py-1 text-xs font-medium text-[color:var(--app-text-secondary)]">
+                                            {col.items.length}
+                                        </span>
                                     </div>
-                                )}
-                            </Droppable>
-                        </div>
-                    ))}
-                </div>
+
+                                    <Droppable droppableId={id}>
+                                        {(provided) => (
+                                            <div
+                                                ref={provided.innerRef}
+                                                {...provided.droppableProps}
+                                                className="min-h-[220px] space-y-3"
+                                            >
+                                                {col.items.length === 0 ? (
+                                                    <div className="rounded-[1.35rem] border border-dashed border-[color:var(--app-border)] bg-[color:var(--app-surface-muted)] px-4 py-5 text-sm text-[color:var(--app-text-secondary)]">
+                                                        Arrastra un ticket aqui para mover el flujo.
+                                                    </div>
+                                                ) : null}
+
+                                                {col.items.map((ticket, index) => (
+                                                    <Draggable
+                                                        key={ticket.id}
+                                                        draggableId={String(ticket.id)}
+                                                        index={index}
+                                                    >
+                                                        {(dragProvided, snapshot) => {
+                                                            const card = (
+                                                                <div
+                                                                    ref={dragProvided.innerRef}
+                                                                    {...dragProvided.draggableProps}
+                                                                    {...dragProvided.dragHandleProps}
+                                                                    style={dragProvided.draggableProps.style}
+                                                                    className={`${
+                                                                        snapshot.isDragging
+                                                                            ? "z-[90] rotate-[1deg] border-[color:var(--app-accent)] shadow-[0_22px_56px_rgba(102,124,112,0.22)]"
+                                                                            : ""
+                                                                    }`}
+                                                                >
+                                                                    <TicketCard
+                                                                        ticket={ticket}
+                                                                        tecnicos={tecnicos}
+                                                                        canAssign={canAssign}
+                                                                        movingTicketId={movingTicketId}
+                                                                        onAssign={(currentTicket, tecnicoId) =>
+                                                                            asignar(
+                                                                                currentTicket.id,
+                                                                                tecnicoId,
+                                                                                currentTicket.titulo
+                                                                            )
+                                                                        }
+                                                                        onAutoAssign={autoAsignar}
+                                                                        getSLAColor={getSLAColor}
+                                                                    />
+                                                                </div>
+                                                            );
+
+                                                            if (
+                                                                snapshot.isDragging &&
+                                                                dragPortal
+                                                            ) {
+                                                                return createPortal(
+                                                                    card,
+                                                                    dragPortal
+                                                                );
+                                                            }
+
+                                                            return card;
+                                                        }}
+                                                    </Draggable>
+                                                ))}
+
+                                                {provided.placeholder}
+                                            </div>
+                                        )}
+                                    </Droppable>
+                                </MotionItem>
+                            ))}
+                        </MotionStagger>
+                    </MotionSection>
+                )}
             </DragDropContext>
-        </div>
+        </MotionPage>
     );
 }

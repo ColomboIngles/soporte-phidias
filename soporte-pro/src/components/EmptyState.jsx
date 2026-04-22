@@ -1,4 +1,6 @@
-import { Inbox } from "lucide-react";
+import { Inbox, Sparkles } from "lucide-react";
+import Surface from "./ui/Surface";
+import Button from "./ui/Button";
 
 export default function EmptyState({
     icon,
@@ -6,23 +8,42 @@ export default function EmptyState({
     description,
     action,
     compact = false,
+    eyebrow = "Sin actividad",
 }) {
     const IconComponent = icon || Inbox;
 
     return (
-        <div
-            className={`rounded-[1.75rem] border border-dashed border-white/10 bg-slate-950/30 text-center ${
+        <Surface
+            variant="elevated"
+            className={`brand-glow relative overflow-hidden rounded-[1.85rem] text-center ${
                 compact ? "px-5 py-8" : "px-6 py-12"
             }`}
         >
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-3xl border border-cyan-400/20 bg-cyan-400/10">
-                <IconComponent className="h-6 w-6 text-cyan-300" />
+            <div className="relative">
+                <div className="app-kicker mx-auto w-max">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    {eyebrow}
+                </div>
+
+                <div className="app-icon-badge mx-auto mt-5 h-16 w-16 rounded-[1.5rem]">
+                    <IconComponent className="h-7 w-7" />
+                </div>
+
+                <h3 className="mt-5 text-xl font-semibold tracking-tight text-white">
+                    {title}
+                </h3>
+                <p className="mx-auto mt-2 max-w-2xl text-sm leading-7 text-slate-400">
+                    {description}
+                </p>
+
+                {action ? (
+                    <div className="mt-6">{action}</div>
+                ) : compact ? null : (
+                    <div className="mt-6">
+                        <Button variant="secondary">Explorar modulo</Button>
+                    </div>
+                )}
             </div>
-            <h3 className="mt-4 text-lg font-semibold text-white">{title}</h3>
-            <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-400">
-                {description}
-            </p>
-            {action && <div className="mt-5">{action}</div>}
-        </div>
+        </Surface>
     );
 }
