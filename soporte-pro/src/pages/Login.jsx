@@ -27,8 +27,8 @@ const HIGHLIGHTS = [
         text: "Modo claro y oscuro consistentes, pensados para trabajar muchas horas.",
     },
     {
-        title: "Identidad institucional",
-        text: "La interfaz combina el verde del Colegio con una lectura SaaS moderna.",
+        title: "Paleta profesional IT",
+        text: "Azules de confianza, grises tecnicos y estados semanticos listos para operacion diaria.",
     },
 ];
 
@@ -67,10 +67,10 @@ export default function Login() {
                             Soporte institucional
                         </div>
 
-                        <h1 className="mt-6 max-w-2xl text-5xl font-semibold tracking-tight text-white">
+                        <h1 className="mt-6 max-w-2xl text-5xl font-semibold tracking-tight text-[color:var(--app-text-primary)]">
                             Una mesa de soporte con presencia de producto SaaS premium.
                         </h1>
-                        <p className="mt-5 max-w-2xl text-base leading-8 text-slate-300">
+                        <p className="mt-5 max-w-2xl text-base leading-8 text-[color:var(--app-text-secondary)]">
                             La experiencia combina analitica, seguimiento y conversacion en una interfaz moderna, limpia y lista para presentarse como producto comercial.
                         </p>
 
@@ -86,10 +86,10 @@ export default function Login() {
                                         interactive
                                         className="rounded-[1.8rem] p-5"
                                     >
-                                        <p className="text-sm font-semibold text-white">
+                                        <p className="text-sm font-semibold text-[color:var(--app-text-primary)]">
                                             {item.title}
                                         </p>
-                                        <p className="mt-2 text-sm leading-7 text-slate-400">
+                                        <p className="mt-2 text-sm leading-7 text-[color:var(--app-text-secondary)]">
                                             {item.text}
                                         </p>
                                     </Surface>
@@ -99,15 +99,15 @@ export default function Login() {
 
                         <div className="mt-8 flex flex-wrap gap-3">
                             {[
-                                "#1e593d",
-                                "#44a66a",
-                                "#3ca8ff",
-                                "#d7b15a",
-                                "#b7eac8",
+                                "var(--brand-primary)",
+                                "var(--brand-secondary)",
+                                "var(--brand-accent)",
+                                "var(--brand-warning)",
+                                "var(--brand-success)",
                             ].map((color) => (
                                 <div
                                     key={color}
-                                    className="h-16 w-16 rounded-[1.35rem] border border-white/20 shadow-sm"
+                                    className="h-16 w-16 rounded-[1.35rem] border border-[color:var(--app-border)] shadow-sm"
                                     style={{ backgroundColor: color }}
                                 />
                             ))}
@@ -126,20 +126,20 @@ export default function Login() {
                                 Acceso seguro
                             </div>
 
-                            <h2 className="mt-5 text-4xl font-semibold tracking-tight text-white">
+                            <h2 className="mt-5 text-4xl font-semibold tracking-tight text-[color:var(--app-text-primary)]">
                                 Iniciar sesion
                             </h2>
-                            <p className="mt-3 text-sm leading-7 text-slate-400">
+                            <p className="mt-3 text-sm leading-7 text-[color:var(--app-text-secondary)]">
                                 Ingresa al portal de soporte con una experiencia visual premium, consistente y mas amable para el trabajo diario.
                             </p>
 
                             <div className="mt-8 space-y-4">
                                 <label className="block">
-                                    <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                                    <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--app-text-tertiary)]">
                                         Email
                                     </span>
                                     <div className="field-shell flex items-center gap-3">
-                                        <Mail className="h-4 w-4 text-slate-500" />
+                                        <Mail className="h-4 w-4 text-[color:var(--app-text-tertiary)]" />
                                         <input
                                             className="w-full bg-transparent outline-none"
                                             placeholder="nombre@empresa.com"
@@ -151,11 +151,11 @@ export default function Login() {
                                 </label>
 
                                 <label className="block">
-                                    <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                                    <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--app-text-tertiary)]">
                                         Contrasena
                                     </span>
                                     <div className="field-shell flex items-center gap-3">
-                                        <LockKeyhole className="h-4 w-4 text-slate-500" />
+                                        <LockKeyhole className="h-4 w-4 text-[color:var(--app-text-tertiary)]" />
                                         <input
                                             className="w-full bg-transparent outline-none"
                                             type="password"

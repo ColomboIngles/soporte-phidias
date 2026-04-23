@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { ITEM_TRANSITION, MOTION_EASE } from "./motion-presets";
+import { cn } from "../utils/cn";
 
 const MotionDiv = motion.div;
 
@@ -84,7 +85,7 @@ export function MotionSection({ children, className = "", delay = 0 }) {
             initial="hidden"
             animate="visible"
             variants={sectionVariants}
-            className={className}
+            className={cn("min-w-0", className)}
         >
             {children}
         </MotionDiv>
@@ -103,7 +104,7 @@ export function MotionStagger({
             initial="hidden"
             animate="visible"
             variants={staggerVariants}
-            className={className}
+            className={cn("min-w-0", className)}
         >
             {children}
         </MotionDiv>
@@ -115,7 +116,7 @@ export function MotionItem({ children, className = "", delay = 0 }) {
         <MotionDiv
             custom={delay}
             variants={itemVariants}
-            className={className}
+            className={cn("min-w-0", className)}
         >
             {children}
         </MotionDiv>

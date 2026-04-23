@@ -40,7 +40,7 @@ function AppBootSplash() {
                 delay={0.08}
                 className="app-surface-hero brand-glow w-full max-w-2xl rounded-[2.4rem] p-8 text-center sm:p-10"
             >
-                <div className="mx-auto flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-[1.75rem] bg-[linear-gradient(135deg,rgba(68,166,106,0.18),rgba(60,168,255,0.16),rgba(215,177,90,0.18))]">
+                <div className="mx-auto flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-[1.75rem] bg-[linear-gradient(135deg,rgba(26,115,232,0.18),rgba(59,130,246,0.16),rgba(155,169,189,0.18))]">
                     <ShieldCheck className="h-8 w-8 text-[color:var(--app-accent)]" />
                 </div>
 
@@ -49,14 +49,14 @@ function AppBootSplash() {
                     Preparando entorno
                 </div>
 
-                <h1 className="mt-5 text-4xl font-semibold tracking-tight text-white">
+                <h1 className="mt-5 text-4xl font-semibold tracking-tight text-[color:var(--app-text-primary)]">
                     Cargando tu workspace de soporte
                 </h1>
-                <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-slate-400">
+                <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-[color:var(--app-text-secondary)]">
                     Estamos validando sesion, permisos y contexto visual para que la plataforma abra con una experiencia mas limpia, moderna y comercial.
                 </p>
 
-                <div className="mt-8 inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/[0.05] px-4 py-3 text-sm text-slate-300">
+                <div className="app-surface-muted mt-8 inline-flex items-center gap-3 rounded-full px-4 py-3 text-sm text-[color:var(--app-text-secondary)]">
                     <LoaderCircle className="h-4 w-4 animate-spin text-[color:var(--app-accent)]" />
                     Cargando entorno seguro...
                 </div>
@@ -69,8 +69,8 @@ function RouteFallback() {
     return (
         <MotionPage className="space-y-6">
             <MotionSection className="app-surface-hero rounded-[2rem] p-6">
-                <div className="h-6 w-48 rounded-full bg-white/10" />
-                <div className="mt-3 h-4 w-72 max-w-full rounded-full bg-white/5" />
+                <div className="h-6 w-48 rounded-full bg-[color:var(--app-border)]" />
+                <div className="mt-3 h-4 w-72 max-w-full rounded-full bg-[color:var(--app-surface-muted)]" />
             </MotionSection>
             <Skeleton />
         </MotionPage>

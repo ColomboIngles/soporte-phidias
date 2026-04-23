@@ -84,10 +84,10 @@ function TicketCard({
         >
             <div className="flex justify-between gap-3">
                 <div className="min-w-0">
-                    <p className="font-medium text-[color:var(--app-text-primary)]">
+                    <p className="app-break-anywhere font-medium text-[color:var(--app-text-primary)]">
                         {ticket.titulo}
                     </p>
-                    <p className="mt-1 text-[11px] text-[color:var(--app-text-tertiary)]">
+                    <p className="app-break-anywhere mt-1 text-[11px] text-[color:var(--app-text-tertiary)]">
                         #{ticket.id}
                     </p>
                 </div>
@@ -107,7 +107,7 @@ function TicketCard({
                 </span>
             </div>
 
-            <p className="mt-3 text-xs leading-5 text-[color:var(--app-text-secondary)]">
+            <p className="app-break-anywhere mt-3 text-xs leading-5 text-[color:var(--app-text-secondary)]">
                 {resolverNombreTecnico(tecnicos, ticket.asignado_a)}
             </p>
 
@@ -136,7 +136,7 @@ function TicketCard({
                     </Button>
                 </div>
             ) : (
-                <div className="app-surface mt-3 rounded-xl px-3 py-2 text-xs text-[color:var(--app-text-secondary)]">
+                <div className="app-surface app-break-anywhere mt-3 rounded-xl px-3 py-2 text-xs text-[color:var(--app-text-secondary)]">
                     Responsable: {resolverNombreTecnico(tecnicos, ticket.asignado_a)}
                 </div>
             )}

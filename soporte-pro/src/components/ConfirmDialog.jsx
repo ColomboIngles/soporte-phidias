@@ -40,7 +40,7 @@ export default function ConfirmDialog({
                 </>
             }
         >
-            <div className="app-surface-muted rounded-[1.5rem] px-4 py-4 text-sm leading-7 text-slate-300">
+            <div className="app-surface-muted rounded-[1.5rem] px-4 py-4 text-sm leading-7 text-[color:var(--app-text-secondary)]">
                 Esta accion modifica informacion del sistema. Verifica que corresponde al flujo correcto antes de continuar.
             </div>
         </ModalShell>

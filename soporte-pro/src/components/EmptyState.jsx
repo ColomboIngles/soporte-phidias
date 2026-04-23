@@ -29,10 +29,10 @@ export default function EmptyState({
                     <IconComponent className="h-7 w-7" />
                 </div>
 
-                <h3 className="mt-5 text-xl font-semibold tracking-tight text-white">
+                <h3 className="mt-5 text-xl font-semibold tracking-tight text-[color:var(--app-text-primary)]">
                     {title}
                 </h3>
-                <p className="mx-auto mt-2 max-w-2xl text-sm leading-7 text-slate-400">
+                <p className="mx-auto mt-2 max-w-2xl text-sm leading-7 text-[color:var(--app-text-secondary)]">
                     {description}
                 </p>
 

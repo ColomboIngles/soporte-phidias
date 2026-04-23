@@ -90,7 +90,7 @@ export default function Modal({
                         aria-modal="true"
                         aria-label={title}
                     >
-                        <div className="flex items-start justify-between gap-4 border-b border-white/10 px-6 py-5">
+                        <div className="flex items-start justify-between gap-4 border-b border-[color:var(--app-border)] px-6 py-5">
                             <div className="flex items-start gap-4">
                                 {Icon ? (
                                     <div className="app-icon-badge">
@@ -123,7 +123,7 @@ export default function Modal({
                         <div className="px-6 py-6">{children}</div>
 
                         {actions ? (
-                            <div className="flex flex-wrap justify-end gap-3 border-t border-white/10 px-6 py-5">
+                            <div className="flex flex-wrap justify-end gap-3 border-t border-[color:var(--app-border)] px-6 py-5">
                                 {actions}
                             </div>
                         ) : null}

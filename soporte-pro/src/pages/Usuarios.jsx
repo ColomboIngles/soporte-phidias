@@ -115,19 +115,19 @@ export default function Usuarios() {
                                 <ShieldCheck className="h-3.5 w-3.5" />
                                 Administracion
                             </div>
-                            <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+                            <h1 className="mt-4 text-3xl font-semibold tracking-tight text-[color:var(--app-text-primary)] sm:text-4xl">
                                 Usuarios del sistema
                             </h1>
-                            <p className="mt-3 text-sm leading-7 text-slate-400">
+                            <p className="mt-3 text-sm leading-7 text-[color:var(--app-text-secondary)]">
                                 Gestiona roles y accesos desde una vista limpia, mas ordenada y facil de auditar.
                             </p>
                         </div>
 
                         <div className="app-surface-muted rounded-[1.5rem] px-4 py-3">
-                            <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
+                            <p className="text-xs uppercase tracking-[0.18em] text-[color:var(--app-text-tertiary)]">
                                 Total usuarios
                             </p>
-                            <p className="mt-2 text-2xl font-semibold text-white">
+                            <p className="mt-2 text-2xl font-semibold text-[color:var(--app-text-primary)]">
                                 {usuarios.length}
                             </p>
                         </div>
@@ -160,15 +160,15 @@ export default function Usuarios() {
                                     {usuarios.map((usuario) => (
                                         <tr key={usuario.id}>
                                             <td>
-                                                <div className="font-semibold text-white">
+                                                <div className="font-semibold text-[color:var(--app-text-primary)]">
                                                     {usuario.email}
                                                 </div>
-                                                <div className="mt-1 text-xs text-slate-500">
+                                                <div className="mt-1 text-xs text-[color:var(--app-text-tertiary)]">
                                                     {usuario.id}
                                                 </div>
                                             </td>
                                             <td>
-                                                <div className="text-sm text-slate-300">
+                                                <div className="text-sm text-[color:var(--app-text-secondary)]">
                                                     {usuario.nombre || "Sin nombre"}
                                                 </div>
                                             </td>

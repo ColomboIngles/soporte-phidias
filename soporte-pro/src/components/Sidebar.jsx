@@ -38,7 +38,7 @@ function SidebarNav({
     const isEndUser = isEndUserRole(rol);
 
     return (
-        <div className="app-sidebar-shell brand-glow flex h-full flex-col p-4">
+        <div className="app-sidebar-shell brand-glow flex h-full min-h-0 flex-col overflow-hidden p-4">
             <MotionSection className="app-surface-hero rounded-[1.8rem] p-4">
                 <div className="flex items-start justify-between gap-3">
                     <div className={cn("min-w-0", collapsed && !mobile && "hidden")}>
@@ -113,48 +113,50 @@ function SidebarNav({
                 )}
             </MotionSection>
 
-            <MotionStagger
-                className="mt-6 space-y-2"
-                delayChildren={0.06}
-                staggerChildren={0.05}
-            >
-                {navigationItems.map((navItem) => {
-                    const IconComponent = ICONS[navItem.key];
-                    const active =
-                        navItem.path === "/"
-                            ? location.pathname === "/"
-                            : location.pathname.startsWith(navItem.path);
+            <div className="hide-scrollbar mt-6 min-h-0 flex-1 overflow-y-auto pr-1">
+                <MotionStagger
+                    className="space-y-2"
+                    delayChildren={0.06}
+                    staggerChildren={0.05}
+                >
+                    {navigationItems.map((navItem) => {
+                        const IconComponent = ICONS[navItem.key];
+                        const active =
+                            navItem.path === "/"
+                                ? location.pathname === "/"
+                                : location.pathname.startsWith(navItem.path);
 
-                    return (
-                        <MotionItem key={navItem.path}>
-                            <Link
-                                to={navItem.path}
-                                onClick={mobile ? onClose : undefined}
-                                data-active={active}
-                                title={collapsed && !mobile ? navItem.label : undefined}
-                                className="app-sidebar-link"
-                            >
-                                <span className="app-sidebar-icon">
-                                    <IconComponent className="h-4 w-4" />
-                                </span>
-                                <span
-                                    className={cn(
-                                        "truncate",
-                                        collapsed && !mobile && "hidden"
-                                    )}
+                        return (
+                            <MotionItem key={navItem.path}>
+                                <Link
+                                    to={navItem.path}
+                                    onClick={mobile ? onClose : undefined}
+                                    data-active={active}
+                                    title={collapsed && !mobile ? navItem.label : undefined}
+                                    className="app-sidebar-link"
                                 >
-                                    {navItem.label}
-                                </span>
-                            </Link>
-                        </MotionItem>
-                    );
-                })}
-            </MotionStagger>
+                                    <span className="app-sidebar-icon">
+                                        <IconComponent className="h-4 w-4" />
+                                    </span>
+                                    <span
+                                        className={cn(
+                                            "truncate",
+                                            collapsed && !mobile && "hidden"
+                                        )}
+                                    >
+                                        {navItem.label}
+                                    </span>
+                                </Link>
+                            </MotionItem>
+                        );
+                    })}
+                </MotionStagger>
+            </div>
 
             <MotionSection
                 delay={0.14}
                 className={cn(
-                    "app-surface-muted mt-auto rounded-[1.55rem] p-4",
+                    "app-surface-muted mt-6 rounded-[1.55rem] p-4",
                     collapsed && !mobile && "p-3 text-center"
                 )}
             >

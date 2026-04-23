@@ -13,11 +13,54 @@ function formatNotificationDate(value) {
     }).format(new Date(value));
 }
 
+function getSeenNotificationsKey(user) {
+    return `app.notifications.last-seen:${user || "guest"}`;
+}
+
+function getNotificationTimestamp(notification) {
+    return notification?.created_at
+        ? new Date(notification.created_at).getTime()
+        : 0;
+}
+
+function readSeenNotifications(user) {
+    if (!user || typeof window === "undefined") {
+        return 0;
+    }
+
+    const storedValue = Number(
+        window.localStorage.getItem(getSeenNotificationsKey(user)) || 0
+    );
+
+    return Number.isFinite(storedValue) ? storedValue : 0;
+}
+
 export default function Notifications({ user }) {
     const [open, setOpen] = useState(false);
+    const [seenNotifications, setSeenNotifications] = useState(() => ({}));
     const containerRef = useRef(null);
     const notificaciones = useNotifications(user);
-    const unreadCount = Math.min(notificaciones.length, 9);
+    const lastSeenAt = user
+        ? seenNotifications[user] ?? readSeenNotifications(user)
+        : 0;
+    const latestNotificationTimestamp = useMemo(
+        () =>
+            notificaciones.reduce(
+                (latest, notification) =>
+                    Math.max(latest, getNotificationTimestamp(notification)),
+                0
+            ),
+        [notificaciones]
+    );
+    const unreadNotifications = useMemo(
+        () =>
+            notificaciones.filter(
+                (notification) =>
+                    getNotificationTimestamp(notification) > lastSeenAt
+            ),
+        [lastSeenAt, notificaciones]
+    );
+    const unreadCount = Math.min(unreadNotifications.length, 9);
     const recientes = useMemo(() => notificaciones.slice(0, 6), [notificaciones]);
 
     useEffect(() => {
@@ -48,23 +91,41 @@ export default function Notifications({ user }) {
         };
     }, []);
 
+    function markNotificationsAsSeen(timestamp = latestNotificationTimestamp) {
+        if (!user || timestamp <= lastSeenAt) {
+            return;
+        }
+
+        setSeenNotifications((previous) => ({
+            ...previous,
+            [user]: timestamp,
+        }));
+        window.localStorage.setItem(
+            getSeenNotificationsKey(user),
+            String(timestamp)
+        );
+    }
+
     return (
         <div ref={containerRef} className="relative">
             <button
                 type="button"
-                onClick={() => setOpen((prev) => !prev)}
+                onClick={() => {
+                    markNotificationsAsSeen();
+                    setOpen((prev) => !prev);
+                }}
                 className="app-icon-button relative"
                 aria-label="Abrir notificaciones"
                 aria-expanded={open}
                 aria-haspopup="dialog"
             >
-                {notificaciones.length > 0 ? (
+                {unreadCount > 0 ? (
                     <BellRing size={18} className="text-[color:var(--app-accent)]" />
                 ) : (
                     <Bell size={18} />
                 )}
 
-                {notificaciones.length > 0 ? (
+                {unreadCount > 0 ? (
                     <span
                         className="absolute -right-1.5 -top-1.5 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-semibold text-[color:var(--app-bg-elevated)]"
                         style={{

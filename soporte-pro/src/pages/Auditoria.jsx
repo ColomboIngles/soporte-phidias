@@ -22,16 +22,16 @@ const ACTION_STYLES = {
     crear: {
         label: "Creacion",
         icon: Plus,
-        chipClassName: "bg-emerald-400/15 text-emerald-200 ring-1 ring-emerald-300/20",
-        iconClassName: "text-emerald-300",
-        lineClassName: "from-emerald-400/60 via-emerald-300/20 to-transparent",
+        chipClassName: "bg-sky-400/15 text-sky-200 ring-1 ring-sky-300/20",
+        iconClassName: "text-sky-300",
+        lineClassName: "from-sky-400/60 via-sky-300/20 to-transparent",
     },
     editar: {
         label: "Edicion",
         icon: Pencil,
-        chipClassName: "bg-sky-400/15 text-sky-200 ring-1 ring-sky-300/20",
-        iconClassName: "text-sky-300",
-        lineClassName: "from-sky-400/60 via-sky-300/20 to-transparent",
+        chipClassName: "bg-yellow-400/15 text-yellow-200 ring-1 ring-yellow-300/20",
+        iconClassName: "text-yellow-300",
+        lineClassName: "from-yellow-400/60 via-yellow-300/20 to-transparent",
     },
     eliminar: {
         label: "Eliminacion",
@@ -62,7 +62,7 @@ function obtenerEstilo(accion) {
         icon: ShieldCheck,
         chipClassName: "bg-white/10 text-slate-100 ring-1 ring-white/15",
         iconClassName: "text-slate-200",
-        lineClassName: "from-white/30 via-white/10 to-transparent",
+        lineClassName: "from-slate-300/40 via-slate-300/10 to-transparent",
     };
 }
 
@@ -78,11 +78,11 @@ function TimelineItem({ item, isLast }) {
                 />
             )}
 
-            <div className="absolute left-0 top-0 flex h-9 w-9 items-center justify-center rounded-2xl border border-white/15 bg-slate-950/80 shadow-[0_10px_30px_rgba(15,23,42,0.35)] backdrop-blur-xl">
+            <div className="app-surface-elevated absolute left-0 top-0 flex h-9 w-9 items-center justify-center rounded-2xl">
                 <Icon className={`h-4.5 w-4.5 ${style.iconClassName}`} />
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.22)] backdrop-blur-xl">
+            <div className="app-surface-muted rounded-3xl p-5">
                 <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                     <div>
                         <div className="flex flex-wrap items-center gap-2">
@@ -91,20 +91,20 @@ function TimelineItem({ item, isLast }) {
                             >
                                 {style.label}
                             </span>
-                            <span className="text-xs text-slate-400">
+                            <span className="text-xs text-[color:var(--app-text-tertiary)]">
                                 Ticket #{item.ticket_id}
                             </span>
                         </div>
 
-                        <p className="mt-3 text-sm font-semibold text-white">
+                        <p className="mt-3 text-sm font-semibold text-[color:var(--app-text-primary)]">
                             {item.usuario}
                         </p>
-                        <p className="mt-1 text-sm text-slate-300">
-                            Registro una accion de <span className="text-white">{style.label.toLowerCase()}</span> sobre el ticket.
+                        <p className="mt-1 text-sm text-[color:var(--app-text-secondary)]">
+                            Registro una accion de <span className="text-[color:var(--app-text-primary)]">{style.label.toLowerCase()}</span> sobre el ticket.
                         </p>
                     </div>
 
-                    <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300">
+                    <div className="app-surface-muted inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs text-[color:var(--app-text-secondary)]">
                         <Clock3 className="h-3.5 w-3.5" />
                         {formatoFecha(item.fecha)}
                     </div>
@@ -160,26 +160,26 @@ export default function Auditoria() {
 
     return (
         <MotionPage className="space-y-6">
-            <MotionSection className="rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.28)] backdrop-blur-2xl">
+            <MotionSection className="app-surface-hero rounded-[2rem] p-6">
                 <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                     <div>
-                        <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">
+                        <div className="app-kicker">
                             <ShieldCheck className="h-3.5 w-3.5" />
                             Auditoria
                         </div>
-                        <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white">
+                        <h1 className="mt-4 text-3xl font-semibold tracking-tight text-[color:var(--app-text-primary)]">
                             Historial de acciones
                         </h1>
-                        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
+                        <p className="mt-2 max-w-2xl text-sm leading-6 text-[color:var(--app-text-secondary)]">
                             Traza en tiempo real de movimientos criticos sobre tickets para seguimiento operativo y control interno.
                         </p>
                     </div>
 
-                    <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-right backdrop-blur-xl">
-                        <p className="text-xs uppercase tracking-[0.16em] text-slate-400">
+                    <div className="app-surface-muted rounded-2xl px-4 py-3 text-right">
+                        <p className="text-xs uppercase tracking-[0.16em] text-[color:var(--app-text-tertiary)]">
                             Eventos registrados
                         </p>
-                        <p className="mt-1 text-2xl font-semibold text-white">
+                        <p className="mt-1 text-2xl font-semibold text-[color:var(--app-text-primary)]">
                             {historial.length}
                         </p>
                     </div>
@@ -188,7 +188,7 @@ export default function Auditoria() {
 
             <MotionSection
                 delay={0.08}
-                className="rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.24)] backdrop-blur-2xl"
+                className="app-surface rounded-[2rem] p-6"
             >
                 {historial.length === 0 ? (
                     <EmptyState

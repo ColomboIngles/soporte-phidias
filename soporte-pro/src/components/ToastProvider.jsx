@@ -61,14 +61,14 @@ function ToastCard({ toast, onDismiss }) {
             animate={{ opacity: 1, x: 0, scale: 1, filter: "blur(0px)" }}
             exit={{ opacity: 0, x: 24, scale: 0.992, filter: "blur(4px)" }}
             transition={TOAST_TRANSITION}
-            className="relative w-full overflow-hidden rounded-2xl border border-white/15 bg-slate-950/85 p-4 text-white shadow-[0_20px_60px_rgba(15,23,42,0.45)] backdrop-blur-2xl"
+            className="app-surface-elevated relative w-full overflow-hidden rounded-2xl p-4 text-[color:var(--app-text-primary)]"
         >
             <div
                 className={`absolute inset-x-0 top-0 h-px bg-gradient-to-r ${style.accent}`}
             />
 
             <div className="flex items-start gap-3">
-                <div className="mt-0.5 rounded-2xl bg-white/8 p-2 ring-1 ring-white/10">
+                <div className="app-surface-muted mt-0.5 rounded-2xl p-2">
                     <Icon className={`h-5 w-5 ${style.iconClassName}`} />
                 </div>
 
@@ -81,12 +81,12 @@ function ToastCard({ toast, onDismiss }) {
                         </span>
                     </div>
 
-                    <p className="mt-2 text-sm font-semibold text-white">
+                    <p className="mt-2 text-sm font-semibold text-[color:var(--app-text-primary)]">
                         {toast.title}
                     </p>
 
                     {toast.message && (
-                        <p className="mt-1 text-sm leading-5 text-slate-300">
+                        <p className="mt-1 text-sm leading-5 text-[color:var(--app-text-secondary)]">
                             {toast.message}
                         </p>
                     )}
@@ -95,7 +95,7 @@ function ToastCard({ toast, onDismiss }) {
                 <button
                     type="button"
                     onClick={() => onDismiss(toast.id)}
-                    className="rounded-full p-1.5 text-slate-400 transition hover:bg-white/10 hover:text-white"
+                    className="rounded-full p-1.5 text-[color:var(--app-text-tertiary)] transition hover:bg-[color:var(--app-surface-muted)] hover:text-[color:var(--app-text-primary)]"
                     aria-label="Cerrar notificacion"
                 >
                     <X className="h-4 w-4" />

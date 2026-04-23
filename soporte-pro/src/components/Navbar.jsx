@@ -17,7 +17,7 @@ export default function Navbar() {
     }
 
     return (
-        <div className="flex justify-between items-center px-6 py-4 border-b bg-white/70 dark:bg-[#0f172a]/70 backdrop-blur">
+        <div className="app-topbar-shell flex items-center justify-between px-6 py-4">
 
             <h2 className="font-semibold text-lg">Panel</h2>
 
@@ -25,14 +25,14 @@ export default function Navbar() {
 
                 <button
                     onClick={toggleTheme}
-                    className="px-3 py-1 rounded-lg bg-gray-200 dark:bg-gray-700 hover:scale-105 transition"
+                    className="app-button app-button-secondary h-10 px-3"
                 >
                     Tema
                 </button>
 
                 <button
                     onClick={logout}
-                    className="px-3 py-1 rounded-lg bg-red-500 text-white hover:bg-red-600 transition"
+                    className="app-button app-button-danger h-10 px-3"
                 >
                     Salir
                 </button>

@@ -60,19 +60,19 @@ const DATE_PRESETS = [
 ];
 
 const STATUS_COLORS = {
-    abierto: "#95a59b",
-    en_proceso: "#b7ad9d",
-    cerrado: "#72867b",
+    abierto: "#dd8b2f",
+    en_proceso: "#1a73e8",
+    cerrado: "#2f9863",
 };
 
 const CHART_COLORS = {
-    line: "#7b8e83",
-    lineFill: "#8d9f95",
-    techStart: "#7b8d81",
-    techEnd: "#a5b4ab",
-    timeStart: "#b4ab9b",
-    timeEnd: "#8d9d94",
-    grid: "rgba(132, 153, 141, 0.14)",
+    line: "#1a73e8",
+    lineFill: "#74a7f6",
+    techStart: "#1a73e8",
+    techEnd: "#74a7f6",
+    timeStart: "#5e738f",
+    timeEnd: "#8da1bc",
+    grid: "rgba(26, 115, 232, 0.12)",
     activeDotStroke: "var(--app-bg-elevated)",
 };
 
@@ -151,6 +151,15 @@ function formatPercent(value) {
 function shortTicketId(id) {
     if (!id) return "Sin ID";
     return String(id).slice(0, 8);
+}
+
+function shortenLabel(value, max = 24) {
+    const label = String(value || "").trim();
+
+    if (!label) return "Sin asignar";
+    if (label.length <= max) return label;
+
+    return `${label.slice(0, max - 1)}…`;
 }
 
 function preventChartFocus(event) {
@@ -383,16 +392,16 @@ function getActivityIconStyle(estado) {
 
     if (estado === "en_proceso") {
         return {
-            borderColor: "color-mix(in srgb, var(--brand-warning) 18%, transparent)",
-            background: "color-mix(in srgb, var(--brand-warning) 12%, transparent)",
-            color: "color-mix(in srgb, var(--brand-warning) 82%, var(--app-text-strong) 18%)",
+            borderColor: "color-mix(in srgb, var(--brand-secondary) 18%, transparent)",
+            background: "color-mix(in srgb, var(--brand-secondary) 12%, transparent)",
+            color: "color-mix(in srgb, var(--brand-secondary) 82%, var(--app-text-strong) 18%)",
         };
     }
 
     return {
-        borderColor: "color-mix(in srgb, var(--brand-secondary) 18%, transparent)",
-        background: "color-mix(in srgb, var(--brand-secondary) 12%, transparent)",
-        color: "color-mix(in srgb, var(--brand-secondary) 82%, var(--app-text-strong) 18%)",
+        borderColor: "color-mix(in srgb, var(--brand-warning) 18%, transparent)",
+        background: "color-mix(in srgb, var(--brand-warning) 12%, transparent)",
+        color: "color-mix(in srgb, var(--brand-warning) 82%, var(--app-text-strong) 18%)",
     };
 }
 
@@ -411,7 +420,7 @@ function DashboardTooltip({
             style={{ boxShadow: DASHBOARD_SURFACES.tooltipShadow }}
         >
             <p className="text-xs uppercase tracking-[0.16em] text-[color:var(--app-text-tertiary)]">
-                {labelFormatter ? labelFormatter(label) : label}
+                {labelFormatter ? labelFormatter(label, payload) : label}
             </p>
 
             <div className="mt-3 space-y-2">
@@ -507,7 +516,7 @@ function AnalyticsPanel({
         <Surface
             variant="default"
             interactive
-            className={`rounded-[2rem] p-5 sm:p-6 ${className || ""}`}
+            className={`min-w-0 rounded-[2rem] p-5 sm:p-6 ${className || ""}`}
             style={{ boxShadow: DASHBOARD_SURFACES.panelShadow }}
         >
             <SectionHeader
@@ -522,15 +531,20 @@ function AnalyticsPanel({
 }
 
 function InsightCard({ label, value, helper }) {
+    const resolvedValue = value || "Sin datos";
+
     return (
-        <Surface variant="muted" className="rounded-[1.4rem] p-4">
+        <Surface variant="muted" className="min-w-0 rounded-[1.4rem] p-4">
             <p className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--app-text-tertiary)]">
                 {label}
             </p>
-            <p className="mt-2 text-lg font-semibold text-[color:var(--app-text-primary)]">
-                {value}
+            <p
+                title={resolvedValue}
+                className="app-break-anywhere mt-2 min-w-0 text-lg font-semibold leading-7 text-[color:var(--app-text-primary)]"
+            >
+                {resolvedValue}
             </p>
-            <p className="mt-2 text-xs leading-6 text-[color:var(--app-text-secondary)]">
+            <p className="app-break-anywhere mt-2 text-xs leading-6 text-[color:var(--app-text-secondary)]">
                 {helper}
             </p>
         </Surface>
@@ -697,6 +711,7 @@ export default function Dashboard() {
         const ticketsPorTecnico = [...currentSummary.tecnicosRows]
             .map((item) => ({
                 tecnico: item.tecnico,
+                tecnicoLabel: shortenLabel(item.tecnico, 18),
                 tickets: item.tickets,
             }))
             .sort((a, b) => b.tickets - a.tickets)
@@ -706,6 +721,7 @@ export default function Dashboard() {
             .filter((item) => item.tickets > 0)
             .map((item) => ({
                 tecnico: item.tecnico,
+                tecnicoLabel: shortenLabel(item.tecnico, 16),
                 horas: Number(item.horas.toFixed(1)),
             }))
             .sort((a, b) => b.horas - a.horas)
@@ -1182,7 +1198,7 @@ export default function Dashboard() {
                                     />
                                     <YAxis
                                         type="category"
-                                        dataKey="tecnico"
+                                        dataKey="tecnicoLabel"
                                         tickLine={false}
                                         axisLine={false}
                                         width={118}
@@ -1190,7 +1206,13 @@ export default function Dashboard() {
                                     />
                                     <Tooltip
                                         cursor={false}
-                                        content={<DashboardTooltip />}
+                                        content={
+                                            <DashboardTooltip
+                                                labelFormatter={(_, payload) =>
+                                                    payload?.[0]?.payload?.tecnico || "Tecnico"
+                                                }
+                                            />
+                                        }
                                     />
                                     <Bar
                                         dataKey="tickets"
@@ -1231,7 +1253,7 @@ export default function Dashboard() {
                                         stroke={CHART_COLORS.grid}
                                     />
                                     <XAxis
-                                        dataKey="tecnico"
+                                        dataKey="tecnicoLabel"
                                         tickLine={false}
                                         axisLine={false}
                                         interval={0}
@@ -1249,6 +1271,9 @@ export default function Dashboard() {
                                         cursor={false}
                                         content={
                                             <DashboardTooltip
+                                                labelFormatter={(_, payload) =>
+                                                    payload?.[0]?.payload?.tecnico || "Tecnico"
+                                                }
                                                 valueFormatter={(value) =>
                                                     formatHours(Number(value))
                                                 }

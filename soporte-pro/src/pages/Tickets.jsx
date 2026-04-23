@@ -410,7 +410,7 @@ export default function Tickets({ role }) {
                                                 <h3 className="text-base font-semibold text-[color:var(--app-text-primary)]">
                                                     {ticket.titulo}
                                                 </h3>
-                                                <p className="mt-1 text-xs text-[color:var(--app-text-tertiary)]">
+                                                <p className="app-break-anywhere mt-1 text-xs text-[color:var(--app-text-tertiary)]">
                                                     #{ticket.id}
                                                 </p>
                                             </button>
@@ -559,7 +559,7 @@ export default function Tickets({ role }) {
                                                             <div className="font-semibold text-[color:var(--app-text-primary)] transition group-hover:text-[color:var(--app-accent)]">
                                                                 {ticket.titulo}
                                                             </div>
-                                                            <div className="mt-1 text-xs text-[color:var(--app-text-tertiary)]">
+                                                            <div className="app-break-anywhere mt-1 text-xs text-[color:var(--app-text-tertiary)]">
                                                                 #{ticket.id}
                                                             </div>
                                                         </button>

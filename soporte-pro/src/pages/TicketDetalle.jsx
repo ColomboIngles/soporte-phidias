@@ -355,9 +355,9 @@ export default function TicketDetalle({ rol }) {
             >
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
                     <div>
-                        <div className="app-kicker w-max">
+                        <div className="app-kicker max-w-full">
                             <Paperclip className="h-3.5 w-3.5" />
-                            Ticket #{ticket.id}
+                            <span className="app-break-anywhere">Ticket #{ticket.id}</span>
                         </div>
                         <h1 className="mt-4 text-3xl font-semibold tracking-tight text-[color:var(--app-text-primary)]">
                             {ticket.titulo}
@@ -372,7 +372,7 @@ export default function TicketDetalle({ rol }) {
                             <p className="text-xs uppercase tracking-[0.16em] text-[color:var(--app-text-tertiary)]">
                                 Storage activo
                             </p>
-                            <p className="mt-2 font-medium text-[color:var(--app-text-primary)]">
+                            <p className="app-break-anywhere mt-2 font-medium text-[color:var(--app-text-primary)]">
                                 Bucket: {storageConfig.bucket}
                             </p>
                             <p className="mt-1 text-xs text-[color:var(--app-text-tertiary)]">
@@ -586,7 +586,7 @@ export default function TicketDetalle({ rol }) {
                                         </div>
 
                                         <div className="min-w-0">
-                                            <p className="truncate text-sm font-semibold text-[color:var(--app-text-primary)]">
+                                            <p className="app-break-anywhere text-sm font-semibold text-[color:var(--app-text-primary)]">
                                                 {adjunto.nombre}
                                             </p>
                                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[color:var(--app-text-tertiary)]">
