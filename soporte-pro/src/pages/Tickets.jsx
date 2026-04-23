@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
     Check,
+    CheckCircle2,
     ClipboardList,
     Sparkles,
     Trash2,
@@ -559,7 +560,7 @@ export default function Tickets({ role }) {
                                                 <th className={isAdmin ? "w-[15%]" : "w-[22%]"}>
                                                     {isEndUser ? "Actualizacion" : "Fecha"}
                                                 </th>
-                                                {isAdmin ? <th className="w-[17%]">Acciones</th> : null}
+                                                {isAdmin ? <th className="w-[18%]">Acciones</th> : null}
                                             </tr>
                                         </thead>
 
@@ -679,13 +680,13 @@ export default function Tickets({ role }) {
 
                                                     {isAdmin ? (
                                                         <td>
-                                                            <div className="flex items-center gap-2 xl:gap-2.5">
+                                                            <div className="flex max-w-[11.5rem] flex-wrap items-center justify-end gap-2 2xl:max-w-none 2xl:flex-nowrap">
                                                                 <Button
                                                                     onClick={() => autoAsignar(ticket)}
                                                                     variant="secondary"
                                                                     size="sm"
                                                                     iconLeft={Sparkles}
-                                                                    className="min-w-[7.25rem] shrink-0 justify-center px-3"
+                                                                    className="min-w-0 flex-1 basis-full justify-center px-3 2xl:min-w-[7.25rem] 2xl:flex-none 2xl:basis-auto"
                                                                     aria-label={`Auto asignar ${ticket.titulo}`}
                                                                     title="Auto asignar"
                                                                 >
@@ -696,22 +697,22 @@ export default function Tickets({ role }) {
                                                                     onClick={() => cerrar(ticket)}
                                                                     variant="secondary"
                                                                     size="sm"
-                                                                    className="w-10 shrink-0 px-0"
+                                                                    className="h-11 w-11 shrink-0 rounded-full border-[color:var(--app-border-strong)] bg-[color:var(--app-surface-strong)] px-0 text-[color:var(--app-accent)] shadow-sm"
                                                                     aria-label={`Cerrar ${ticket.titulo}`}
                                                                     title="Cerrar ticket"
                                                                 >
-                                                                    <Check className="h-4 w-4" />
+                                                                    <CheckCircle2 className="h-[1.1rem] w-[1.1rem] [stroke-width:2.15]" />
                                                                 </Button>
 
                                                                 <Button
                                                                     onClick={() => requestDelete(ticket)}
                                                                     variant="danger"
                                                                     size="sm"
-                                                                    className="w-10 shrink-0 px-0"
+                                                                    className="h-11 w-11 shrink-0 rounded-full px-0 text-[color:var(--brand-danger)]"
                                                                     aria-label={`Eliminar ${ticket.titulo}`}
                                                                     title="Eliminar ticket"
                                                                 >
-                                                                    <Trash2 className="h-4 w-4" />
+                                                                    <Trash2 className="h-[1.05rem] w-[1.05rem] [stroke-width:2.15]" />
                                                                 </Button>
                                                             </div>
                                                         </td>
