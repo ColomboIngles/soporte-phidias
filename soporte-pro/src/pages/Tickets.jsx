@@ -41,6 +41,11 @@ function formatTicketDate(value) {
     }).format(new Date(value));
 }
 
+function formatTicketId(id) {
+    if (!id) return "Sin ID";
+    return String(id).slice(0, 8);
+}
+
 function statusChipClass(estado) {
     if (estado === "cerrado") return "status-chip status-chip-cerrado";
     if (estado === "en_proceso") return "status-chip status-chip-en-proceso";
@@ -349,7 +354,7 @@ export default function Tickets({ role }) {
                             : "Filtra y administra el backlog operativo."}
                     </p>
 
-                    <div className="hide-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
+                    <div className="flex flex-wrap gap-2">
                         {["todos", "abierto", "en_proceso", "cerrado"].map((item) => (
                             <button
                                 key={item}
@@ -407,11 +412,17 @@ export default function Tickets({ role }) {
                                                 onClick={() => navigate(`/tickets/${ticket.id}`)}
                                                 className="min-w-0 text-left"
                                             >
-                                                <h3 className="text-base font-semibold text-[color:var(--app-text-primary)]">
+                                                <h3
+                                                    title={ticket.titulo}
+                                                    className="truncate text-base font-semibold text-[color:var(--app-text-primary)]"
+                                                >
                                                     {ticket.titulo}
                                                 </h3>
-                                                <p className="app-break-anywhere mt-1 text-xs text-[color:var(--app-text-tertiary)]">
-                                                    #{ticket.id}
+                                                <p
+                                                    title={ticket.id}
+                                                    className="mt-1 text-xs text-[color:var(--app-text-tertiary)]"
+                                                >
+                                                    #{formatTicketId(ticket.id)}
                                                 </p>
                                             </button>
 
@@ -486,6 +497,7 @@ export default function Tickets({ role }) {
                                                         )
                                                     }
                                                     disabled={asignandoId === ticket.id}
+                                                    aria-label={`Asignar tecnico a ${ticket.titulo}`}
                                                     className="app-input-shell w-full text-sm"
                                                 >
                                                     <option value="">Sin asignar</option>
@@ -533,17 +545,21 @@ export default function Tickets({ role }) {
                             </MotionStagger>
 
                             <div className="hidden lg:block">
-                                <div className="data-table-wrap overflow-x-auto">
-                                    <table className="data-table min-w-[980px]">
+                                <div className="data-table-wrap">
+                                    <table className="data-table table-fixed min-w-[1100px]">
                                         <thead>
                                             <tr>
-                                                <th>Titulo</th>
-                                                <th>Estado</th>
-                                                <th>Prioridad</th>
-                                                <th>{isEndUser ? "Responsable" : "Tecnico"}</th>
-                                                {showInternalMetrics ? <th>SLA</th> : null}
-                                                <th>{isEndUser ? "Actualizacion" : "Fecha"}</th>
-                                                {isAdmin ? <th>Acciones</th> : null}
+                                                <th className="w-[17%]">Titulo</th>
+                                                <th className="w-[10%]">Estado</th>
+                                                <th className="w-[10%]">Prioridad</th>
+                                                <th className={showInternalMetrics ? "w-[21%]" : "w-[31%]"}>
+                                                    {isEndUser ? "Responsable" : "Tecnico"}
+                                                </th>
+                                                {showInternalMetrics ? <th className="w-[10%]">SLA</th> : null}
+                                                <th className={isAdmin ? "w-[15%]" : "w-[22%]"}>
+                                                    {isEndUser ? "Actualizacion" : "Fecha"}
+                                                </th>
+                                                {isAdmin ? <th className="w-[17%]">Acciones</th> : null}
                                             </tr>
                                         </thead>
 
@@ -554,13 +570,19 @@ export default function Tickets({ role }) {
                                                         <button
                                                             type="button"
                                                             onClick={() => navigate(`/tickets/${ticket.id}`)}
-                                                            className="group text-left"
+                                                            className="group max-w-[11rem] text-left xl:max-w-[13rem]"
                                                         >
-                                                            <div className="font-semibold text-[color:var(--app-text-primary)] transition group-hover:text-[color:var(--app-accent)]">
+                                                            <div
+                                                                title={ticket.titulo}
+                                                                className="truncate font-semibold text-[color:var(--app-text-primary)] transition group-hover:text-[color:var(--app-accent)]"
+                                                            >
                                                                 {ticket.titulo}
                                                             </div>
-                                                            <div className="app-break-anywhere mt-1 text-xs text-[color:var(--app-text-tertiary)]">
-                                                                #{ticket.id}
+                                                            <div
+                                                                title={ticket.id}
+                                                                className="mt-1 text-xs text-[color:var(--app-text-tertiary)]"
+                                                            >
+                                                                #{formatTicketId(ticket.id)}
                                                             </div>
                                                         </button>
                                                     </td>
@@ -579,7 +601,7 @@ export default function Tickets({ role }) {
 
                                                     <td>
                                                         {isAdmin ? (
-                                                            <div className="min-w-[220px] space-y-2">
+                                                            <div className="min-w-0 max-w-[12rem] space-y-2 xl:max-w-[13rem]">
                                                                 <select
                                                                     value={ticket.asignado_a || ""}
                                                                     onChange={(event) =>
@@ -589,6 +611,7 @@ export default function Tickets({ role }) {
                                                                         )
                                                                     }
                                                                     disabled={asignandoId === ticket.id}
+                                                                    aria-label={`Asignar tecnico a ${ticket.titulo}`}
                                                                     className="app-input-shell w-full text-xs"
                                                                 >
                                                                     <option value="">Sin asignar</option>
@@ -602,7 +625,13 @@ export default function Tickets({ role }) {
                                                                     ))}
                                                                 </select>
 
-                                                                <div className="text-[11px] text-[color:var(--app-text-tertiary)]">
+                                                                <div
+                                                                    title={resolverNombreTecnico(
+                                                                        tecnicos,
+                                                                        ticket.asignado_a
+                                                                    )}
+                                                                    className="truncate text-[11px] text-[color:var(--app-text-tertiary)]"
+                                                                >
                                                                     {resolverNombreTecnico(
                                                                         tecnicos,
                                                                         ticket.asignado_a
@@ -610,7 +639,13 @@ export default function Tickets({ role }) {
                                                                 </div>
                                                             </div>
                                                         ) : (
-                                                            <span className="text-sm text-[color:var(--app-text-secondary)]">
+                                                            <span
+                                                                title={resolverNombreTecnico(
+                                                                    tecnicos,
+                                                                    ticket.asignado_a
+                                                                )}
+                                                                className="block truncate text-sm text-[color:var(--app-text-secondary)]"
+                                                            >
                                                                 {resolverNombreTecnico(
                                                                     tecnicos,
                                                                     ticket.asignado_a
@@ -635,7 +670,7 @@ export default function Tickets({ role }) {
                                                     ) : null}
 
                                                     <td>
-                                                        <div className="text-sm text-[color:var(--app-text-secondary)]">
+                                                        <div className="text-xs leading-5 text-[color:var(--app-text-secondary)] xl:text-sm">
                                                             {formatTicketDate(
                                                                 ticket.updated_at || ticket.created_at
                                                             )}
@@ -644,12 +679,15 @@ export default function Tickets({ role }) {
 
                                                     {isAdmin ? (
                                                         <td>
-                                                            <div className="flex items-center gap-2">
+                                                            <div className="flex items-center gap-2 xl:gap-2.5">
                                                                 <Button
                                                                     onClick={() => autoAsignar(ticket)}
                                                                     variant="secondary"
                                                                     size="sm"
                                                                     iconLeft={Sparkles}
+                                                                    className="min-w-[7.25rem] shrink-0 justify-center px-3"
+                                                                    aria-label={`Auto asignar ${ticket.titulo}`}
+                                                                    title="Auto asignar"
                                                                 >
                                                                     Auto
                                                                 </Button>
@@ -658,8 +696,9 @@ export default function Tickets({ role }) {
                                                                     onClick={() => cerrar(ticket)}
                                                                     variant="secondary"
                                                                     size="sm"
-                                                                    className="w-10 px-0"
+                                                                    className="w-10 shrink-0 px-0"
                                                                     aria-label={`Cerrar ${ticket.titulo}`}
+                                                                    title="Cerrar ticket"
                                                                 >
                                                                     <Check className="h-4 w-4" />
                                                                 </Button>
@@ -668,8 +707,9 @@ export default function Tickets({ role }) {
                                                                     onClick={() => requestDelete(ticket)}
                                                                     variant="danger"
                                                                     size="sm"
-                                                                    className="w-10 px-0"
+                                                                    className="w-10 shrink-0 px-0"
                                                                     aria-label={`Eliminar ${ticket.titulo}`}
+                                                                    title="Eliminar ticket"
                                                                 >
                                                                     <Trash2 className="h-4 w-4" />
                                                                 </Button>
