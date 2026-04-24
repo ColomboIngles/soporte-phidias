@@ -30,6 +30,10 @@ function manualChunks(id) {
         return "icons";
     }
 
+    if (id.includes("xlsx")) {
+        return "xlsx";
+    }
+
     return "vendor";
 }
 

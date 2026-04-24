@@ -42,18 +42,24 @@ export default function Alert({
 
     return (
         <div className={cn(toneConfig.shell, className)} role="alert">
-            <div className="app-alert-icon">
-                <Icon className="h-[1.125rem] w-[1.125rem]" />
+            <div className="flex min-w-0 flex-1 items-start gap-3">
+                <div className="app-alert-icon">
+                    <Icon className="h-[1.125rem] w-[1.125rem]" />
+                </div>
+
+                <div className="min-w-0 flex-1">
+                    {title ? <p className="app-alert-title">{title}</p> : null}
+                    {children ? (
+                        <div className="app-alert-description">{children}</div>
+                    ) : null}
+                </div>
             </div>
 
-            <div className="min-w-0 flex-1">
-                {title ? <p className="app-alert-title">{title}</p> : null}
-                {children ? (
-                    <div className="app-alert-description">{children}</div>
-                ) : null}
-            </div>
-
-            {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
+            {actions ? (
+                <div className="flex w-full justify-end gap-2 sm:w-auto sm:shrink-0 sm:items-center">
+                    {actions}
+                </div>
+            ) : null}
         </div>
     );
 }
