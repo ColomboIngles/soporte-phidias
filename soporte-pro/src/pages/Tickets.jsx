@@ -547,7 +547,7 @@ export default function Tickets({ role }) {
 
                             <div className="hidden lg:block">
                                 <div className="data-table-wrap">
-                                    <table className="data-table table-fixed min-w-[1100px]">
+                                    <table className="data-table table-fixed min-w-[1020px]">
                                         <thead>
                                             <tr>
                                                 <th className="w-[17%]">Titulo</th>
@@ -560,7 +560,7 @@ export default function Tickets({ role }) {
                                                 <th className={isAdmin ? "w-[15%]" : "w-[22%]"}>
                                                     {isEndUser ? "Actualizacion" : "Fecha"}
                                                 </th>
-                                                {isAdmin ? <th className="w-[18%]">Acciones</th> : null}
+                                                {isAdmin ? <th className="w-[16%]">Acciones</th> : null}
                                             </tr>
                                         </thead>
 
@@ -680,40 +680,41 @@ export default function Tickets({ role }) {
 
                                                     {isAdmin ? (
                                                         <td>
-                                                            <div className="flex max-w-[11.5rem] flex-wrap items-center justify-end gap-2 2xl:max-w-none 2xl:flex-nowrap">
+                                                            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_2.75rem] items-start gap-2">
                                                                 <Button
                                                                     onClick={() => autoAsignar(ticket)}
                                                                     variant="secondary"
                                                                     size="sm"
-                                                                    iconLeft={Sparkles}
-                                                                    className="min-w-0 flex-1 basis-full justify-center px-3 2xl:min-w-[7.25rem] 2xl:flex-none 2xl:basis-auto"
+                                                                    className="min-w-0 justify-center px-3"
                                                                     aria-label={`Auto asignar ${ticket.titulo}`}
                                                                     title="Auto asignar"
                                                                 >
                                                                     Auto
                                                                 </Button>
 
-                                                                <Button
-                                                                    onClick={() => cerrar(ticket)}
-                                                                    variant="secondary"
-                                                                    size="sm"
-                                                                    className="h-11 w-11 shrink-0 rounded-full border-[color:var(--app-border-strong)] bg-[color:var(--app-surface-strong)] px-0 text-[color:var(--app-accent)] shadow-sm"
-                                                                    aria-label={`Cerrar ${ticket.titulo}`}
-                                                                    title="Cerrar ticket"
-                                                                >
-                                                                    <CheckCircle2 className="h-[1.1rem] w-[1.1rem] [stroke-width:2.15]" />
-                                                                </Button>
+                                                                <div className="flex flex-col gap-2">
+                                                                    <Button
+                                                                        onClick={() => cerrar(ticket)}
+                                                                        variant="secondary"
+                                                                        size="sm"
+                                                                        className="h-11 w-11 shrink-0 rounded-full border-[color:var(--app-border-strong)] bg-[color:var(--app-surface-strong)] px-0 text-[color:var(--app-accent)] shadow-sm"
+                                                                        aria-label={`Cerrar ${ticket.titulo}`}
+                                                                        title="Cerrar ticket"
+                                                                    >
+                                                                        <CheckCircle2 className="h-[1.1rem] w-[1.1rem] [stroke-width:2.15]" />
+                                                                    </Button>
 
-                                                                <Button
-                                                                    onClick={() => requestDelete(ticket)}
-                                                                    variant="danger"
-                                                                    size="sm"
-                                                                    className="h-11 w-11 shrink-0 rounded-full px-0 text-[color:var(--brand-danger)]"
-                                                                    aria-label={`Eliminar ${ticket.titulo}`}
-                                                                    title="Eliminar ticket"
-                                                                >
-                                                                    <Trash2 className="h-[1.05rem] w-[1.05rem] [stroke-width:2.15]" />
-                                                                </Button>
+                                                                    <Button
+                                                                        onClick={() => requestDelete(ticket)}
+                                                                        variant="danger"
+                                                                        size="sm"
+                                                                        className="h-11 w-11 shrink-0 rounded-full px-0 text-[color:var(--brand-danger)]"
+                                                                        aria-label={`Eliminar ${ticket.titulo}`}
+                                                                        title="Eliminar ticket"
+                                                                    >
+                                                                        <Trash2 className="h-[1.05rem] w-[1.05rem] [stroke-width:2.15]" />
+                                                                    </Button>
+                                                                </div>
                                                             </div>
                                                         </td>
                                                     ) : null}

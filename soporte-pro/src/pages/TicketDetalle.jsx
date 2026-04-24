@@ -509,6 +509,7 @@ export default function TicketDetalle({ rol }) {
                             ref={inputRef}
                             type="file"
                             multiple
+                            aria-label="Adjuntar archivos al ticket"
                             className="hidden"
                             onChange={(event) => procesarArchivos(event.target.files)}
                         />

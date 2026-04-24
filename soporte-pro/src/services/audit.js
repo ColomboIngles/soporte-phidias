@@ -17,7 +17,7 @@ export async function registrarAuditoria({
         usuario: normalizarUsuario(usuario),
         accion,
         ticket_id: ticketId,
-        fecha,
+        created_at: fecha,
     };
 
     const { error } = await supabase.from("auditoria").insert([payload]);
@@ -33,7 +33,7 @@ export async function obtenerAuditoria() {
     const { data, error } = await supabase
         .from("auditoria")
         .select("*")
-        .order("fecha", { ascending: false });
+        .order("created_at", { ascending: false });
 
     if (error) {
         throw error;

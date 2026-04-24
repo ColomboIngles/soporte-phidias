@@ -15,11 +15,11 @@ export default function EmptyState({
     return (
         <Surface
             variant="elevated"
-            className={`brand-glow relative overflow-hidden rounded-[1.85rem] text-center ${
+            className={`brand-glow relative min-w-0 w-full overflow-hidden rounded-[1.85rem] text-center ${
                 compact ? "px-5 py-8" : "px-6 py-12"
             }`}
         >
-            <div className="relative">
+            <div className="relative mx-auto w-full max-w-[42rem] min-w-0">
                 <div className="app-kicker mx-auto w-max">
                     <Sparkles className="h-3.5 w-3.5" />
                     {eyebrow}
@@ -29,10 +29,10 @@ export default function EmptyState({
                     <IconComponent className="h-7 w-7" />
                 </div>
 
-                <h3 className="mt-5 text-xl font-semibold tracking-tight text-[color:var(--app-text-primary)]">
+                <h3 className="app-break-anywhere mt-5 text-xl font-semibold tracking-tight text-[color:var(--app-text-primary)]">
                     {title}
                 </h3>
-                <p className="mx-auto mt-2 max-w-2xl text-sm leading-7 text-[color:var(--app-text-secondary)]">
+                <p className="app-break-anywhere mx-auto mt-2 max-w-2xl text-sm leading-7 text-[color:var(--app-text-secondary)]">
                     {description}
                 </p>
 

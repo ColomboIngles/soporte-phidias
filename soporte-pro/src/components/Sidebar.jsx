@@ -41,17 +41,22 @@ function SidebarNav({
         <div className="app-sidebar-shell brand-glow flex h-full min-h-0 flex-col overflow-hidden p-4">
             <MotionSection className="app-surface-hero rounded-[1.8rem] p-4">
                 <div className="flex items-start justify-between gap-3">
-                    <div className={cn("min-w-0", collapsed && !mobile && "hidden")}>
-                        <div className="brand-badge">
+                    <div
+                        className={cn(
+                            "min-w-0 flex-1 pr-1",
+                            collapsed && !mobile && "hidden"
+                        )}
+                    >
+                        <div className="brand-badge max-w-full">
                             <Sparkles className="h-3.5 w-3.5" />
                             Soporte Pro
                         </div>
-                        <h1 className="mt-4 text-[1.45rem] font-semibold tracking-tight text-[color:var(--app-text-primary)]">
+                        <h1 className="app-break-anywhere mt-4 text-[1.45rem] font-semibold tracking-tight text-[color:var(--app-text-primary)]">
                             {isEndUser
                                 ? "Portal de seguimiento"
                                 : "Mesa de soporte premium"}
                         </h1>
-                        <p className="mt-3 text-sm leading-6 text-[color:var(--app-text-secondary)]">
+                        <p className="app-break-anywhere mt-3 text-sm leading-6 text-[color:var(--app-text-secondary)]">
                             {isEndUser
                                 ? "Consulta solicitudes, comparte evidencias y conversa con soporte en una experiencia mas clara y elegante."
                                 : "Operacion centralizada de tickets, analitica y seguimiento tecnico con look SaaS institucional."}
@@ -140,7 +145,7 @@ function SidebarNav({
                                     </span>
                                     <span
                                         className={cn(
-                                            "truncate",
+                                            "min-w-0 flex-1 truncate",
                                             collapsed && !mobile && "hidden"
                                         )}
                                     >
@@ -156,7 +161,7 @@ function SidebarNav({
             <MotionSection
                 delay={0.14}
                 className={cn(
-                    "app-surface-muted mt-6 rounded-[1.55rem] p-4",
+                    "app-surface-muted mt-6 min-w-0 rounded-[1.55rem] p-4",
                     collapsed && !mobile && "p-3 text-center"
                 )}
             >
@@ -168,7 +173,7 @@ function SidebarNav({
                 </p>
                 <p
                     className={cn(
-                        "mt-2 text-xs leading-5 text-[color:var(--app-text-secondary)]",
+                        "app-break-anywhere mt-2 text-xs leading-5 text-[color:var(--app-text-secondary)]",
                         collapsed && !mobile && "hidden"
                     )}
                 >

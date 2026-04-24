@@ -115,6 +115,7 @@ function TicketCard({
                 <div className="mt-3 space-y-2">
                     <select
                         className="app-input-shell w-full text-xs"
+                        aria-label={`Asignar tecnico a ${ticket.titulo}`}
                         value={ticket.asignado_a || ""}
                         onChange={(event) => onAssign(ticket, event.target.value)}
                     >
@@ -427,13 +428,13 @@ export default function Kanban({ rol }) {
                 ) : (
                     <MotionSection
                         delay={0.1}
-                        className="hide-scrollbar overflow-x-auto pb-2 md:overflow-visible"
+                        className="pb-2"
                     >
-                        <MotionStagger className="flex snap-x snap-mandatory gap-4 sm:gap-5 md:grid md:grid-cols-3 md:gap-6">
+                        <MotionStagger className="grid gap-4 sm:gap-5 lg:grid-cols-2 xl:grid-cols-3 xl:gap-6">
                             {Object.entries(columnas).map(([id, col]) => (
                                 <MotionItem
                                     key={id}
-                                    className="app-surface min-w-[86vw] shrink-0 snap-start rounded-[1.75rem] p-4 sm:min-w-[23.5rem] sm:p-5 md:min-w-0 md:shrink"
+                                    className="app-surface min-w-0 rounded-[1.75rem] p-4 sm:p-5"
                                     style={{ boxShadow: "var(--app-shadow-md)" }}
                                 >
                                     <div className="mb-4 flex items-center justify-between gap-3">

@@ -106,7 +106,7 @@ function TimelineItem({ item, isLast }) {
 
                     <div className="app-surface-muted inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs text-[color:var(--app-text-secondary)]">
                         <Clock3 className="h-3.5 w-3.5" />
-                        {formatoFecha(item.fecha)}
+                        {formatoFecha(item.created_at)}
                     </div>
                 </div>
             </div>
@@ -201,7 +201,7 @@ export default function Auditoria() {
                     <MotionStagger className="space-y-5">
                         {historial.map((item, index) => (
                             <MotionItem
-                                key={`${item.ticket_id}-${item.fecha}-${index}`}
+                                key={`${item.ticket_id}-${item.created_at}-${index}`}
                             >
                                 <TimelineItem
                                     item={item}

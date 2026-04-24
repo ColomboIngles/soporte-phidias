@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ShieldCheck, Users as UsersIcon } from "lucide-react";
+import { ShieldCheck, Trash2, Users as UsersIcon } from "lucide-react";
 import { supabase } from "../services/supabase";
 import Skeleton from "../components/skeleton";
 import EmptyState from "../components/EmptyState";
@@ -145,66 +145,150 @@ export default function Usuarios() {
                             />
                         </div>
                     ) : (
-                        <div className="data-table-wrap overflow-x-auto">
-                            <table className="data-table min-w-[820px]">
-                                <thead>
-                                    <tr>
-                                        <th>Email</th>
-                                        <th>Nombre</th>
-                                        <th>Rol actual</th>
-                                        <th>Gestion</th>
-                                        <th>Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {usuarios.map((usuario) => (
-                                        <tr key={usuario.id}>
-                                            <td>
-                                                <div className="font-semibold text-[color:var(--app-text-primary)]">
-                                                    {usuario.email}
-                                                </div>
-                                                <div className="mt-1 text-xs text-[color:var(--app-text-tertiary)]">
-                                                    {usuario.id}
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <div className="text-sm text-[color:var(--app-text-secondary)]">
+                        <>
+                            <div className="space-y-3 lg:hidden">
+                                {usuarios.map((usuario) => (
+                                    <div
+                                        key={usuario.id}
+                                        className="app-surface-muted rounded-[1.6rem] p-4"
+                                    >
+                                        <div className="min-w-0">
+                                            <p
+                                                title={usuario.email}
+                                                className="truncate font-semibold text-[color:var(--app-text-primary)]"
+                                            >
+                                                {usuario.email}
+                                            </p>
+                                            <p className="app-break-anywhere mt-1 text-xs text-[color:var(--app-text-tertiary)]">
+                                                {usuario.id}
+                                            </p>
+                                        </div>
+
+                                        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                                            <div>
+                                                <p className="text-[11px] uppercase tracking-[0.16em] text-[color:var(--app-text-tertiary)]">
+                                                    Nombre
+                                                </p>
+                                                <p className="mt-1 text-sm text-[color:var(--app-text-secondary)]">
                                                     {usuario.nombre || "Sin nombre"}
+                                                </p>
+                                            </div>
+
+                                            <div>
+                                                <p className="text-[11px] uppercase tracking-[0.16em] text-[color:var(--app-text-tertiary)]">
+                                                    Rol actual
+                                                </p>
+                                                <div className="mt-2">
+                                                    <span className={roleChipClass(usuario.rol)}>
+                                                        {usuario.rol}
+                                                    </span>
                                                 </div>
-                                            </td>
-                                            <td>
-                                                <span className={roleChipClass(usuario.rol)}>
-                                                    {usuario.rol}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <select
-                                                    value={usuario.rol}
-                                                    onChange={(event) =>
-                                                        cambiarRol(usuario.id, event.target.value)
-                                                    }
-                                                    disabled={savingRoleId === usuario.id}
-                                                    className="app-input-shell min-w-[180px] text-sm"
-                                                >
-                                                    <option value="admin">Admin</option>
-                                                    <option value="tecnico">Tecnico</option>
-                                                    <option value="usuario">Usuario</option>
-                                                </select>
-                                            </td>
-                                            <td>
-                                                <Button
-                                                    onClick={() => setUsuarioToDelete(usuario)}
-                                                    variant="danger"
-                                                    size="sm"
-                                                >
-                                                    Eliminar
-                                                </Button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-4 grid gap-3">
+                                            <select
+                                                value={usuario.rol}
+                                                aria-label={`Cambiar rol de ${usuario.email}`}
+                                                onChange={(event) =>
+                                                    cambiarRol(usuario.id, event.target.value)
+                                                }
+                                                disabled={savingRoleId === usuario.id}
+                                                className="app-input-shell w-full text-sm"
+                                            >
+                                                <option value="admin">Admin</option>
+                                                <option value="tecnico">Tecnico</option>
+                                                <option value="usuario">Usuario</option>
+                                            </select>
+
+                                            <Button
+                                                onClick={() => setUsuarioToDelete(usuario)}
+                                                variant="danger"
+                                                size="sm"
+                                                className="w-full"
+                                            >
+                                                Eliminar
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="hidden lg:block">
+                                <div className="data-table-wrap">
+                                    <table className="data-table table-fixed min-w-[940px]">
+                                        <thead>
+                                            <tr>
+                                                <th className="w-[34%]">Email</th>
+                                                <th className="w-[22%]">Nombre</th>
+                                                <th className="w-[12%]">Rol actual</th>
+                                                <th className="w-[22%]">Gestion</th>
+                                                <th className="w-[10%]">Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {usuarios.map((usuario) => (
+                                                <tr key={usuario.id}>
+                                                    <td>
+                                                        <div
+                                                            title={usuario.email}
+                                                            className="truncate font-semibold text-[color:var(--app-text-primary)]"
+                                                        >
+                                                            {usuario.email}
+                                                        </div>
+                                                        <div
+                                                            title={usuario.id}
+                                                            className="mt-1 truncate text-xs text-[color:var(--app-text-tertiary)]"
+                                                        >
+                                                            {usuario.id}
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div
+                                                            title={usuario.nombre || "Sin nombre"}
+                                                            className="truncate text-sm text-[color:var(--app-text-secondary)]"
+                                                        >
+                                                            {usuario.nombre || "Sin nombre"}
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <span className={roleChipClass(usuario.rol)}>
+                                                            {usuario.rol}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <select
+                                                            value={usuario.rol}
+                                                            aria-label={`Cambiar rol de ${usuario.email}`}
+                                                            onChange={(event) =>
+                                                                cambiarRol(usuario.id, event.target.value)
+                                                            }
+                                                            disabled={savingRoleId === usuario.id}
+                                                            className="app-input-shell w-full text-sm"
+                                                        >
+                                                            <option value="admin">Admin</option>
+                                                            <option value="tecnico">Tecnico</option>
+                                                            <option value="usuario">Usuario</option>
+                                                        </select>
+                                                    </td>
+                                                    <td>
+                                                        <Button
+                                                            onClick={() => setUsuarioToDelete(usuario)}
+                                                            variant="danger"
+                                                            size="sm"
+                                                            className="w-10 px-0"
+                                                            aria-label={`Eliminar ${usuario.email}`}
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </>
                     )}
                 </MotionSection>
             </MotionPage>

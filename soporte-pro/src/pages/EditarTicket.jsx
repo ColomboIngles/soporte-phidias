@@ -28,10 +28,43 @@ export default function EditarTicket() {
     useEffect(() => {
         if (!id) return;
 
-        API.get(`/tickets/${id}`)
-            .then((res) => setForm(res.data))
-            .finally(() => setLoading(false));
-    }, [id]);
+        let activo = true;
+
+        async function cargarTicket() {
+            try {
+                const { data, error } = await supabase
+                    .from("tickets")
+                    .select("*")
+                    .eq("id", id)
+                    .single();
+
+                if (error) throw error;
+                if (activo) {
+                    setForm(data || {});
+                }
+            } catch (error) {
+                if (activo) {
+                    showToast({
+                        type: "error",
+                        title: "No se pudo cargar el ticket",
+                        message:
+                            error.message ||
+                            "Intenta nuevamente en unos segundos.",
+                    });
+                }
+            } finally {
+                if (activo) {
+                    setLoading(false);
+                }
+            }
+        }
+
+        cargarTicket();
+
+        return () => {
+            activo = false;
+        };
+    }, [id, showToast]);
 
     const statusCopy = useMemo(
         () => STATUS_HELP[form.estado || "abierto"],
@@ -125,6 +158,7 @@ export default function EditarTicket() {
                                     Titulo
                                 </span>
                                 <input
+                                    aria-label="Titulo del ticket"
                                     value={form.titulo || ""}
                                     className="app-input-shell w-full"
                                     onChange={(e) => setForm({ ...form, titulo: e.target.value })}
@@ -139,6 +173,7 @@ export default function EditarTicket() {
                                     Descripcion
                                 </span>
                                 <textarea
+                                    aria-label="Descripcion del ticket"
                                     value={form.descripcion || ""}
                                     className="app-input-shell min-h-40 w-full resize-none py-3.5"
                                     onChange={(e) =>
@@ -155,6 +190,7 @@ export default function EditarTicket() {
                                     Estado
                                 </span>
                                 <select
+                                    aria-label="Estado del ticket"
                                     value={form.estado || "abierto"}
                                     onChange={(e) => setForm({ ...form, estado: e.target.value })}
                                     className="app-input-shell w-full"

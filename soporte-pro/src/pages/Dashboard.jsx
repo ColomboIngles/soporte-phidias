@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
     Activity,
     ArrowDownRight,
@@ -24,7 +24,6 @@ import {
     Cell,
     Pie,
     PieChart,
-    ResponsiveContainer,
     Sector,
     Tooltip,
     XAxis,
@@ -43,15 +42,6 @@ import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import SectionHeader from "../components/ui/SectionHeader";
 import Surface from "../components/ui/Surface";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableEmpty,
-    TableHead,
-    TableHeaderCell,
-    TableRow,
-} from "../components/ui/Table";
 
 const DATE_PRESETS = [
     { label: "7D", days: 7 },
@@ -151,6 +141,10 @@ function formatPercent(value) {
 function shortTicketId(id) {
     if (!id) return "Sin ID";
     return String(id).slice(0, 8);
+}
+
+function truncateAxisLabel(value, max = 24) {
+    return shortenLabel(value, max).replace("â€¦", "...");
 }
 
 function shortenLabel(value, max = 24) {
@@ -530,6 +524,71 @@ function AnalyticsPanel({
     );
 }
 
+function ChartFrame({ heightClassName = "h-[320px]", children }) {
+    const frameRef = useRef(null);
+    const [size, setSize] = useState({ width: 0, height: 0 });
+
+    useEffect(() => {
+        const element = frameRef.current;
+        let frame = 0;
+
+        if (!element) return undefined;
+
+        const updateSize = () => {
+            const rect = element.getBoundingClientRect();
+            const nextWidth = Math.max(Math.round(rect.width), 0);
+            const nextHeight = Math.max(Math.round(rect.height), 0);
+
+            setSize((previous) => {
+                if (
+                    previous.width === nextWidth &&
+                    previous.height === nextHeight
+                ) {
+                    return previous;
+                }
+
+                return { width: nextWidth, height: nextHeight };
+            });
+        };
+
+        const scheduleUpdate = () => {
+            window.cancelAnimationFrame(frame);
+            frame = window.requestAnimationFrame(updateSize);
+        };
+
+        scheduleUpdate();
+
+        if (typeof ResizeObserver === "undefined") {
+            return () => {
+                window.cancelAnimationFrame(frame);
+            };
+        }
+
+        const observer = new ResizeObserver(() => {
+            scheduleUpdate();
+        });
+
+        observer.observe(element);
+
+        return () => {
+            window.cancelAnimationFrame(frame);
+            observer.disconnect();
+        };
+    }, []);
+
+    const ready = size.width > 0 && size.height > 0;
+
+    return (
+        <div ref={frameRef} className={`min-w-0 w-full ${heightClassName}`}>
+            {ready ? (
+                children(size)
+            ) : (
+                <div className="app-surface-muted h-full w-full animate-pulse rounded-[1.5rem]" />
+            )}
+        </div>
+    );
+}
+
 function InsightCard({ label, value, helper }) {
     const resolvedValue = value || "Sin datos";
 
@@ -547,6 +606,48 @@ function InsightCard({ label, value, helper }) {
             <p className="app-break-anywhere mt-2 text-xs leading-6 text-[color:var(--app-text-secondary)]">
                 {helper}
             </p>
+        </Surface>
+    );
+}
+
+function RecentTicketCard({ ticket, tecnico }) {
+    return (
+        <Surface variant="muted" className="min-w-0 rounded-[1.4rem] p-4">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1.1fr)_auto_auto_minmax(0,1fr)_auto] xl:items-center">
+                <div className="min-w-0">
+                    <p className="truncate font-semibold text-[color:var(--app-text-primary)]">
+                        {ticket.titulo}
+                    </p>
+                    <p className="mt-1 font-mono text-xs text-[color:var(--app-text-tertiary)]">
+                        #{shortTicketId(ticket.id)}
+                    </p>
+                </div>
+
+                <div className="xl:justify-self-start">
+                    <Badge tone={statusTone(ticket.estado)} size="sm">
+                        {ticket.estado.replace("_", " ")}
+                    </Badge>
+                </div>
+
+                <div className="xl:justify-self-start">
+                    <Badge tone={priorityTone(ticket.prioridad)} size="sm">
+                        {formatPriorityLabel(ticket.prioridad)}
+                    </Badge>
+                </div>
+
+                <div className="min-w-0">
+                    <p
+                        title={tecnico}
+                        className="truncate text-sm font-medium text-[color:var(--app-text-secondary)]"
+                    >
+                        {tecnico}
+                    </p>
+                </div>
+
+                <p className="text-sm text-[color:var(--app-text-tertiary)] xl:justify-self-end xl:text-right">
+                    {formatLongDate(ticket.created_at)}
+                </p>
+            </div>
         </Surface>
     );
 }
@@ -711,7 +812,7 @@ export default function Dashboard() {
         const ticketsPorTecnico = [...currentSummary.tecnicosRows]
             .map((item) => ({
                 tecnico: item.tecnico,
-                tecnicoLabel: shortenLabel(item.tecnico, 18),
+                tecnicoLabel: truncateAxisLabel(item.tecnico, 18),
                 tickets: item.tickets,
             }))
             .sort((a, b) => b.tickets - a.tickets)
@@ -721,7 +822,7 @@ export default function Dashboard() {
             .filter((item) => item.tickets > 0)
             .map((item) => ({
                 tecnico: item.tecnico,
-                tecnicoLabel: shortenLabel(item.tecnico, 16),
+                tecnicoLabel: truncateAxisLabel(item.tecnico, 16),
                 horas: Number(item.horas.toFixed(1)),
             }))
             .sort((a, b) => b.horas - a.horas)
@@ -925,6 +1026,7 @@ export default function Dashboard() {
                             <Input
                                 label="Fecha inicio"
                                 type="date"
+                                aria-label="Fecha inicio del rango"
                                 value={fechaInicio}
                                 max={fechaFin}
                                 onChange={(event) => setFechaInicio(event.target.value)}
@@ -933,6 +1035,7 @@ export default function Dashboard() {
                             <Input
                                 label="Fecha fin"
                                 type="date"
+                                aria-label="Fecha fin del rango"
                                 value={fechaFin}
                                 min={fechaInicio}
                                 onChange={(event) => setFechaFin(event.target.value)}
@@ -1004,9 +1107,13 @@ export default function Dashboard() {
                             </div>
                         }
                     >
-                        <div className="h-[320px]">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={analytics.ticketsPorDia}>
+                        <ChartFrame heightClassName="h-[320px]">
+                            {({ width, height }) => (
+                                <AreaChart
+                                    width={width}
+                                    height={height}
+                                    data={analytics.ticketsPorDia}
+                                >
                                     <defs>
                                         <linearGradient
                                             id="ticketsTrendGradient"
@@ -1066,8 +1173,8 @@ export default function Dashboard() {
                                         }}
                                     />
                                 </AreaChart>
-                            </ResponsiveContainer>
-                        </div>
+                            )}
+                        </ChartFrame>
                     </AnalyticsPanel>
                 </MotionItem>
 
@@ -1077,9 +1184,11 @@ export default function Dashboard() {
                         description="Distribucion actual por estado e insights rapidos del periodo."
                         icon={PieChartIcon}
                     >
-                        <div className="h-[240px]">
-                            <ResponsiveContainer width="100%" height="100%">
+                        <ChartFrame heightClassName="h-[240px]">
+                            {({ width, height }) => (
                                 <PieChart
+                                    width={width}
+                                    height={height}
                                     accessibilityLayer={false}
                                     tabIndex={-1}
                                     role="presentation"
@@ -1113,8 +1222,8 @@ export default function Dashboard() {
                                         content={<DashboardTooltip />}
                                     />
                                 </PieChart>
-                            </ResponsiveContainer>
-                        </div>
+                            )}
+                        </ChartFrame>
 
                         <div className="mt-4 space-y-3">
                             {analytics.estadoDistribucion.map((item) => (
@@ -1166,9 +1275,11 @@ export default function Dashboard() {
                         description="Distribucion de tickets asignados por tecnico dentro del rango seleccionado."
                         icon={Users}
                     >
-                        <div className="h-[320px]">
-                            <ResponsiveContainer width="100%" height="100%">
+                        <ChartFrame heightClassName="h-[320px]">
+                            {({ width, height }) => (
                                 <BarChart
+                                    width={width}
+                                    height={height}
                                     data={analytics.ticketsPorTecnico}
                                     layout="vertical"
                                     margin={{ left: 8 }}
@@ -1222,8 +1333,8 @@ export default function Dashboard() {
                                         barSize={18}
                                     />
                                 </BarChart>
-                            </ResponsiveContainer>
-                        </div>
+                            )}
+                        </ChartFrame>
                     </AnalyticsPanel>
                 </MotionItem>
 
@@ -1233,9 +1344,13 @@ export default function Dashboard() {
                         description="Promedio de horas invertidas por ticket segun el responsable asignado."
                         icon={Clock3}
                     >
-                        <div className="h-[320px]">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={analytics.tiempoPromedioPorTecnico}>
+                        <ChartFrame heightClassName="h-[320px]">
+                            {({ width, height }) => (
+                                <BarChart
+                                    width={width}
+                                    height={height}
+                                    data={analytics.tiempoPromedioPorTecnico}
+                                >
                                     <defs>
                                         <linearGradient
                                             id="techTimeGradient"
@@ -1288,8 +1403,8 @@ export default function Dashboard() {
                                         barSize={28}
                                     />
                                 </BarChart>
-                            </ResponsiveContainer>
-                        </div>
+                            )}
+                        </ChartFrame>
                     </AnalyticsPanel>
                 </MotionItem>
 
@@ -1327,67 +1442,35 @@ export default function Dashboard() {
                         description="Listado resumido de los tickets mas recientes para escaneo rapido."
                         icon={Sparkles}
                     >
-                        <Table wrapperClassName="rounded-[1.5rem]">
-                            <TableHead>
-                                <TableRow>
-                                    <TableHeaderCell>Ticket</TableHeaderCell>
-                                    <TableHeaderCell>Estado</TableHeaderCell>
-                                    <TableHeaderCell>Prioridad</TableHeaderCell>
-                                    <TableHeaderCell>Tecnico</TableHeaderCell>
-                                    <TableHeaderCell>Fecha</TableHeaderCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {analytics.recientes.length === 0 ? (
-                                    <TableEmpty colSpan={5}>
-                                        No hay tickets dentro del rango seleccionado.
-                                    </TableEmpty>
-                                ) : (
-                                    analytics.recientes.map((ticket) => (
-                                        <TableRow key={ticket.id}>
-                                            <TableCell>
-                                                <div>
-                                                    <p className="font-semibold text-[color:var(--app-text-primary)]">
-                                                        {ticket.titulo}
-                                                    </p>
-                                                    <p className="mt-1 font-mono text-xs text-[color:var(--app-text-tertiary)]">
-                                                        #{shortTicketId(ticket.id)}
-                                                    </p>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge
-                                                    tone={statusTone(ticket.estado)}
-                                                    size="sm"
-                                                >
-                                                    {ticket.estado.replace("_", " ")}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge
-                                                    tone={priorityTone(ticket.prioridad)}
-                                                    size="sm"
-                                                >
-                                                    {formatPriorityLabel(ticket.prioridad)}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell>
-                                                {usuarios.find(
-                                                    (usuario) =>
-                                                        usuario.id === ticket.asignado_a
-                                                )?.nombre ||
-                                                    usuarios.find(
-                                                        (usuario) =>
-                                                            usuario.id === ticket.asignado_a
-                                                    )?.email ||
-                                                    "Sin asignar"}
-                                            </TableCell>
-                                            <TableCell>{formatLongDate(ticket.created_at)}</TableCell>
-                                        </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
+                        {analytics.recientes.length === 0 ? (
+                            <Surface
+                                variant="muted"
+                                className="rounded-[1.5rem] border border-dashed border-[color:var(--app-border)] p-5 text-sm text-[color:var(--app-text-secondary)]"
+                            >
+                                No hay tickets dentro del rango seleccionado.
+                            </Surface>
+                        ) : (
+                            <div className="space-y-3">
+                                {analytics.recientes.map((ticket) => {
+                                    const tecnico =
+                                        usuarios.find(
+                                            (usuario) => usuario.id === ticket.asignado_a
+                                        )?.nombre ||
+                                        usuarios.find(
+                                            (usuario) => usuario.id === ticket.asignado_a
+                                        )?.email ||
+                                        "Sin asignar";
+
+                                    return (
+                                        <RecentTicketCard
+                                            key={ticket.id}
+                                            ticket={ticket}
+                                            tecnico={tecnico}
+                                        />
+                                    );
+                                })}
+                            </div>
+                        )}
                     </AnalyticsPanel>
                 </MotionItem>
             </MotionStagger>

@@ -197,6 +197,7 @@ export default function NuevoTicket() {
                                     </span>
                                 </div>
                                 <input
+                                    aria-label="Titulo del ticket"
                                     placeholder="Ej. No puedo ingresar al portal academico"
                                     className="app-input-shell w-full"
                                     value={form.titulo}
@@ -217,6 +218,7 @@ export default function NuevoTicket() {
                                     </span>
                                 </div>
                                 <textarea
+                                    aria-label="Descripcion del ticket"
                                     placeholder="Describe que paso, desde cuando ocurre y que intentaste antes de reportarlo."
                                     className="app-input-shell min-h-40 w-full resize-none py-3.5"
                                     value={form.descripcion}
@@ -233,6 +235,7 @@ export default function NuevoTicket() {
                                         Categoria
                                     </span>
                                     <select
+                                        aria-label="Categoria del ticket"
                                         onChange={(event) => updateField("categoria", event.target.value)}
                                         className="app-input-shell w-full"
                                         value={form.categoria}
@@ -251,6 +254,7 @@ export default function NuevoTicket() {
                                         Prioridad
                                     </span>
                                     <select
+                                        aria-label="Prioridad del ticket"
                                         onChange={(event) => updateField("prioridad", event.target.value)}
                                         className="app-input-shell w-full"
                                         value={form.prioridad}
@@ -270,6 +274,7 @@ export default function NuevoTicket() {
                                     WhatsApp para notificaciones
                                 </span>
                                 <input
+                                    aria-label="Numero de WhatsApp"
                                     placeholder="Opcional. Ej. 573001112233"
                                     className="app-input-shell w-full"
                                     value={form.whatsapp}
