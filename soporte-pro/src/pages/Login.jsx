@@ -51,8 +51,14 @@ function readLoginContext() {
     };
 }
 
+function getAppBasePath() {
+    const baseUrl = import.meta.env.BASE_URL || "/";
+    return baseUrl === "/" ? "" : baseUrl.replace(/\/$/, "");
+}
+
 export default function Login() {
     const loginContext = useMemo(() => readLoginContext(), []);
+    const appBasePath = useMemo(() => getAppBasePath(), []);
     const [email, setEmail] = useState(loginContext.email);
     const [password, setPassword] = useState("");
     const [submitting, setSubmitting] = useState(false);
@@ -74,7 +80,9 @@ export default function Login() {
             }
 
             if (loginContext.returnTo?.startsWith("/")) {
-                window.location.assign(loginContext.returnTo);
+                window.location.assign(
+                    `${appBasePath}${loginContext.returnTo}`
+                );
                 return;
             }
 

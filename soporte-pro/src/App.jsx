@@ -20,6 +20,11 @@ import {
     getHomeRouteByRole,
 } from "./utils/permissions";
 
+const routerBasename =
+    import.meta.env.BASE_URL && import.meta.env.BASE_URL !== "/"
+        ? import.meta.env.BASE_URL.replace(/\/$/, "")
+        : undefined;
+
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Tickets = lazy(() => import("./pages/Tickets"));
 const TicketDetalle = lazy(() => import("./pages/TicketDetalle"));
@@ -83,7 +88,7 @@ function AppLayout({ rol, session }) {
     const homeRoute = getHomeRouteByRole(rol);
 
     return (
-        <BrowserRouter>
+        <BrowserRouter basename={routerBasename}>
             <div className="app-shell flex min-h-screen bg-transparent">
                 <Sidebar
                     rol={rol}

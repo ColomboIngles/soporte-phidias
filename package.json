@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
+    "build:frontend": "npm --prefix soporte-pro install && npm --prefix soporte-pro run build",
+    "postinstall": "npm run build:frontend",
     "start": "node index.js"
   },
   "dependencies": {

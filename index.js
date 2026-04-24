@@ -1,5 +1,7 @@
 const express = require("express");
 const cors = require("cors");
+const fs = require("fs");
+const path = require("path");
 const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
@@ -21,7 +23,7 @@ const EMAIL_NOTIFICATIONS_WEBHOOK_URL = process.env.EMAIL_NOTIFICATIONS_WEBHOOK_
 const EMAIL_NOTIFICATIONS_WEBHOOK_TOKEN = process.env.EMAIL_NOTIFICATIONS_WEBHOOK_TOKEN;
 const WHATSAPP_NOTIFICATIONS_WEBHOOK_URL = process.env.WHATSAPP_NOTIFICATIONS_WEBHOOK_URL;
 const WHATSAPP_NOTIFICATIONS_WEBHOOK_TOKEN = process.env.WHATSAPP_NOTIFICATIONS_WEBHOOK_TOKEN;
-const FRONTEND_APP_URL = (process.env.FRONTEND_APP_URL || "https://soportecolombo.lovable.app")
+const FRONTEND_APP_URL = (process.env.FRONTEND_APP_URL || "https://soporte-phidias.onrender.com/app")
     .replace(/\/+$/, "");
 const SUPPORT_NOTIFICATION_EMAILS = (process.env.SUPPORT_NOTIFICATION_EMAILS || "")
     .split(",")
@@ -56,6 +58,9 @@ const SUPABASE_KEY_ROLE = (() => {
     }
 })();
 const WEBHOOK_ENABLED = Boolean(WEBHOOK_SECRET) && SUPABASE_KEY_ROLE === "service_role";
+const FRONTEND_DIST_PATH = path.join(__dirname, "soporte-pro", "dist");
+const FRONTEND_INDEX_PATH = path.join(FRONTEND_DIST_PATH, "index.html");
+const HAS_FRONTEND_BUILD = fs.existsSync(FRONTEND_INDEX_PATH);
 
 app.use(express.json());
 app.use(
@@ -752,70 +757,9 @@ app.get("/health", (_req, res) => {
     });
 });
 
-function renderPhidiasAccessPage(returnTo = "") {
-    const safeReturnTo = sanitizeReturnTo(returnTo);
-    const hiddenReturnTo = safeReturnTo
-        ? `<input id="returnTo" type="hidden" value="${safeReturnTo}">`
-        : "";
-
-    return `
-  <html>
-    <body style="font-family:Arial,sans-serif;background:#0f1722;color:#e5edf7;text-align:center;padding:100px 24px;">
-      <div style="max-width:520px;margin:0 auto;border:1px solid rgba(148,163,184,.18);background:rgba(19,27,38,.95);border-radius:24px;padding:32px;">
-        <h2 style="margin:0 0 12px;font-size:30px;">Acceso desde Phidias</h2>
-        <p style="margin:0 0 24px;line-height:1.7;color:#a6b3c4;">
-          Ingresa tu correo institucional para abrir la mesa de soporte en la nube y validar el inicio de sesion.
-        </p>
-
-        <input
-          id="correo"
-          placeholder="correo@colomboingles.edu.co"
-          style="width:100%;max-width:420px;border-radius:16px;border:1px solid rgba(148,163,184,.22);background:#18212e;color:#f3f7fc;padding:16px 18px;font-size:16px;"
-        />
-        ${hiddenReturnTo}
-
-        <div style="margin-top:18px;">
-          <button
-            onclick="ingresar()"
-            style="border:0;border-radius:16px;padding:14px 22px;font-size:15px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#1a73e8,#3b82f6);color:white;"
-          >
-            Abrir soporte
-          </button>
-        </div>
-      </div>
-
-      <script>
-        function ingresar() {
-          const email = document.getElementById("correo").value.trim().toLowerCase();
-          const returnTo = document.getElementById("returnTo")?.value || "";
-
-          if (!email) {
-            alert("Ingresa un correo institucional");
-            return;
-          }
-
-          const target = new URL("/phidias/access", window.location.origin);
-          target.searchParams.set("email", email);
-
-          if (returnTo) {
-            target.searchParams.set("returnTo", returnTo);
-          }
-
-          window.location.href = target.toString();
-        }
-      </script>
-    </body>
-  </html>
-  `;
-}
-
 app.get(["/phidias/access", "/login-phidias", "/login"], (req, res) => {
     const email = normalizeEmail(req.query.email);
     const returnTo = sanitizeReturnTo(req.query.returnTo);
-
-    if (!email) {
-        return res.send(renderPhidiasAccessPage(returnTo));
-    }
 
     return res.redirect(
         buildFrontendAccessUrl({
@@ -1136,12 +1080,29 @@ app.delete("/tickets/:id", async (req, res) => {
     return res.json({ ok: true, id: req.params.id });
 });
 
-app.get("/", (_req, res) => {
-    res.redirect("/login-phidias");
-});
+if (HAS_FRONTEND_BUILD) {
+    app.use("/app", express.static(FRONTEND_DIST_PATH));
+
+    app.get("/", (_req, res) => {
+        res.redirect("/app");
+    });
+
+    app.get("/app", (_req, res) => {
+        res.sendFile(FRONTEND_INDEX_PATH);
+    });
+
+    app.get("/app/*", (_req, res) => {
+        res.sendFile(FRONTEND_INDEX_PATH);
+    });
+} else {
+    app.get("/", (_req, res) => {
+        res.redirect("/phidias/access");
+    });
+}
 
 app.listen(PORT, () => {
     console.log(`Servidor activo en puerto ${PORT}`);
     console.log(`Origenes permitidos: ${allowedOrigins.join(", ")}`);
     console.log(`Rol de la clave de Supabase: ${SUPABASE_KEY_ROLE}`);
+    console.log(`Frontend integrado: ${HAS_FRONTEND_BUILD ? "si" : "no"}`);
 });

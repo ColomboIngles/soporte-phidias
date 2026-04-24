@@ -37,7 +37,8 @@ function manualChunks(id) {
     return "vendor";
 }
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
+    base: command === "build" ? "/app/" : "/",
     plugins: [react()],
     build: {
         chunkSizeWarningLimit: 600,
@@ -47,4 +48,4 @@ export default defineConfig({
             },
         },
     },
-});
+}));
