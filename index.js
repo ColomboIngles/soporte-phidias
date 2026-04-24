@@ -1,7 +1,5 @@
 const express = require("express");
 const cors = require("cors");
-const crypto = require("crypto");
-const fs = require("fs");
 const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
@@ -23,6 +21,8 @@ const EMAIL_NOTIFICATIONS_WEBHOOK_URL = process.env.EMAIL_NOTIFICATIONS_WEBHOOK_
 const EMAIL_NOTIFICATIONS_WEBHOOK_TOKEN = process.env.EMAIL_NOTIFICATIONS_WEBHOOK_TOKEN;
 const WHATSAPP_NOTIFICATIONS_WEBHOOK_URL = process.env.WHATSAPP_NOTIFICATIONS_WEBHOOK_URL;
 const WHATSAPP_NOTIFICATIONS_WEBHOOK_TOKEN = process.env.WHATSAPP_NOTIFICATIONS_WEBHOOK_TOKEN;
+const FRONTEND_APP_URL = (process.env.FRONTEND_APP_URL || "https://soportecolombo.lovable.app")
+    .replace(/\/+$/, "");
 const SUPPORT_NOTIFICATION_EMAILS = (process.env.SUPPORT_NOTIFICATION_EMAILS || "")
     .split(",")
     .map((email) => email.trim().toLowerCase())
@@ -71,14 +71,6 @@ app.use(
 );
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-
-let usuarios = [];
-try {
-    usuarios = JSON.parse(fs.readFileSync("usuarios.json", "utf8"));
-    console.log("usuarios cargados");
-} catch (error) {
-    console.log("usuarios.json no encontrado");
-}
 
 function createUserScopedClient(token) {
     return createClient(SUPABASE_URL, SUPABASE_KEY, {
@@ -139,6 +131,42 @@ function normalizePhone(value) {
     }
 
     return trimmed.replace(/\D/g, "");
+}
+
+function sanitizeReturnTo(value) {
+    if (typeof value !== "string") {
+        return "";
+    }
+
+    const trimmed = value.trim();
+
+    if (!trimmed.startsWith("/")) {
+        return "";
+    }
+
+    if (trimmed.startsWith("//")) {
+        return "";
+    }
+
+    return trimmed;
+}
+
+function buildFrontendAccessUrl({ email = "", source = "phidias", returnTo = "" } = {}) {
+    const url = new URL(FRONTEND_APP_URL);
+
+    if (email) {
+        url.searchParams.set("email", normalizeEmail(email));
+    }
+
+    if (source) {
+        url.searchParams.set("source", source);
+    }
+
+    if (returnTo) {
+        url.searchParams.set("returnTo", sanitizeReturnTo(returnTo));
+    }
+
+    return url.toString();
 }
 
 function formatStatusLabel(status) {
@@ -724,56 +752,78 @@ app.get("/health", (_req, res) => {
     });
 });
 
-app.get("/login-phidias", (_req, res) => {
-    res.send(`
+function renderPhidiasAccessPage(returnTo = "") {
+    const safeReturnTo = sanitizeReturnTo(returnTo);
+    const hiddenReturnTo = safeReturnTo
+        ? `<input id="returnTo" type="hidden" value="${safeReturnTo}">`
+        : "";
+
+    return `
   <html>
-  <body style="font-family:Arial;text-align:center;padding-top:100px;">
-  
-  <h2>Soporte TI</h2>
-  <p>Ingrese su correo institucional</p>
+    <body style="font-family:Arial,sans-serif;background:#0f1722;color:#e5edf7;text-align:center;padding:100px 24px;">
+      <div style="max-width:520px;margin:0 auto;border:1px solid rgba(148,163,184,.18);background:rgba(19,27,38,.95);border-radius:24px;padding:32px;">
+        <h2 style="margin:0 0 12px;font-size:30px;">Acceso desde Phidias</h2>
+        <p style="margin:0 0 24px;line-height:1.7;color:#a6b3c4;">
+          Ingresa tu correo institucional para abrir la mesa de soporte en la nube y validar el inicio de sesion.
+        </p>
 
-  <input id="correo" placeholder="correo@colomboingles.edu.co"/>
-  <br><br>
-  <button onclick="ingresar()">Ingresar</button>
+        <input
+          id="correo"
+          placeholder="correo@colomboingles.edu.co"
+          style="width:100%;max-width:420px;border-radius:16px;border:1px solid rgba(148,163,184,.22);background:#18212e;color:#f3f7fc;padding:16px 18px;font-size:16px;"
+        />
+        ${hiddenReturnTo}
 
-  <script>
-    const emailGuardado = localStorage.getItem("email");
+        <div style="margin-top:18px;">
+          <button
+            onclick="ingresar()"
+            style="border:0;border-radius:16px;padding:14px 22px;font-size:15px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#1a73e8,#3b82f6);color:white;"
+          >
+            Abrir soporte
+          </button>
+        </div>
+      </div>
 
-    if (emailGuardado) {
-      window.location.href = "/login?email=" + emailGuardado;
-    }
+      <script>
+        function ingresar() {
+          const email = document.getElementById("correo").value.trim().toLowerCase();
+          const returnTo = document.getElementById("returnTo")?.value || "";
 
-    function ingresar() {
-      let email = document.getElementById("correo").value;
+          if (!email) {
+            alert("Ingresa un correo institucional");
+            return;
+          }
 
-      if (!email) return alert("Ingrese correo");
+          const target = new URL("/phidias/access", window.location.origin);
+          target.searchParams.set("email", email);
 
-      email = email.toLowerCase().trim();
-      localStorage.setItem("email", email);
+          if (returnTo) {
+            target.searchParams.set("returnTo", returnTo);
+          }
 
-      window.location.href = "/login?email=" + email;
-    }
-  </script>
-
-  </body>
+          window.location.href = target.toString();
+        }
+      </script>
+    </body>
   </html>
-  `);
-});
+  `;
+}
 
-app.get("/login", (req, res) => {
-    const email = (req.query.email || "").toLowerCase().trim();
-    const usuario = usuarios.find((item) => item.email.toLowerCase() === email);
+app.get(["/phidias/access", "/login-phidias", "/login"], (req, res) => {
+    const email = normalizeEmail(req.query.email);
+    const returnTo = sanitizeReturnTo(req.query.returnTo);
 
-    if (!usuario) {
-        return res.status(403).send("Usuario no autorizado");
+    if (!email) {
+        return res.send(renderPhidiasAccessPage(returnTo));
     }
 
-    const tld = Math.floor(Date.now() / 1000);
-    const string = `${SECRET}:${email}@${tld}`;
-    const tlh = crypto.createHash("md5").update(string).digest("hex");
-    const url = `https://soportecolombo.lovable.app/?tli=${email}&tld=${tld}&tlh=${tlh}&autoTicket=true`;
-
-    return res.redirect(url);
+    return res.redirect(
+        buildFrontendAccessUrl({
+            email,
+            source: "phidias",
+            returnTo,
+        })
+    );
 });
 
 app.post("/webhook-ticket", async (req, res) => {

@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
     ArrowRight,
     LockKeyhole,
     Mail,
+    MoveRight,
     ShieldCheck,
     Sparkles,
 } from "lucide-react";
@@ -32,23 +33,72 @@ const HIGHLIGHTS = [
     },
 ];
 
+function readLoginContext() {
+    if (typeof window === "undefined") {
+        return {
+            email: "",
+            source: "",
+            returnTo: "",
+        };
+    }
+
+    const params = new URLSearchParams(window.location.search);
+
+    return {
+        email: (params.get("email") || "").trim().toLowerCase(),
+        source: (params.get("source") || "").trim().toLowerCase(),
+        returnTo: (params.get("returnTo") || "").trim(),
+    };
+}
+
 export default function Login() {
-    const [email, setEmail] = useState("");
+    const loginContext = useMemo(() => readLoginContext(), []);
+    const [email, setEmail] = useState(loginContext.email);
     const [password, setPassword] = useState("");
+    const [submitting, setSubmitting] = useState(false);
+    const [errorMessage, setErrorMessage] = useState("");
+    const fromPhidias = loginContext.source === "phidias";
 
     async function login() {
-        const { error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-        });
+        try {
+            setSubmitting(true);
+            setErrorMessage("");
 
-        if (error) {
-            alert(error.message);
-            return;
+            const { error } = await supabase.auth.signInWithPassword({
+                email,
+                password,
+            });
+
+            if (error) {
+                throw error;
+            }
+
+            if (loginContext.returnTo?.startsWith("/")) {
+                window.location.assign(loginContext.returnTo);
+                return;
+            }
+
+            window.location.reload();
+        } catch (error) {
+            setErrorMessage(
+                error.message || "No se pudo validar el inicio de sesion."
+            );
+        } finally {
+            setSubmitting(false);
         }
-
-        window.location.reload();
     }
+
+    function handlePasswordKeyDown(event) {
+        if (event.key === "Enter" && !submitting) {
+            event.preventDefault();
+            login();
+        }
+    }
+
+    const accessLabel = fromPhidias ? "Acceso desde Phidias" : "Acceso seguro";
+    const helperCopy = fromPhidias
+        ? "Llegaste desde Phidias. Tu correo ya viene precargado y solo falta validar la contrasena."
+        : "Ingresa al portal de soporte con una experiencia visual premium, consistente y mas amable para el trabajo diario.";
 
     return (
         <MotionPage className="app-shell flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
@@ -122,16 +172,37 @@ export default function Login() {
                     >
                         <div className="mx-auto max-w-md">
                             <div className="app-kicker">
-                                <Sparkles className="h-3.5 w-3.5" />
-                                Acceso seguro
+                                {fromPhidias ? (
+                                    <MoveRight className="h-3.5 w-3.5" />
+                                ) : (
+                                    <Sparkles className="h-3.5 w-3.5" />
+                                )}
+                                {accessLabel}
                             </div>
 
                             <h2 className="mt-5 text-4xl font-semibold tracking-tight text-[color:var(--app-text-primary)]">
                                 Iniciar sesion
                             </h2>
                             <p className="mt-3 text-sm leading-7 text-[color:var(--app-text-secondary)]">
-                                Ingresa al portal de soporte con una experiencia visual premium, consistente y mas amable para el trabajo diario.
+                                {helperCopy}
                             </p>
+
+                            {fromPhidias ? (
+                                <div className="app-surface-muted mt-6 rounded-[1.4rem] border border-[color:var(--app-border)] px-4 py-4">
+                                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--app-text-tertiary)]">
+                                        Integracion cloud
+                                    </p>
+                                    <p className="mt-2 text-sm leading-7 text-[color:var(--app-text-secondary)]">
+                                        El acceso llego desde un boton de Phidias y la validacion final del usuario se realiza con Supabase Auth.
+                                    </p>
+                                </div>
+                            ) : null}
+
+                            {errorMessage ? (
+                                <div className="mt-5 rounded-[1.2rem] border border-[color:color-mix(in_srgb,var(--brand-danger)_22%,transparent)] bg-[color:color-mix(in_srgb,var(--brand-danger)_12%,transparent)] px-4 py-3 text-sm text-[color:color-mix(in_srgb,var(--brand-danger)_84%,white_16%)]">
+                                    {errorMessage}
+                                </div>
+                            ) : null}
 
                             <div className="mt-8 space-y-4">
                                 <label className="block">
@@ -143,6 +214,8 @@ export default function Login() {
                                         <input
                                             className="w-full bg-transparent outline-none"
                                             placeholder="nombre@empresa.com"
+                                            autoComplete="email"
+                                            value={email}
                                             onChange={(event) =>
                                                 setEmail(event.target.value)
                                             }
@@ -160,9 +233,12 @@ export default function Login() {
                                             className="w-full bg-transparent outline-none"
                                             type="password"
                                             placeholder="Tu contrasena"
+                                            autoComplete="current-password"
+                                            value={password}
                                             onChange={(event) =>
                                                 setPassword(event.target.value)
                                             }
+                                            onKeyDown={handlePasswordKeyDown}
                                         />
                                     </div>
                                 </label>
@@ -174,8 +250,11 @@ export default function Login() {
                                 iconRight={ArrowRight}
                                 className="mt-8"
                                 onClick={login}
+                                disabled={submitting || !email.trim() || !password}
                             >
-                                Entrar al workspace
+                                {submitting
+                                    ? "Validando acceso..."
+                                    : "Entrar al workspace"}
                             </Button>
                         </div>
                     </Surface>
