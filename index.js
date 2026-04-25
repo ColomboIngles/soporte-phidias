@@ -25,6 +25,13 @@ const WHATSAPP_NOTIFICATIONS_WEBHOOK_URL = process.env.WHATSAPP_NOTIFICATIONS_WE
 const WHATSAPP_NOTIFICATIONS_WEBHOOK_TOKEN = process.env.WHATSAPP_NOTIFICATIONS_WEBHOOK_TOKEN;
 const FRONTEND_APP_URL = (process.env.FRONTEND_APP_URL || "https://soporte-phidias.onrender.com/app")
     .replace(/\/+$/, "");
+const FRONTEND_APP_ORIGIN = (() => {
+    try {
+        return new URL(FRONTEND_APP_URL).origin;
+    } catch (error) {
+        return "";
+    }
+})();
 const SUPPORT_NOTIFICATION_EMAILS = (process.env.SUPPORT_NOTIFICATION_EMAILS || "")
     .split(",")
     .map((email) => email.trim().toLowerCase())
@@ -46,6 +53,7 @@ const defaultOrigins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "https://soportecolombo.lovable.app",
+    FRONTEND_APP_ORIGIN,
 ];
 
 const allowedOrigins = [...new Set([...defaultOrigins, ...FRONTEND_ORIGINS])];
