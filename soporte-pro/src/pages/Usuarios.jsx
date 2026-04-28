@@ -320,10 +320,14 @@ export default function Usuarios() {
                                 </Button>
                             }
                         >
-                            Usa un archivo Excel con las columnas <strong>ID</strong>,{" "}
-                            <strong>EMAIL</strong>, <strong>NOMBRE</strong> y{" "}
-                            <strong>ROL</strong>. Para crear filas nuevas, el ID
-                            debe corresponder al usuario real en Supabase Auth.
+                            Usa un archivo Excel con las columnas{" "}
+                            <strong>Nombre</strong>, <strong>Cargo</strong>,{" "}
+                            <strong>Email</strong> y{" "}
+                            <strong>Rol Sistema</strong>. Ya no necesitas
+                            enviar ID en la plantilla: el sistema asigna una
+                            identidad provisional y la sincroniza con Supabase
+                            cuando la persona entra por primera vez con el
+                            acceso seguro por correo.
                         </Alert>
 
                         {bulkSummary ? (

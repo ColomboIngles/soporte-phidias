@@ -277,7 +277,10 @@ function App() {
             }
 
             await crearUsuarioSiNoExiste(nextSession.user);
-            const nextRol = await obtenerRol(nextSession.user.id);
+            const nextRol = await obtenerRol(
+                nextSession.user.id,
+                nextSession.user.email
+            );
 
             if (!isMounted) return;
 

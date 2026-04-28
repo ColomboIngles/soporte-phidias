@@ -124,7 +124,7 @@ export default function Login() {
                 email: normalizedEmail,
                 options: {
                     emailRedirectTo,
-                    shouldCreateUser: false,
+                    shouldCreateUser: true,
                 },
             });
 

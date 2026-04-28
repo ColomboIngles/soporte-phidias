@@ -1,7 +1,7 @@
 import { supabase } from "./supabase";
 
 const VALID_ROLES = new Set(["admin", "tecnico", "usuario"]);
-const TEMPLATE_COLUMNS = ["ID", "EMAIL", "NOMBRE", "ROL"];
+const TEMPLATE_COLUMNS = ["Nombre", "Cargo", "Email", "Rol Sistema"];
 const USER_BATCH_SIZE = 100;
 
 function normalizeText(value) {
@@ -17,12 +17,30 @@ function normalizeRole(value) {
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
         .toLowerCase();
+    const compact = raw.replace(/[^a-z]/g, "");
 
-    if (!raw) return "";
-    if (raw === "tecnico") return "tecnico";
-    if (raw === "usuario" || raw === "user") return "usuario";
-    if (raw === "admin" || raw === "administrador") return "admin";
-    return raw;
+    if (!compact) return "";
+    if (compact.startsWith("tecnico") || compact.startsWith("technical")) {
+        return "tecnico";
+    }
+    if (compact.startsWith("usuario") || compact.startsWith("user")) {
+        return "usuario";
+    }
+    if (
+        compact === "admin" ||
+        compact.startsWith("administrador") ||
+        compact.startsWith("administrator")
+    ) {
+        return "admin";
+    }
+
+    return compact;
+}
+
+function formatRoleForSheet(role) {
+    if (role === "admin") return "Administrador";
+    if (role === "tecnico") return "Tecnico";
+    return "Usuario";
 }
 
 function normalizeHeader(header) {
@@ -71,12 +89,18 @@ function setWorksheetColumns(worksheet, widths) {
     worksheet["!cols"] = widths.map((wch) => ({ wch }));
 }
 
+function createProvisionalId() {
+    if (globalThis.crypto?.randomUUID) {
+        return globalThis.crypto.randomUUID();
+    }
+
+    return `temp-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+}
+
 function buildImportPlan(rows, existingUsers) {
-    const existingById = new Map(existingUsers.map((user) => [user.id, user]));
     const existingByEmail = new Map(
         existingUsers.map((user) => [normalizeEmail(user.email), user])
     );
-    const seenIds = new Set();
     const seenEmails = new Set();
 
     const payload = [];
@@ -88,79 +112,47 @@ function buildImportPlan(rows, existingUsers) {
 
     rows.forEach((row, index) => {
         const line = index + 2;
-        const id = normalizeText(
-            getRowValue(row, ["id", "uuid", "userid", "usuarioid"])
+        const nombre = normalizeText(
+            getRowValue(row, ["nombre", "name", "nombres"])
         );
         const email = normalizeEmail(
             getRowValue(row, ["email", "correo", "mail"])
         );
-        const nombre = normalizeText(getRowValue(row, ["nombre", "name"]));
-        const rol = normalizeRole(getRowValue(row, ["rol", "role"]));
+        const rol = normalizeRole(
+            getRowValue(row, ["rolsistema", "rol", "role", "sistemarol"])
+        );
+        const isEmptyRow = !nombre && !email && !rol;
 
-        const isEmptyRow = !id && !email && !nombre && !rol;
         if (isEmptyRow) {
             skipped += 1;
             return;
         }
 
+        if (!email) {
+            errors.push(`Fila ${line}: falta el email.`);
+            return;
+        }
+
         if (!rol || !VALID_ROLES.has(rol)) {
             errors.push(
-                `Fila ${line}: el rol debe ser admin, tecnico o usuario.`
+                `Fila ${line}: el campo Rol Sistema debe ser Administrador, Tecnico o Usuario.`
             );
             return;
         }
 
-        if (id && seenIds.has(id)) {
-            errors.push(`Fila ${line}: el ID ${id} esta repetido en el archivo.`);
+        if (seenEmails.has(email)) {
+            errors.push(`Fila ${line}: el email ${email} esta repetido en el archivo.`);
             return;
         }
 
-        if (email && seenEmails.has(email)) {
-            errors.push(
-                `Fila ${line}: el email ${email} esta repetido en el archivo.`
-            );
-            return;
-        }
+        const existing = existingByEmail.get(email);
+        const finalNombre = nombre || normalizeText(existing?.nombre) || email;
 
-        const existingByIdMatch = id ? existingById.get(id) : null;
-        const existingByEmailMatch = email ? existingByEmail.get(email) : null;
-
-        if (
-            existingByIdMatch &&
-            existingByEmailMatch &&
-            existingByIdMatch.id !== existingByEmailMatch.id
-        ) {
-            errors.push(
-                `Fila ${line}: el ID y el email apuntan a usuarios distintos en el sistema.`
-            );
-            return;
-        }
-
-        const existing = existingByIdMatch || existingByEmailMatch;
-        const finalId = id || existing?.id || "";
-        const finalEmail = email || normalizeEmail(existing?.email) || "";
-
-        if (!finalId) {
-            errors.push(
-                `Fila ${line}: falta ID. Para crear un usuario nuevo se requiere ID; para actualizar, el email debe existir ya en el sistema.`
-            );
-            return;
-        }
-
-        if (!finalEmail) {
-            errors.push(`Fila ${line}: falta email.`);
-            return;
-        }
-
-        const finalNombre =
-            nombre || normalizeText(existing?.nombre) || finalEmail;
-
-        seenIds.add(finalId);
-        seenEmails.add(finalEmail);
+        seenEmails.add(email);
 
         payload.push({
-            id: finalId,
-            email: finalEmail,
+            id: existing?.id || createProvisionalId(),
+            email,
             nombre: finalNombre,
             rol,
         });
@@ -170,7 +162,7 @@ function buildImportPlan(rows, existingUsers) {
         } else {
             inserted += 1;
             warnings.push(
-                `Fila ${line}: se preparo como nuevo registro en public.usuarios. Verifica que el ID corresponda a un usuario real de Auth si tambien debe iniciar sesion.`
+                `Fila ${line}: ${email} se preparo como usuario nuevo. El sistema completara su identidad definitiva cuando esa persona entre por primera vez con el acceso seguro por correo.`
             );
         }
     });
@@ -192,17 +184,16 @@ function buildImportPlan(rows, existingUsers) {
 export async function exportUsersWorkbook(users) {
     const XLSX = await getXlsx();
     const rows = users.map((user) => ({
-        ID: user.id,
-        EMAIL: user.email,
-        NOMBRE: user.nombre || "",
-        ROL: user.rol || "usuario",
-        CREATED_AT: user.created_at || "",
+        Nombre: user.nombre || "",
+        Cargo: user.cargo || "",
+        Email: user.email,
+        "Rol Sistema": formatRoleForSheet(user.rol || "usuario"),
     }));
 
     const workbook = XLSX.utils.book_new();
     const worksheet = XLSX.utils.json_to_sheet(rows);
 
-    setWorksheetColumns(worksheet, [38, 32, 28, 14, 24]);
+    setWorksheetColumns(worksheet, [34, 24, 34, 18]);
     XLSX.utils.book_append_sheet(workbook, worksheet, "Usuarios");
     XLSX.writeFile(
         workbook,
@@ -217,27 +208,39 @@ export async function exportUsersTemplateWorkbook() {
     const templateSheet = XLSX.utils.aoa_to_sheet([
         TEMPLATE_COLUMNS,
         [
-            "uuid-del-usuario-auth",
+            "Apellido Nombre",
+            "Coordinacion Academica",
             "persona@empresa.com",
-            "Nombre Apellido",
-            "usuario",
+            "Usuario",
+        ],
+        [
+            "Apellido Nombre",
+            "Mesa de Soporte",
+            "tecnico@empresa.com",
+            "Tecnico",
+        ],
+        [
+            "Apellido Nombre",
+            "Direccion TI",
+            "admin@empresa.com",
+            "Administrador",
         ],
     ]);
 
     const notesSheet = XLSX.utils.aoa_to_sheet([
         ["Reglas de importacion"],
-        ["1. Columnas obligatorias: ID, EMAIL y ROL. NOMBRE es opcional."],
-        ["2. ROL solo admite: admin, tecnico, usuario."],
+        ["1. Usa las columnas Nombre, Cargo, Email y Rol Sistema."],
+        ["2. Rol Sistema solo admite: Administrador, Tecnico o Usuario."],
         [
-            "3. Si el email ya existe en public.usuarios, puedes omitir ID y se actualizara ese registro.",
+            "3. Ya no necesitas enviar ID en el archivo. El sistema genera un identificador provisional y lo sincroniza cuando la persona entra por primera vez con el acceso seguro por correo.",
         ],
         [
-            "4. Si quieres crear una fila nueva, el ID debe corresponder al usuario real en Supabase Auth.",
+            "4. Si el email ya existe, se actualizan nombre y rol con la informacion del archivo.",
         ],
     ]);
 
-    setWorksheetColumns(templateSheet, [34, 30, 24, 14]);
-    setWorksheetColumns(notesSheet, [110]);
+    setWorksheetColumns(templateSheet, [34, 26, 34, 18]);
+    setWorksheetColumns(notesSheet, [118]);
     XLSX.utils.book_append_sheet(workbook, templateSheet, "Plantilla");
     XLSX.utils.book_append_sheet(workbook, notesSheet, "Notas");
     XLSX.writeFile(workbook, "plantilla_usuarios.xlsx");
