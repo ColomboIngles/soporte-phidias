@@ -20,10 +20,67 @@ import {
     getHomeRouteByRole,
 } from "./utils/permissions";
 
+const TRUSTED_EMAIL_KEY = "soporte_phidias_trusted_email";
+
 const routerBasename =
     import.meta.env.BASE_URL && import.meta.env.BASE_URL !== "/"
         ? import.meta.env.BASE_URL.replace(/\/$/, "")
         : undefined;
+
+function normalizeEmail(value) {
+    return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+function readAccessContext() {
+    if (typeof window === "undefined") {
+        return {
+            email: "",
+            source: "",
+        };
+    }
+
+    const params = new URLSearchParams(window.location.search);
+
+    return {
+        email: normalizeEmail(params.get("email") || ""),
+        source: (params.get("source") || "").trim().toLowerCase(),
+    };
+}
+
+function stripAuthParamsFromUrl() {
+    if (typeof window === "undefined") {
+        return;
+    }
+
+    const url = new URL(window.location.href);
+    const authParams = [
+        "code",
+        "type",
+        "access_token",
+        "refresh_token",
+        "expires_at",
+        "expires_in",
+        "token_type",
+    ];
+
+    let changed = false;
+
+    authParams.forEach((param) => {
+        if (url.searchParams.has(param)) {
+            url.searchParams.delete(param);
+            changed = true;
+        }
+    });
+
+    if (url.hash) {
+        changed = true;
+        url.hash = "";
+    }
+
+    if (changed) {
+        window.history.replaceState({}, document.title, url.toString());
+    }
+}
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Tickets = lazy(() => import("./pages/Tickets"));
@@ -183,9 +240,27 @@ function App() {
 
     useEffect(() => {
         let isMounted = true;
+        const accessContext = readAccessContext();
 
         async function hydrateSession(nextSession) {
             if (!isMounted) return;
+
+            const sessionEmail = normalizeEmail(nextSession?.user?.email || "");
+            const expectedEmail = accessContext.source === "phidias"
+                ? normalizeEmail(accessContext.email)
+                : "";
+
+            if (nextSession?.user && expectedEmail && sessionEmail !== expectedEmail) {
+                await supabase.auth.signOut();
+                window.localStorage.removeItem(TRUSTED_EMAIL_KEY);
+
+                if (!isMounted) return;
+
+                setSession(null);
+                setRol(null);
+                setBootstrapping(false);
+                return;
+            }
 
             setSession(nextSession);
 
@@ -197,6 +272,10 @@ function App() {
                 return;
             }
 
+            if (sessionEmail) {
+                window.localStorage.setItem(TRUSTED_EMAIL_KEY, sessionEmail);
+            }
+
             await crearUsuarioSiNoExiste(nextSession.user);
             const nextRol = await obtenerRol(nextSession.user.id);
 
@@ -206,9 +285,20 @@ function App() {
             setBootstrapping(false);
         }
 
-        supabase.auth.getSession().then(({ data }) => {
+        async function bootstrapAuth() {
+            const url = new URL(window.location.href);
+            const authCode = url.searchParams.get("code");
+
+            if (authCode) {
+                await supabase.auth.exchangeCodeForSession(authCode).catch(() => null);
+                stripAuthParamsFromUrl();
+            }
+
+            const { data } = await supabase.auth.getSession();
             hydrateSession(data.session);
-        });
+        }
+
+        bootstrapAuth();
 
         const {
             data: { subscription },

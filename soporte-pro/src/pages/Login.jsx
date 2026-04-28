@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import {
     ArrowRight,
-    LockKeyhole,
+    CheckCircle2,
     Mail,
     MoveRight,
     ShieldCheck,
@@ -51,61 +51,110 @@ function readLoginContext() {
     };
 }
 
+const TRUSTED_EMAIL_KEY = "soporte_phidias_trusted_email";
+
 function getAppBasePath() {
     const baseUrl = import.meta.env.BASE_URL || "/";
     return baseUrl === "/" ? "" : baseUrl.replace(/\/$/, "");
 }
 
+function getTrustedEmail() {
+    if (typeof window === "undefined") {
+        return "";
+    }
+
+    return (
+        window.localStorage.getItem(TRUSTED_EMAIL_KEY)?.trim().toLowerCase() || ""
+    );
+}
+
+function buildEmailRedirectUrl({ appBasePath, email, source, returnTo }) {
+    if (typeof window === "undefined") {
+        return undefined;
+    }
+
+    const params = new URLSearchParams();
+
+    if (email) {
+        params.set("email", email);
+    }
+
+    if (source) {
+        params.set("source", source);
+    }
+
+    if (returnTo) {
+        params.set("returnTo", returnTo);
+    }
+
+    const base = `${window.location.origin}${appBasePath || ""}/`;
+    return params.toString() ? `${base}?${params.toString()}` : base;
+}
+
 export default function Login() {
     const loginContext = useMemo(() => readLoginContext(), []);
     const appBasePath = useMemo(() => getAppBasePath(), []);
-    const [email, setEmail] = useState(loginContext.email);
-    const [password, setPassword] = useState("");
+    const trustedEmail = useMemo(() => getTrustedEmail(), []);
+    const [email, setEmail] = useState(loginContext.email || trustedEmail);
     const [submitting, setSubmitting] = useState(false);
     const [errorMessage, setErrorMessage] = useState("");
+    const [successMessage, setSuccessMessage] = useState("");
     const fromPhidias = loginContext.source === "phidias";
 
-    async function login() {
+    async function requestMagicLink() {
         try {
             setSubmitting(true);
             setErrorMessage("");
+            setSuccessMessage("");
 
-            const { error } = await supabase.auth.signInWithPassword({
-                email,
-                password,
+            const normalizedEmail = email.trim().toLowerCase();
+
+            if (!normalizedEmail) {
+                throw new Error("Debes ingresar un correo valido.");
+            }
+
+            const emailRedirectTo = buildEmailRedirectUrl({
+                appBasePath,
+                email: normalizedEmail,
+                source: loginContext.source || "phidias",
+                returnTo: loginContext.returnTo,
+            });
+
+            const { error } = await supabase.auth.signInWithOtp({
+                email: normalizedEmail,
+                options: {
+                    emailRedirectTo,
+                    shouldCreateUser: false,
+                },
             });
 
             if (error) {
                 throw error;
             }
 
-            if (loginContext.returnTo?.startsWith("/")) {
-                window.location.assign(
-                    `${appBasePath}${loginContext.returnTo}`
-                );
-                return;
-            }
-
-            window.location.reload();
+            window.localStorage.setItem(TRUSTED_EMAIL_KEY, normalizedEmail);
+            setSuccessMessage(
+                "Te enviamos un enlace seguro al correo. Abre ese mensaje una sola vez y despues esta sesion quedara guardada en este navegador."
+            );
         } catch (error) {
             setErrorMessage(
-                error.message || "No se pudo validar el inicio de sesion."
+                error.message || "No se pudo enviar el acceso seguro."
             );
         } finally {
             setSubmitting(false);
         }
     }
 
-    function handlePasswordKeyDown(event) {
+    function handleEmailKeyDown(event) {
         if (event.key === "Enter" && !submitting) {
             event.preventDefault();
-            login();
+            requestMagicLink();
         }
     }
 
     const accessLabel = fromPhidias ? "Acceso desde Phidias" : "Acceso seguro";
     const helperCopy = fromPhidias
-        ? "Llegaste desde Phidias. Tu correo ya viene precargado y solo falta validar la contrasena."
+        ? "Llegaste desde Phidias. Solo validaremos tu correo una vez con un enlace seguro y luego el acceso quedara recordado en este navegador."
         : "Ingresa al portal de soporte con una experiencia visual premium, consistente y mas amable para el trabajo diario.";
 
     return (
@@ -212,6 +261,13 @@ export default function Login() {
                                 </div>
                             ) : null}
 
+                            {successMessage ? (
+                                <div className="mt-5 flex items-start gap-3 rounded-[1.2rem] border border-[color:color-mix(in_srgb,var(--brand-success)_22%,transparent)] bg-[color:color-mix(in_srgb,var(--brand-success)_12%,transparent)] px-4 py-3 text-sm text-[color:color-mix(in_srgb,var(--brand-success)_72%,white_28%)]">
+                                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                                    <span>{successMessage}</span>
+                                </div>
+                            ) : null}
+
                             <div className="mt-8 space-y-4">
                                 <label className="block">
                                     <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--app-text-tertiary)]">
@@ -227,29 +283,14 @@ export default function Login() {
                                             onChange={(event) =>
                                                 setEmail(event.target.value)
                                             }
+                                            onKeyDown={handleEmailKeyDown}
                                         />
                                     </div>
                                 </label>
 
-                                <label className="block">
-                                    <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--app-text-tertiary)]">
-                                        Contrasena
-                                    </span>
-                                    <div className="field-shell flex items-center gap-3">
-                                        <LockKeyhole className="h-4 w-4 text-[color:var(--app-text-tertiary)]" />
-                                        <input
-                                            className="w-full bg-transparent outline-none"
-                                            type="password"
-                                            placeholder="Tu contrasena"
-                                            autoComplete="current-password"
-                                            value={password}
-                                            onChange={(event) =>
-                                                setPassword(event.target.value)
-                                            }
-                                            onKeyDown={handlePasswordKeyDown}
-                                        />
-                                    </div>
-                                </label>
+                                <div className="app-surface-muted rounded-[1.4rem] border border-[color:var(--app-border)] px-4 py-4 text-sm leading-7 text-[color:var(--app-text-secondary)]">
+                                    La primera vez te enviaremos un enlace a tu correo para confirmar que eres el titular. Despues, si mantienes tu sesion activa, entraras directo desde el boton de Phidias.
+                                </div>
                             </div>
 
                             <Button
@@ -257,12 +298,12 @@ export default function Login() {
                                 size="lg"
                                 iconRight={ArrowRight}
                                 className="mt-8"
-                                onClick={login}
-                                disabled={submitting || !email.trim() || !password}
+                                onClick={requestMagicLink}
+                                disabled={submitting || !email.trim()}
                             >
                                 {submitting
-                                    ? "Validando acceso..."
-                                    : "Entrar al workspace"}
+                                    ? "Enviando acceso seguro..."
+                                    : "Enviar enlace de acceso"}
                             </Button>
                         </div>
                     </Surface>
