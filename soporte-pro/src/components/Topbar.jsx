@@ -1,4 +1,5 @@
 import { Menu, Search, ShieldCheck } from "lucide-react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import Notifications from "./Notifications";
 import ThemeToggle from "./ThemeToggle";
@@ -11,10 +12,44 @@ function getUserInitial(email) {
 
 export default function Topbar({ user, rol, onOpenSidebar }) {
     const isEndUser = isEndUserRole(rol);
+    const navigate = useNavigate();
+    const location = useLocation();
+    const [searchParams] = useSearchParams();
+    const currentSearch = searchParams.get("search") || "";
 
     async function logout() {
         await supabase.auth.signOut();
         window.location.reload();
+    }
+
+    function submitSearch(event) {
+        event.preventDefault();
+        const formData = new FormData(event.currentTarget);
+        const rawValue = formData.get("global-search");
+        const normalized =
+            typeof rawValue === "string" ? rawValue.trim() : "";
+
+        const params = new URLSearchParams();
+
+        if (normalized) {
+            params.set("search", normalized);
+        }
+
+        if (location.pathname === "/tickets") {
+            navigate(
+                {
+                    pathname: "/tickets",
+                    search: params.toString() ? `?${params.toString()}` : "",
+                },
+                { replace: true }
+            );
+            return;
+        }
+
+        navigate({
+            pathname: "/tickets",
+            search: params.toString() ? `?${params.toString()}` : "",
+        });
     }
 
     return (
@@ -43,10 +78,23 @@ export default function Topbar({ user, rol, onOpenSidebar }) {
                             </div>
                         </div>
                     ) : (
-                        <div className="app-search-shell">
+                        <form className="app-search-shell" onSubmit={submitSearch}>
                             <Search className="h-4 w-4 shrink-0 text-[color:var(--app-accent)]" />
-                            <input placeholder="Buscar tickets, usuarios, tecnicos o estados..." />
-                        </div>
+                            <input
+                                key={currentSearch}
+                                name="global-search"
+                                defaultValue={currentSearch}
+                                placeholder="Buscar tickets, usuarios, tecnicos o estados..."
+                                aria-label="Buscar tickets, usuarios, tecnicos o estados"
+                            />
+                            <button
+                                type="submit"
+                                className="app-button app-button-ghost h-9 shrink-0 rounded-xl px-3 text-xs font-semibold"
+                                aria-label="Ejecutar busqueda"
+                            >
+                                Buscar
+                            </button>
+                        </form>
                     )}
                 </MotionSection>
 

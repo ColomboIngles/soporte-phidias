@@ -6,7 +6,7 @@ import {
     Sparkles,
     Trash2,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import API from "../services/api";
 import { useToast } from "../hooks/useToast";
@@ -68,6 +68,7 @@ export default function Tickets({ role }) {
     const [ticketToDelete, setTicketToDelete] = useState(null);
     const [deletingId, setDeletingId] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const { showToast } = useToast();
 
@@ -75,6 +76,7 @@ export default function Tickets({ role }) {
     const isAdmin = isAdminRole(role);
     const isEndUser = isEndUserRole(role);
     const showInternalMetrics = isStaffRole(role);
+    const searchTerm = (searchParams.get("search") || "").trim().toLowerCase();
 
     useEffect(() => {
         async function obtenerUsuario() {
@@ -310,6 +312,27 @@ export default function Tickets({ role }) {
         [filtro, tickets]
     );
 
+    const ticketsVisibles = useMemo(() => {
+        if (!searchTerm) return filtrados;
+
+        return filtrados.filter((ticket) => {
+            const tecnico = resolverNombreTecnico(tecnicos, ticket.asignado_a);
+            const haystack = [
+                ticket.titulo,
+                ticket.id,
+                ticket.estado,
+                ticket.prioridad,
+                ticket.email,
+                tecnico,
+            ]
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase();
+
+            return haystack.includes(searchTerm);
+        });
+    }, [filtrados, searchTerm, tecnicos]);
+
     if (loading) {
         return <Skeleton variant="table" />;
     }
@@ -376,15 +399,27 @@ export default function Tickets({ role }) {
                     delay={0.1}
                     className="app-surface rounded-[1.85rem] p-3 shadow-sm sm:p-4"
                 >
-                    {filtrados.length === 0 ? (
+                    {ticketsVisibles.length === 0 ? (
                         <div className="p-2">
                             <EmptyState
                                 icon={ClipboardList}
                                 compact
-                                eyebrow={isEndUser ? "Sin seguimiento" : "Sin backlog"}
-                                title="Sin tickets en esta vista"
+                                eyebrow={
+                                    searchTerm
+                                        ? "Sin resultados"
+                                        : isEndUser
+                                          ? "Sin seguimiento"
+                                          : "Sin backlog"
+                                }
+                                title={
+                                    searchTerm
+                                        ? "No encontramos coincidencias"
+                                        : "Sin tickets en esta vista"
+                                }
                                 description={
-                                    isEndUser
+                                    searchTerm
+                                        ? `No hay tickets que coincidan con "${searchParams.get("search")}". Intenta con otro termino o cambia el filtro.`
+                                        : isEndUser
                                         ? "Todavia no tienes tickets en este estado. Cuando abras uno nuevo podras seguirlo desde aqui."
                                         : "Ajusta los filtros o crea un nuevo ticket para empezar a trabajar sobre el flujo de soporte."
                                 }
@@ -402,7 +437,7 @@ export default function Tickets({ role }) {
                     ) : (
                         <>
                             <MotionStagger className="space-y-3 lg:hidden">
-                                {filtrados.map((ticket) => (
+                                {ticketsVisibles.map((ticket) => (
                                     <MotionItem
                                         key={ticket.id}
                                         className="app-surface-muted rounded-[1.6rem] p-4"
@@ -565,7 +600,7 @@ export default function Tickets({ role }) {
                                         </thead>
 
                                         <tbody>
-                                            {filtrados.map((ticket) => (
+                                            {ticketsVisibles.map((ticket) => (
                                                 <tr key={ticket.id}>
                                                     <td>
                                                         <button
