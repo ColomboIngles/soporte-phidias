@@ -24,6 +24,9 @@ export default function Button({
     type = "button",
     ...props
 }) {
+    const isTextLikeChild =
+        typeof children === "string" || typeof children === "number";
+
     return (
         <button
             type={type}
@@ -36,7 +39,17 @@ export default function Button({
             {...props}
         >
             {IconLeft ? <IconLeft className="h-4 w-4 shrink-0" /> : null}
-            <span className="truncate">{children}</span>
+            {children != null ? (
+                <span
+                    className={cn(
+                        isTextLikeChild
+                            ? "truncate"
+                            : "inline-flex shrink-0 items-center justify-center"
+                    )}
+                >
+                    {children}
+                </span>
+            ) : null}
             {IconRight ? <IconRight className="h-4 w-4 shrink-0" /> : null}
         </button>
     );

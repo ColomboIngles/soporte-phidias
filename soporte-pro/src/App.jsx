@@ -100,9 +100,9 @@ function AppBootSplash() {
 
             <MotionSection
                 delay={0.08}
-                className="app-surface-hero brand-glow w-full max-w-2xl rounded-[2.4rem] p-8 text-center sm:p-10"
+                className="app-surface w-full max-w-2xl rounded-[2rem] p-8 text-center shadow-sm sm:p-10"
             >
-                <div className="mx-auto flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-[1.75rem] bg-[linear-gradient(135deg,rgba(26,115,232,0.18),rgba(59,130,246,0.16),rgba(155,169,189,0.18))]">
+                <div className="mx-auto flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-[1.5rem] border border-[color:var(--app-border)] bg-[color:var(--app-accent-soft)]">
                     <ShieldCheck className="h-8 w-8 text-[color:var(--app-accent)]" />
                 </div>
 
@@ -130,7 +130,7 @@ function AppBootSplash() {
 function RouteFallback() {
     return (
         <MotionPage className="space-y-6">
-            <MotionSection className="app-surface-hero rounded-[2rem] p-6">
+            <MotionSection className="app-surface rounded-[1.75rem] p-6">
                 <div className="h-6 w-48 rounded-full bg-[color:var(--app-border)]" />
                 <div className="mt-3 h-4 w-72 max-w-full rounded-full bg-[color:var(--app-surface-muted)]" />
             </MotionSection>
@@ -146,7 +146,7 @@ function AppLayout({ rol, session }) {
 
     return (
         <BrowserRouter basename={routerBasename}>
-            <div className="app-shell flex min-h-screen bg-transparent">
+            <div className="app-shell flex min-h-screen bg-[color:var(--app-bg)]">
                 <Sidebar
                     rol={rol}
                     isOpen={sidebarOpen}
@@ -164,68 +164,70 @@ function AppLayout({ rol, session }) {
                         onOpenSidebar={() => setSidebarOpen(true)}
                     />
 
-                    <main className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6">
-                        <Suspense fallback={<RouteFallback />}>
-                            <Routes>
-                                <Route
-                                    path="/"
-                                    element={
-                                        canAccessDashboard(rol) ? (
-                                            <Dashboard />
-                                        ) : (
-                                            <Navigate to="/tickets" replace />
-                                        )
-                                    }
-                                />
-                                <Route path="/tickets" element={<Tickets role={rol} />} />
-                                <Route
-                                    path="/tickets/nuevo"
-                                    element={
-                                        canCreateTickets(rol) ? (
-                                            <NuevoTicket rol={rol} />
-                                        ) : (
-                                            <Navigate to={homeRoute} replace />
-                                        )
-                                    }
-                                />
-                                <Route
-                                    path="/tickets/:id"
-                                    element={<TicketDetalle rol={rol} />}
-                                />
-                                <Route
-                                    path="/tickets/:id/editar"
-                                    element={
-                                        canAccessTicketEdit(rol) ? (
-                                            <EditarTicket />
-                                        ) : (
-                                            <Navigate to="/tickets" replace />
-                                        )
-                                    }
-                                />
-                                <Route
-                                    path="/kanban"
-                                    element={
-                                        canAccessKanban(rol) ? (
-                                            <Kanban rol={rol} />
-                                        ) : (
-                                            <Navigate to="/tickets" replace />
-                                        )
-                                    }
-                                />
+                    <main className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6 xl:px-8">
+                        <div className="mx-auto flex w-full max-w-[1680px] flex-col">
+                            <Suspense fallback={<RouteFallback />}>
+                                <Routes>
+                                    <Route
+                                        path="/"
+                                        element={
+                                            canAccessDashboard(rol) ? (
+                                                <Dashboard />
+                                            ) : (
+                                                <Navigate to="/tickets" replace />
+                                            )
+                                        }
+                                    />
+                                    <Route path="/tickets" element={<Tickets role={rol} />} />
+                                    <Route
+                                        path="/tickets/nuevo"
+                                        element={
+                                            canCreateTickets(rol) ? (
+                                                <NuevoTicket rol={rol} />
+                                            ) : (
+                                                <Navigate to={homeRoute} replace />
+                                            )
+                                        }
+                                    />
+                                    <Route
+                                        path="/tickets/:id"
+                                        element={<TicketDetalle rol={rol} />}
+                                    />
+                                    <Route
+                                        path="/tickets/:id/editar"
+                                        element={
+                                            canAccessTicketEdit(rol) ? (
+                                                <EditarTicket />
+                                            ) : (
+                                                <Navigate to="/tickets" replace />
+                                            )
+                                        }
+                                    />
+                                    <Route
+                                        path="/kanban"
+                                        element={
+                                            canAccessKanban(rol) ? (
+                                                <Kanban rol={rol} />
+                                            ) : (
+                                                <Navigate to="/tickets" replace />
+                                            )
+                                        }
+                                    />
 
-                                {canAccessUserAdmin(rol) ? (
-                                    <>
-                                        <Route path="/usuarios" element={<Usuarios />} />
-                                        <Route path="/auditoria" element={<Auditoria />} />
-                                    </>
-                                ) : null}
+                                    {canAccessUserAdmin(rol) ? (
+                                        <>
+                                            <Route path="/usuarios" element={<Usuarios />} />
+                                            <Route path="/auditoria" element={<Auditoria />} />
+                                        </>
+                                    ) : null}
 
-                                <Route
-                                    path="*"
-                                    element={<Navigate to={homeRoute} replace />}
-                                />
-                            </Routes>
-                        </Suspense>
+                                    <Route
+                                        path="*"
+                                        element={<Navigate to={homeRoute} replace />}
+                                    />
+                                </Routes>
+                            </Suspense>
+                        </div>
                     </main>
                 </div>
             </div>

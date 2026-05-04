@@ -38,8 +38,8 @@ function SidebarNav({
     const isEndUser = isEndUserRole(rol);
 
     return (
-        <div className="app-sidebar-shell brand-glow flex h-full min-h-0 flex-col overflow-hidden p-4">
-            <MotionSection className="app-surface-hero rounded-[1.8rem] p-4">
+        <div className="app-sidebar-shell flex h-full min-h-0 flex-col overflow-hidden p-3">
+            <MotionSection className="app-surface rounded-[1.75rem] p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                     <div
                         className={cn(
@@ -49,17 +49,17 @@ function SidebarNav({
                     >
                         <div className="brand-badge max-w-full">
                             <Sparkles className="h-3.5 w-3.5" />
-                            Soporte Pro
+                            Soporte SaaS
                         </div>
                         <h1 className="app-break-anywhere mt-4 text-[1.45rem] font-semibold tracking-tight text-[color:var(--app-text-primary)]">
                             {isEndUser
                                 ? "Portal de seguimiento"
-                                : "Mesa de soporte premium"}
+                                : "Mesa de soporte"}
                         </h1>
                         <p className="app-break-anywhere mt-3 text-sm leading-6 text-[color:var(--app-text-secondary)]">
                             {isEndUser
-                                ? "Consulta solicitudes, comparte evidencias y conversa con soporte en una experiencia mas clara y elegante."
-                                : "Operacion centralizada de tickets, analitica y seguimiento tecnico con look SaaS institucional."}
+                                ? "Consulta solicitudes, comparte evidencias y conversa con soporte desde una interfaz simple y profesional."
+                                : "Operacion centralizada de tickets, analitica y seguimiento tecnico con una experiencia clara y empresarial."}
                         </p>
                     </div>
 
@@ -105,12 +105,11 @@ function SidebarNav({
                         {[
                             "var(--brand-primary)",
                             "var(--brand-secondary)",
-                            "var(--app-accent)",
-                            "var(--brand-highlight)",
+                            "var(--brand-accent)",
                         ].map((color) => (
                                 <span
                                     key={color}
-                                    className="h-3.5 w-3.5 rounded-full border border-[color:var(--app-border)] shadow-sm"
+                                    className="h-2.5 w-8 rounded-full border border-[color:var(--app-border)] shadow-sm"
                                     style={{ backgroundColor: color }}
                                 />
                             ))}
@@ -161,7 +160,7 @@ function SidebarNav({
             <MotionSection
                 delay={0.14}
                 className={cn(
-                    "app-surface-muted mt-6 min-w-0 rounded-[1.55rem] p-4",
+                    "app-surface mt-6 min-w-0 rounded-[1.4rem] p-4 shadow-sm",
                     collapsed && !mobile && "p-3 text-center"
                 )}
             >
@@ -177,7 +176,7 @@ function SidebarNav({
                         collapsed && !mobile && "hidden"
                     )}
                 >
-                    Interfaz optimizada para un flujo mas claro, comercial y presentable.
+                    Interfaz optimizada para un flujo claro, ordenado y listo para entorno empresarial.
                 </p>
             </MotionSection>
         </div>

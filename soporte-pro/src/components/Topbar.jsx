@@ -19,7 +19,7 @@ export default function Topbar({ user, rol, onOpenSidebar }) {
 
     return (
         <header className="app-topbar-shell sticky top-0 z-20 px-4 py-4 sm:px-6">
-            <div className="flex items-center gap-3">
+            <div className="mx-auto flex w-full max-w-[1680px] items-center gap-3">
                 <button
                     type="button"
                     onClick={onOpenSidebar}
@@ -62,12 +62,12 @@ export default function Topbar({ user, rol, onOpenSidebar }) {
                         <ThemeToggle compact />
                     </MotionItem>
                     <MotionItem>
-                        <div className="app-surface flex items-center gap-3 rounded-[1.2rem] px-3 py-2.5">
+                        <div className="app-surface flex items-center gap-3 rounded-[1.25rem] px-3 py-2.5 shadow-sm">
                             <div
                                 className="flex h-11 w-11 items-center justify-center rounded-[1rem] text-sm font-semibold text-[color:var(--app-accent)]"
                                 style={{
                                     background:
-                                        "linear-gradient(135deg, color-mix(in srgb, var(--brand-secondary) 16%, transparent), color-mix(in srgb, var(--brand-highlight) 12%, transparent))",
+                                        "linear-gradient(135deg, color-mix(in srgb, var(--brand-secondary) 16%, white 84%), color-mix(in srgb, var(--brand-accent) 14%, white 86%))",
                                 }}
                             >
                                 {getUserInitial(user.email)}

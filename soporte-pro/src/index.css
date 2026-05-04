@@ -7,17 +7,17 @@
 @layer base {
     :root {
         color-scheme: light;
-        --brand-primary: #1a73e8;
-        --brand-primary-rgb: 26 115 232;
-        --brand-secondary: #3b82f6;
-        --brand-secondary-rgb: 59 130 246;
-        --brand-accent: #74a7f6;
-        --brand-accent-rgb: 116 167 246;
-        --brand-highlight: #9ba9bd;
-        --brand-danger: #cf5b5b;
-        --brand-warning: #dd8b2f;
-        --brand-success: #2f9863;
-        --brand-ivory: #f8f9fa;
+        --brand-primary: #4f46e5;
+        --brand-primary-rgb: 79 70 229;
+        --brand-secondary: #6366f1;
+        --brand-secondary-rgb: 99 102 241;
+        --brand-accent: #818cf8;
+        --brand-accent-rgb: 129 140 248;
+        --brand-highlight: #c7d2fe;
+        --brand-danger: #dc2626;
+        --brand-warning: #d97706;
+        --brand-success: #16a34a;
+        --brand-ivory: #f7f8fc;
         --radius-sm: 1rem;
         --radius-md: 1.25rem;
         --radius-lg: 1.5rem;
@@ -25,74 +25,72 @@
         --radius-2xl: 2rem;
         --radius-3xl: 2.5rem;
 
-        --app-bg: #f8f9fa;
+        --app-bg: #f5f7fb;
         --app-bg-elevated: #ffffff;
-        --app-surface: rgba(255, 255, 255, 0.84);
+        --app-surface: rgba(255, 255, 255, 0.82);
         --app-surface-strong: rgba(255, 255, 255, 0.96);
-        --app-surface-muted: rgba(243, 246, 250, 0.9);
-        --app-border: rgba(32, 41, 52, 0.08);
-        --app-border-strong: rgba(32, 41, 52, 0.14);
-        --app-text: #344050;
-        --app-text-strong: #202124;
+        --app-surface-muted: rgba(248, 250, 252, 0.94);
+        --app-border: rgba(15, 23, 42, 0.08);
+        --app-border-strong: rgba(79, 70, 229, 0.16);
+        --app-text: #334155;
+        --app-text-strong: #0f172a;
         --app-text-primary: var(--app-text-strong);
         --app-text-secondary: var(--app-muted);
         --app-text-tertiary: var(--app-muted-soft);
-        --app-muted: #5f6b7a;
-        --app-muted-soft: #8a95a6;
-        --app-accent: #1a73e8;
-        --app-accent-strong: #145fca;
-        --app-accent-soft: rgba(26, 115, 232, 0.12);
-        --app-highlight: #9ba9bd;
-        --app-shadow-sm: 0 8px 24px rgba(23, 34, 48, 0.06);
-        --app-shadow-md: 0 18px 44px rgba(23, 34, 48, 0.09);
-        --app-shadow-lg: 0 26px 72px rgba(23, 34, 48, 0.13);
-        --app-ring: rgba(26, 115, 232, 0.18);
-        --app-overlay: rgba(16, 23, 33, 0.42);
+        --app-muted: #475569;
+        --app-muted-soft: #94a3b8;
+        --app-accent: #4f46e5;
+        --app-accent-strong: #4338ca;
+        --app-accent-soft: rgba(99, 102, 241, 0.1);
+        --app-highlight: #c7d2fe;
+        --app-shadow-sm: 0 8px 24px rgba(15, 23, 42, 0.05);
+        --app-shadow-md: 0 16px 40px rgba(15, 23, 42, 0.07);
+        --app-shadow-lg: 0 24px 56px rgba(15, 23, 42, 0.1);
+        --app-ring: rgba(99, 102, 241, 0.16);
+        --app-overlay: rgba(15, 23, 42, 0.42);
     }
 
     html.dark,
     html[data-theme="dark"] {
         color-scheme: dark;
-        --app-bg: #0f1722;
-        --app-bg-elevated: #131b26;
-        --app-surface: rgba(19, 27, 38, 0.84);
-        --app-surface-strong: rgba(24, 33, 46, 0.92);
-        --app-surface-muted: rgba(29, 38, 51, 0.88);
+        --app-bg: #111827;
+        --app-bg-elevated: #182131;
+        --app-surface: rgba(17, 24, 39, 0.86);
+        --app-surface-strong: rgba(24, 33, 49, 0.94);
+        --app-surface-muted: rgba(30, 41, 59, 0.9);
         --app-border: rgba(148, 163, 184, 0.12);
-        --app-border-strong: rgba(148, 163, 184, 0.18);
-        --app-text: #d3dce8;
-        --app-text-strong: #f3f7fc;
-        --app-muted: #a6b3c4;
-        --app-muted-soft: #768399;
-        --app-accent: #6ea5ff;
-        --app-accent-strong: #8ab6ff;
-        --app-accent-soft: rgba(110, 165, 255, 0.16);
-        --app-highlight: #94a5bc;
-        --app-shadow-sm: 0 12px 26px rgba(0, 0, 0, 0.14);
-        --app-shadow-md: 0 18px 50px rgba(0, 0, 0, 0.2);
-        --app-shadow-lg: 0 30px 84px rgba(0, 0, 0, 0.28);
-        --app-ring: rgba(110, 165, 255, 0.24);
-        --app-overlay: rgba(9, 14, 21, 0.72);
+        --app-border-strong: rgba(129, 140, 248, 0.24);
+        --app-text: #dbe4f0;
+        --app-text-strong: #f8fafc;
+        --app-muted: #94a3b8;
+        --app-muted-soft: #64748b;
+        --app-accent: #818cf8;
+        --app-accent-strong: #a5b4fc;
+        --app-accent-soft: rgba(129, 140, 248, 0.16);
+        --app-highlight: #818cf8;
+        --app-shadow-sm: 0 10px 24px rgba(2, 6, 23, 0.24);
+        --app-shadow-md: 0 18px 44px rgba(2, 6, 23, 0.28);
+        --app-shadow-lg: 0 28px 64px rgba(2, 6, 23, 0.34);
+        --app-ring: rgba(129, 140, 248, 0.22);
+        --app-overlay: rgba(2, 6, 23, 0.68);
     }
 
     html {
         font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
         scroll-behavior: smooth;
         background:
-            radial-gradient(circle at 0% 0%, rgba(59, 130, 246, 0.12), transparent 24%),
-            radial-gradient(circle at 100% 0%, rgba(116, 167, 246, 0.08), transparent 18%),
-            radial-gradient(circle at 100% 100%, rgba(155, 169, 189, 0.1), transparent 22%),
-            linear-gradient(180deg, #fcfdff 0%, #f8f9fa 42%, #eef2f7 100%);
+            radial-gradient(circle at top left, rgba(99, 102, 241, 0.1), transparent 22%),
+            radial-gradient(circle at top right, rgba(129, 140, 248, 0.08), transparent 20%),
+            linear-gradient(180deg, #fbfcff 0%, #f5f7fb 48%, #eef2ff 100%);
         color: var(--app-text);
     }
 
     html.dark,
     html[data-theme="dark"] {
         background:
-            radial-gradient(circle at 0% 0%, rgba(59, 130, 246, 0.16), transparent 24%),
-            radial-gradient(circle at 100% 10%, rgba(116, 167, 246, 0.1), transparent 18%),
-            radial-gradient(circle at 100% 100%, rgba(155, 169, 189, 0.08), transparent 18%),
-            linear-gradient(180deg, #0d1520 0%, #0f1722 44%, #131b26 100%);
+            radial-gradient(circle at top left, rgba(99, 102, 241, 0.14), transparent 24%),
+            radial-gradient(circle at top right, rgba(129, 140, 248, 0.08), transparent 20%),
+            linear-gradient(180deg, #0f172a 0%, #111827 48%, #172033 100%);
     }
 
     body {
@@ -110,18 +108,18 @@
         inset: 0;
         pointer-events: none;
         background:
-            linear-gradient(rgba(26, 115, 232, 0.02) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(26, 115, 232, 0.02) 1px, transparent 1px);
-        background-size: 36px 36px;
-        mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.42), transparent 72%);
-        opacity: 0.72;
+            linear-gradient(rgba(99, 102, 241, 0.015) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(99, 102, 241, 0.015) 1px, transparent 1px);
+        background-size: 44px 44px;
+        mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.3), transparent 78%);
+        opacity: 0.58;
     }
 
     html.dark body::before,
     html[data-theme="dark"] body::before {
         background:
-            linear-gradient(rgba(116, 167, 246, 0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(116, 167, 246, 0.03) 1px, transparent 1px);
+            linear-gradient(rgba(129, 140, 248, 0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(129, 140, 248, 0.03) 1px, transparent 1px);
     }
 
     #root {
@@ -195,6 +193,7 @@
     .app-shell {
         min-height: 100vh;
         color: var(--app-text);
+        background: transparent;
     }
 
     .app-surface,
@@ -204,13 +203,11 @@
         border: 1px solid var(--app-border);
         background: linear-gradient(
             180deg,
-            color-mix(in srgb, var(--app-surface-strong) 82%, white 18%),
-            color-mix(in srgb, var(--app-surface) 96%, transparent)
+            color-mix(in srgb, var(--app-surface-strong) 92%, white 8%),
+            color-mix(in srgb, var(--app-surface) 98%, transparent)
         );
-        box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.68),
-            var(--app-shadow-md);
-        backdrop-filter: blur(22px);
+        box-shadow: var(--app-shadow-md);
+        backdrop-filter: blur(18px);
     }
 
     .app-surface-muted,
@@ -219,13 +216,11 @@
         border: 1px solid var(--app-border);
         background: linear-gradient(
             180deg,
-            color-mix(in srgb, var(--app-surface-muted) 88%, white 12%),
-            color-mix(in srgb, var(--app-surface) 92%, transparent)
+            color-mix(in srgb, var(--app-surface-muted) 94%, white 6%),
+            color-mix(in srgb, var(--app-surface-strong) 96%, transparent)
         );
-        box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.6),
-            var(--app-shadow-sm);
-        backdrop-filter: blur(18px);
+        box-shadow: var(--app-shadow-sm);
+        backdrop-filter: blur(14px);
     }
 
     .app-surface-elevated {
@@ -233,30 +228,26 @@
         border: 1px solid var(--app-border-strong);
         background: linear-gradient(
             180deg,
-            color-mix(in srgb, var(--app-surface-strong) 92%, white 8%),
-            color-mix(in srgb, var(--app-surface) 98%, transparent)
+            color-mix(in srgb, var(--app-surface-strong) 96%, white 4%),
+            color-mix(in srgb, var(--app-surface) 100%, transparent)
         );
-        box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.72),
-            var(--app-shadow-lg);
-        backdrop-filter: blur(28px);
+        box-shadow: var(--app-shadow-lg);
+        backdrop-filter: blur(22px);
     }
 
     .app-surface-hero {
         min-width: 0;
         border: 1px solid var(--app-border);
         background:
-            radial-gradient(circle at top right, rgba(var(--brand-accent-rgb), 0.12), transparent 30%),
-            radial-gradient(circle at top left, rgba(var(--brand-secondary-rgb), 0.14), transparent 36%),
+            radial-gradient(circle at top right, rgba(var(--brand-accent-rgb), 0.1), transparent 28%),
+            radial-gradient(circle at top left, rgba(var(--brand-secondary-rgb), 0.1), transparent 34%),
             linear-gradient(
                 180deg,
-                color-mix(in srgb, var(--app-surface-strong) 88%, white 12%),
-                color-mix(in srgb, var(--app-surface) 95%, transparent)
+                color-mix(in srgb, var(--app-surface-strong) 94%, white 6%),
+                color-mix(in srgb, var(--app-surface) 98%, transparent)
             );
-        box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.68),
-            var(--app-shadow-lg);
-        backdrop-filter: blur(24px);
+        box-shadow: var(--app-shadow-lg);
+        backdrop-filter: blur(20px);
     }
 
     .app-surface-interactive,
@@ -270,9 +261,9 @@
 
     .app-surface-interactive:hover,
     .soft-hover:hover {
-        transform: translateY(-2px);
+        transform: translateY(-1px);
         border-color: var(--app-border-strong);
-        box-shadow: 0 20px 54px rgba(23, 34, 48, 0.12);
+        box-shadow: 0 16px 38px rgba(15, 23, 42, 0.09);
     }
 
     .app-kicker,
@@ -281,13 +272,8 @@
         align-items: center;
         gap: 0.5rem;
         border-radius: 999px;
-        border: 1px solid rgba(var(--brand-secondary-rgb), 0.18);
-        background: linear-gradient(
-            135deg,
-            rgba(var(--brand-secondary-rgb), 0.16),
-            rgba(var(--brand-accent-rgb), 0.09),
-            rgba(155, 169, 189, 0.16)
-        );
+        border: 1px solid color-mix(in srgb, var(--brand-secondary) 14%, transparent);
+        background: color-mix(in srgb, var(--brand-secondary) 10%, white 90%);
         padding: 0.48rem 0.92rem;
         font-size: 0.72rem;
         font-weight: 700;
@@ -309,7 +295,7 @@
         height: 11rem;
         width: 11rem;
         border-radius: 999px;
-        background: radial-gradient(circle, rgba(var(--brand-secondary-rgb), 0.14), transparent 70%);
+        background: radial-gradient(circle, rgba(var(--brand-secondary-rgb), 0.08), transparent 70%);
         pointer-events: none;
     }
 
@@ -321,7 +307,7 @@
         height: 11rem;
         width: 11rem;
         border-radius: 999px;
-        background: radial-gradient(circle, rgba(var(--brand-accent-rgb), 0.12), transparent 72%);
+        background: radial-gradient(circle, rgba(var(--brand-accent-rgb), 0.08), transparent 72%);
         pointer-events: none;
     }
 
@@ -374,13 +360,7 @@
         border-radius: 1rem;
         font-weight: 600;
         letter-spacing: -0.01em;
-        transition:
-            transform 180ms ease,
-            box-shadow 180ms ease,
-            opacity 180ms ease,
-            background-color 180ms ease,
-            border-color 180ms ease,
-            color 180ms ease;
+        transition: all 200ms ease;
     }
 
     .app-button:hover {
@@ -401,29 +381,25 @@
     .theme-primary-button {
         color: white;
         background:
-            linear-gradient(135deg, var(--app-accent) 0%, var(--app-accent-strong) 62%, var(--app-highlight) 100%);
-        box-shadow:
-            0 16px 36px rgba(26, 75, 155, 0.18),
-            0 8px 18px rgba(116, 167, 246, 0.16);
+            linear-gradient(135deg, var(--app-accent) 0%, var(--app-accent-strong) 100%);
+        box-shadow: 0 10px 24px rgba(79, 70, 229, 0.18);
     }
 
     .app-button-primary:hover,
     .theme-primary-button:hover {
-        box-shadow:
-            0 20px 44px rgba(26, 75, 155, 0.22),
-            0 10px 22px rgba(116, 167, 246, 0.18);
+        box-shadow: 0 14px 28px rgba(79, 70, 229, 0.22);
     }
 
     .app-button-secondary {
         border: 1px solid var(--app-border);
-        background: color-mix(in srgb, var(--app-surface-strong) 86%, transparent);
+        background: color-mix(in srgb, var(--app-surface-strong) 94%, transparent);
         color: var(--app-text-strong);
         box-shadow: var(--app-shadow-sm);
     }
 
     .app-button-secondary:hover {
         border-color: var(--app-border-strong);
-        background: color-mix(in srgb, var(--app-surface-strong) 94%, white 6%);
+        background: color-mix(in srgb, var(--app-surface-muted) 92%, white 8%);
     }
 
     .app-button-ghost {
@@ -434,7 +410,7 @@
 
     .app-button-ghost:hover {
         border-color: var(--app-border);
-        background: color-mix(in srgb, var(--app-surface-strong) 72%, transparent);
+        background: color-mix(in srgb, var(--app-surface-muted) 86%, transparent);
         color: var(--app-text-strong);
     }
 
@@ -455,14 +431,12 @@
         min-width: 0;
         border: 1px solid var(--app-border);
         border-radius: 1rem;
-        background: color-mix(in srgb, var(--app-surface-strong) 82%, transparent);
+        background: color-mix(in srgb, var(--app-surface-strong) 96%, transparent);
         color: var(--app-text);
         min-height: 3.25rem;
         padding: 0.9rem 1rem;
-        box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.7),
-            0 10px 30px rgba(23, 34, 48, 0.05);
-        backdrop-filter: blur(16px);
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+        backdrop-filter: blur(12px);
     }
 
     textarea.app-input-shell,
@@ -482,9 +456,8 @@
     .field-shell:focus-within {
         border-color: color-mix(in srgb, var(--app-accent) 30%, white 70%);
         box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.65),
             0 0 0 4px var(--app-ring),
-            0 16px 40px rgba(23, 34, 48, 0.08);
+            0 10px 24px rgba(79, 70, 229, 0.08);
         outline: none;
     }
 
@@ -759,13 +732,12 @@
         min-width: 0;
         border-right: 1px solid var(--app-border);
         background:
-            radial-gradient(circle at top left, rgba(var(--brand-secondary-rgb), 0.12), transparent 30%),
             linear-gradient(
                 180deg,
-                color-mix(in srgb, var(--app-surface-strong) 74%, transparent),
-                color-mix(in srgb, var(--app-surface) 96%, transparent)
+                color-mix(in srgb, var(--app-surface-strong) 92%, white 8%),
+                color-mix(in srgb, var(--app-surface) 98%, transparent)
             );
-        backdrop-filter: blur(22px);
+        backdrop-filter: blur(16px);
         overflow-x: hidden;
     }
 
@@ -799,20 +771,15 @@
     .app-sidebar-link:hover {
         transform: translateY(-1px);
         border-color: var(--app-border);
-        background: color-mix(in srgb, var(--app-surface-strong) 74%, transparent);
+        background: color-mix(in srgb, var(--app-surface-muted) 92%, transparent);
         color: var(--app-text-strong);
     }
 
     .app-sidebar-link[data-active="true"] {
-        border-color: rgba(var(--brand-secondary-rgb), 0.18);
-        background:
-            linear-gradient(
-                135deg,
-                rgba(var(--brand-secondary-rgb), 0.14),
-                rgba(var(--brand-accent-rgb), 0.08)
-            );
-        color: var(--app-text-strong);
-        box-shadow: 0 16px 38px rgba(23, 34, 48, 0.1);
+        border-color: var(--app-border-strong);
+        background: color-mix(in srgb, var(--app-accent-soft) 88%, white 12%);
+        color: var(--app-accent);
+        box-shadow: 0 10px 24px rgba(79, 70, 229, 0.08);
     }
 
     .app-sidebar-icon {
@@ -828,8 +795,8 @@
     }
 
     .app-sidebar-link[data-active="true"] .app-sidebar-icon {
-        border-color: rgba(var(--brand-secondary-rgb), 0.18);
-        background: rgba(var(--brand-secondary-rgb), 0.12);
+        border-color: var(--app-border-strong);
+        background: rgba(var(--brand-secondary-rgb), 0.1);
         color: var(--app-accent);
     }
 
@@ -838,10 +805,10 @@
         background:
             linear-gradient(
                 180deg,
-                color-mix(in srgb, var(--app-surface-strong) 78%, transparent),
-                color-mix(in srgb, var(--app-surface) 92%, transparent)
+                color-mix(in srgb, var(--app-surface-strong) 90%, transparent),
+                color-mix(in srgb, var(--app-surface) 96%, transparent)
             );
-        backdrop-filter: blur(20px);
+        backdrop-filter: blur(18px);
     }
 
     .app-search-shell {
@@ -851,7 +818,7 @@
         min-height: 3.4rem;
         border-radius: 1.15rem;
         border: 1px solid var(--app-border);
-        background: color-mix(in srgb, var(--app-surface-strong) 82%, transparent);
+        background: color-mix(in srgb, var(--app-surface-strong) 96%, transparent);
         padding: 0 1rem;
         box-shadow: var(--app-shadow-sm);
     }
@@ -884,7 +851,7 @@
         width: 2.9rem;
         border-radius: 1rem;
         border: 1px solid var(--app-border);
-        background: color-mix(in srgb, var(--app-surface-strong) 84%, transparent);
+        background: color-mix(in srgb, var(--app-surface-strong) 94%, transparent);
         color: var(--app-muted);
         box-shadow: var(--app-shadow-sm);
     }
@@ -919,7 +886,7 @@
         overscroll-behavior-x: contain;
         border: 1px solid var(--app-border);
         border-radius: 1.5rem;
-        background: color-mix(in srgb, var(--app-surface-strong) 86%, white 14%);
+        background: color-mix(in srgb, var(--app-surface-strong) 98%, white 2%);
         box-shadow: var(--app-shadow-sm);
     }
 
@@ -935,7 +902,7 @@
         top: 0;
         z-index: 1;
         border-bottom: 1px solid var(--app-border);
-        background: color-mix(in srgb, var(--app-surface-muted) 88%, white 12%);
+        background: color-mix(in srgb, var(--app-surface-muted) 96%, white 4%);
         padding: 1rem;
         text-align: left;
         font-size: 0.72rem;
@@ -946,15 +913,15 @@
     }
 
     .data-table tbody tr {
-        background: color-mix(in srgb, var(--app-surface) 84%, transparent);
+        background: color-mix(in srgb, var(--app-surface-strong) 98%, transparent);
     }
 
     .data-table tbody tr:nth-child(even) {
-        background: color-mix(in srgb, var(--app-surface-muted) 72%, transparent);
+        background: color-mix(in srgb, var(--app-surface-muted) 82%, transparent);
     }
 
     .data-table tbody tr:hover {
-        background: color-mix(in srgb, var(--app-surface-strong) 92%, transparent);
+        background: color-mix(in srgb, var(--app-accent-soft) 40%, var(--app-surface-strong) 60%);
     }
 
     .data-table tbody td {

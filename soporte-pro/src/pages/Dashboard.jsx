@@ -50,27 +50,27 @@ const DATE_PRESETS = [
 ];
 
 const STATUS_COLORS = {
-    abierto: "#dd8b2f",
-    en_proceso: "#1a73e8",
-    cerrado: "#2f9863",
+    abierto: "#d97706",
+    en_proceso: "#6366f1",
+    cerrado: "#16a34a",
 };
 
 const CHART_COLORS = {
-    line: "#1a73e8",
-    lineFill: "#74a7f6",
-    techStart: "#1a73e8",
-    techEnd: "#74a7f6",
-    timeStart: "#5e738f",
-    timeEnd: "#8da1bc",
-    grid: "rgba(26, 115, 232, 0.12)",
+    line: "#4f46e5",
+    lineFill: "#818cf8",
+    techStart: "#4f46e5",
+    techEnd: "#818cf8",
+    timeStart: "#64748b",
+    timeEnd: "#94a3b8",
+    grid: "rgba(99, 102, 241, 0.12)",
     activeDotStroke: "var(--app-bg-elevated)",
 };
 
 const DASHBOARD_SURFACES = {
-    tooltipShadow: "0 18px 48px rgba(29, 35, 32, 0.14)",
-    panelShadow: "0 18px 48px rgba(29, 35, 32, 0.08)",
-    panelShadowStrong: "0 20px 54px rgba(29, 35, 32, 0.1)",
-    heroShadow: "0 26px 72px rgba(29, 35, 32, 0.12)",
+    tooltipShadow: "0 16px 40px rgba(15, 23, 42, 0.12)",
+    panelShadow: "0 12px 32px rgba(15, 23, 42, 0.08)",
+    panelShadowStrong: "0 16px 40px rgba(15, 23, 42, 0.1)",
+    heroShadow: "0 18px 48px rgba(15, 23, 42, 0.08)",
 };
 
 const KPI_ACCENTS = {
@@ -452,7 +452,7 @@ function KpiCard({ title, value, context, trend, icon, accentStyle }) {
         <Surface
             variant="default"
             interactive
-            className="rounded-[1.9rem] p-5"
+            className="rounded-[1.6rem] p-5 sm:p-6"
             style={{ boxShadow: DASHBOARD_SURFACES.panelShadow }}
         >
             <div className="flex items-start justify-between gap-4">
@@ -510,7 +510,7 @@ function AnalyticsPanel({
         <Surface
             variant="default"
             interactive
-            className={`min-w-0 rounded-[2rem] p-5 sm:p-6 ${className || ""}`}
+            className={`min-w-0 rounded-[1.75rem] p-5 sm:p-6 ${className || ""}`}
             style={{ boxShadow: DASHBOARD_SURFACES.panelShadow }}
         >
             <SectionHeader
@@ -953,7 +953,7 @@ export default function Dashboard() {
     return (
         <MotionPage className="space-y-6 p-4 sm:p-6">
             <MotionSection
-                className="app-surface-hero rounded-[2.4rem] p-5 sm:p-6 lg:p-7"
+                className="app-surface rounded-[2rem] p-5 sm:p-6 lg:p-7"
                 style={{ boxShadow: DASHBOARD_SURFACES.heroShadow }}
             >
                 <div className="grid gap-6 xl:grid-cols-[1.35fr_0.95fr]">
@@ -973,7 +973,7 @@ export default function Dashboard() {
                                 </p>
                             </div>
 
-                            <div className="app-surface-muted inline-flex rounded-full px-4 py-2 text-sm font-medium text-[color:var(--app-text-secondary)]">
+                            <div className="app-surface-muted inline-flex rounded-full px-4 py-2 text-sm font-medium text-[color:var(--app-text-secondary)] shadow-sm">
                                 {formatLongDate(fechaInicio)} - {formatLongDate(fechaFin)}
                             </div>
                         </div>
@@ -1053,7 +1053,7 @@ export default function Dashboard() {
                                     size="sm"
                                     className={
                                         activePreset === preset.days
-                                            ? "border-[color:rgba(68,166,106,0.22)] bg-[color:rgba(68,166,106,0.12)] text-[color:var(--app-text-primary)]"
+                                            ? "border-[color:var(--app-border-strong)] bg-[color:var(--app-accent-soft)] text-[color:var(--app-accent)]"
                                             : ""
                                     }
                                     onClick={() => setPresetRange(preset.days)}
