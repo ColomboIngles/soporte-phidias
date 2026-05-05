@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
     ArrowRight,
     CheckCircle2,
@@ -52,6 +52,8 @@ function readLoginContext() {
 }
 
 const TRUSTED_EMAIL_KEY = "soporte_phidias_trusted_email";
+const MAGIC_LINK_COOLDOWN_KEY = "soporte_phidias_magic_link_cooldown_until";
+const MAGIC_LINK_COOLDOWN_SECONDS = 90;
 
 function getFriendlyAuthErrorMessage(error) {
     const rawMessage =
@@ -102,6 +104,34 @@ function getTrustedEmail() {
     );
 }
 
+function readMagicLinkCooldown() {
+    if (typeof window === "undefined") {
+        return 0;
+    }
+
+    const storedValue = Number(
+        window.localStorage.getItem(MAGIC_LINK_COOLDOWN_KEY) || 0
+    );
+
+    return Number.isFinite(storedValue) ? storedValue : 0;
+}
+
+function storeMagicLinkCooldown(timestamp) {
+    if (typeof window === "undefined") {
+        return;
+    }
+
+    window.localStorage.setItem(MAGIC_LINK_COOLDOWN_KEY, String(timestamp));
+}
+
+function clearMagicLinkCooldown() {
+    if (typeof window === "undefined") {
+        return;
+    }
+
+    window.localStorage.removeItem(MAGIC_LINK_COOLDOWN_KEY);
+}
+
 function buildEmailRedirectUrl({ appBasePath, email, source, returnTo }) {
     const base = getAuthRedirectBase({ appBasePath });
 
@@ -135,10 +165,43 @@ export default function Login() {
     const [submitting, setSubmitting] = useState(false);
     const [errorMessage, setErrorMessage] = useState("");
     const [successMessage, setSuccessMessage] = useState("");
+    const [cooldownUntil, setCooldownUntil] = useState(() =>
+        readMagicLinkCooldown()
+    );
+    const [cooldownNow, setCooldownNow] = useState(() => Date.now());
     const fromPhidias = loginContext.source === "phidias";
+    const effectiveCooldownUntil =
+        cooldownUntil > cooldownNow ? cooldownUntil : 0;
+    const cooldownRemaining = Math.max(
+        Math.ceil((effectiveCooldownUntil - cooldownNow) / 1000),
+        0
+    );
+    const isCooldownActive = cooldownRemaining > 0;
+
+    useEffect(() => {
+        if (!effectiveCooldownUntil) {
+            clearMagicLinkCooldown();
+            return undefined;
+        }
+
+        const timer = window.setInterval(() => {
+            setCooldownNow(Date.now());
+        }, 1000);
+
+        return () => {
+            window.clearInterval(timer);
+        };
+    }, [effectiveCooldownUntil]);
 
     async function requestMagicLink() {
         try {
+            if (isCooldownActive) {
+                setErrorMessage(
+                    `Espera ${cooldownRemaining}s antes de solicitar otro enlace.`
+                );
+                return;
+            }
+
             setSubmitting(true);
             setErrorMessage("");
             setSuccessMessage("");
@@ -169,18 +232,32 @@ export default function Login() {
             }
 
             window.localStorage.setItem(TRUSTED_EMAIL_KEY, normalizedEmail);
+            const nextCooldown =
+                Date.now() + MAGIC_LINK_COOLDOWN_SECONDS * 1000;
+            setCooldownUntil(nextCooldown);
+            storeMagicLinkCooldown(nextCooldown);
             setSuccessMessage(
                 "Te enviamos un enlace seguro al correo. Abre ese mensaje una sola vez y despues esta sesion quedara guardada en este navegador."
             );
         } catch (error) {
             setErrorMessage(getFriendlyAuthErrorMessage(error));
+
+            if (
+                typeof error?.message === "string" &&
+                error.message.toLowerCase().includes("email rate limit exceeded")
+            ) {
+                const nextCooldown =
+                    Date.now() + MAGIC_LINK_COOLDOWN_SECONDS * 1000;
+                setCooldownUntil(nextCooldown);
+                storeMagicLinkCooldown(nextCooldown);
+            }
         } finally {
             setSubmitting(false);
         }
     }
 
     function handleEmailKeyDown(event) {
-        if (event.key === "Enter" && !submitting) {
+        if (event.key === "Enter" && !submitting && !isCooldownActive) {
             event.preventDefault();
             requestMagicLink();
         }
@@ -295,6 +372,12 @@ export default function Login() {
                                 </div>
                             ) : null}
 
+                            {isCooldownActive ? (
+                                <div className="mt-5 rounded-[1.2rem] border border-[color:color-mix(in_srgb,var(--brand-warning)_22%,transparent)] bg-[color:color-mix(in_srgb,var(--brand-warning)_10%,transparent)] px-4 py-3 text-sm text-[color:color-mix(in_srgb,var(--brand-warning)_84%,var(--app-text-strong)_16%)]">
+                                    Podras solicitar un nuevo enlace en {cooldownRemaining}s.
+                                </div>
+                            ) : null}
+
                             {successMessage ? (
                                 <div className="mt-5 flex items-start gap-3 rounded-[1.2rem] border border-[color:color-mix(in_srgb,var(--brand-success)_22%,transparent)] bg-[color:color-mix(in_srgb,var(--brand-success)_12%,transparent)] px-4 py-3 text-sm text-[color:color-mix(in_srgb,var(--brand-success)_72%,white_28%)]">
                                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
@@ -333,11 +416,15 @@ export default function Login() {
                                 iconRight={ArrowRight}
                                 className="mt-8"
                                 onClick={requestMagicLink}
-                                disabled={submitting || !email.trim()}
+                                disabled={
+                                    submitting || !email.trim() || isCooldownActive
+                                }
                             >
                                 {submitting
                                     ? "Enviando acceso seguro..."
-                                    : "Enviar enlace de acceso"}
+                                    : isCooldownActive
+                                      ? `Espera ${cooldownRemaining}s para reenviar`
+                                      : "Enviar enlace de acceso"}
                             </Button>
                         </div>
                     </Surface>
