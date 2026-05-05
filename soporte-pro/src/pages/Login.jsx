@@ -53,6 +53,26 @@ function readLoginContext() {
 
 const TRUSTED_EMAIL_KEY = "soporte_phidias_trusted_email";
 
+function getFriendlyAuthErrorMessage(error) {
+    const rawMessage =
+        typeof error?.message === "string" ? error.message.trim() : "";
+    const normalized = rawMessage.toLowerCase();
+
+    if (normalized.includes("email rate limit exceeded")) {
+        return "Ya se enviaron demasiados enlaces en poco tiempo. Espera unos minutos y vuelve a intentarlo.";
+    }
+
+    if (normalized.includes("invalid email")) {
+        return "Debes ingresar un correo valido para continuar.";
+    }
+
+    if (normalized.includes("failed to fetch")) {
+        return "No se pudo conectar con el servicio de acceso. Revisa tu conexion e intenta nuevamente.";
+    }
+
+    return rawMessage || "No se pudo enviar el acceso seguro.";
+}
+
 function getAppBasePath() {
     const baseUrl = import.meta.env.BASE_URL || "/";
     return baseUrl === "/" ? "" : baseUrl.replace(/\/$/, "");
@@ -153,9 +173,7 @@ export default function Login() {
                 "Te enviamos un enlace seguro al correo. Abre ese mensaje una sola vez y despues esta sesion quedara guardada en este navegador."
             );
         } catch (error) {
-            setErrorMessage(
-                error.message || "No se pudo enviar el acceso seguro."
-            );
+            setErrorMessage(getFriendlyAuthErrorMessage(error));
         } finally {
             setSubmitting(false);
         }
