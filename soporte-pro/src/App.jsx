@@ -72,7 +72,13 @@ function stripAuthParamsFromUrl() {
         }
     });
 
-    if (url.hash) {
+    const hash = url.hash || "";
+    if (
+        hash.includes("access_token") ||
+        hash.includes("refresh_token") ||
+        hash.includes("token_type") ||
+        hash.includes("expires_in")
+    ) {
         changed = true;
         url.hash = "";
     }
@@ -296,10 +302,10 @@ function App() {
 
             if (authCode) {
                 await supabase.auth.exchangeCodeForSession(authCode).catch(() => null);
-                stripAuthParamsFromUrl();
             }
 
             const { data } = await supabase.auth.getSession();
+            stripAuthParamsFromUrl();
             hydrateSession(data.session);
         }
 

@@ -58,6 +58,20 @@ function getAppBasePath() {
     return baseUrl === "/" ? "" : baseUrl.replace(/\/$/, "");
 }
 
+function getAuthRedirectBase({ appBasePath }) {
+    const configuredAppUrl = (import.meta.env.VITE_APP_URL || "").trim();
+
+    if (configuredAppUrl) {
+        return configuredAppUrl.replace(/\/$/, "");
+    }
+
+    if (typeof window === "undefined") {
+        return "";
+    }
+
+    return `${window.location.origin}${appBasePath || ""}`;
+}
+
 function getTrustedEmail() {
     if (typeof window === "undefined") {
         return "";
@@ -69,7 +83,9 @@ function getTrustedEmail() {
 }
 
 function buildEmailRedirectUrl({ appBasePath, email, source, returnTo }) {
-    if (typeof window === "undefined") {
+    const base = getAuthRedirectBase({ appBasePath });
+
+    if (!base) {
         return undefined;
     }
 
@@ -87,8 +103,8 @@ function buildEmailRedirectUrl({ appBasePath, email, source, returnTo }) {
         params.set("returnTo", returnTo);
     }
 
-    const base = `${window.location.origin}${appBasePath || ""}/`;
-    return params.toString() ? `${base}?${params.toString()}` : base;
+    const target = `${base}/`;
+    return params.toString() ? `${target}?${params.toString()}` : target;
 }
 
 export default function Login() {

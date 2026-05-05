@@ -6,5 +6,10 @@ const fallbackSupabaseAnonKey =
 
 export const supabase = createClient(
     import.meta.env.VITE_SUPABASE_URL || fallbackSupabaseUrl,
-    import.meta.env.VITE_SUPABASE_ANON_KEY || fallbackSupabaseAnonKey
+    import.meta.env.VITE_SUPABASE_ANON_KEY || fallbackSupabaseAnonKey,
+    {
+        auth: {
+            flowType: "pkce",
+        },
+    }
 );
