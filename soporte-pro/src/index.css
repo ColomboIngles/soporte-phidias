@@ -17,6 +17,11 @@
         --brand-danger: #dc2626;
         --brand-warning: #d97706;
         --brand-success: #16a34a;
+        --brand-process: #2563eb;
+        --brand-sidebar: #2d2f72;
+        --brand-sidebar-rgb: 45 47 114;
+        --brand-sidebar-strong: #232558;
+        --brand-sidebar-highlight: #7c83ff;
         --brand-ivory: #f7f8fc;
         --radius-sm: 1rem;
         --radius-md: 1.25rem;
@@ -25,13 +30,13 @@
         --radius-2xl: 2rem;
         --radius-3xl: 2.5rem;
 
-        --app-bg: #f5f7fb;
+        --app-bg: #edf1f8;
         --app-bg-elevated: #ffffff;
-        --app-surface: rgba(255, 255, 255, 0.82);
-        --app-surface-strong: rgba(255, 255, 255, 0.96);
-        --app-surface-muted: rgba(248, 250, 252, 0.94);
-        --app-border: rgba(15, 23, 42, 0.08);
-        --app-border-strong: rgba(79, 70, 229, 0.16);
+        --app-surface: rgba(255, 255, 255, 0.9);
+        --app-surface-strong: rgba(255, 255, 255, 0.98);
+        --app-surface-muted: rgba(244, 247, 255, 0.97);
+        --app-border: rgba(30, 41, 59, 0.09);
+        --app-border-strong: rgba(99, 102, 241, 0.24);
         --app-text: #334155;
         --app-text-strong: #0f172a;
         --app-text-primary: var(--app-text-strong);
@@ -43,10 +48,10 @@
         --app-accent-strong: #4338ca;
         --app-accent-soft: rgba(99, 102, 241, 0.1);
         --app-highlight: #c7d2fe;
-        --app-shadow-sm: 0 8px 24px rgba(15, 23, 42, 0.05);
-        --app-shadow-md: 0 16px 40px rgba(15, 23, 42, 0.07);
-        --app-shadow-lg: 0 24px 56px rgba(15, 23, 42, 0.1);
-        --app-ring: rgba(99, 102, 241, 0.16);
+        --app-shadow-sm: 0 10px 24px rgba(15, 23, 42, 0.07);
+        --app-shadow-md: 0 18px 42px rgba(15, 23, 42, 0.1);
+        --app-shadow-lg: 0 28px 64px rgba(15, 23, 42, 0.14);
+        --app-ring: rgba(99, 102, 241, 0.22);
         --app-overlay: rgba(15, 23, 42, 0.42);
     }
 
@@ -79,9 +84,9 @@
         font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
         scroll-behavior: smooth;
         background:
-            radial-gradient(circle at top left, rgba(99, 102, 241, 0.1), transparent 22%),
-            radial-gradient(circle at top right, rgba(129, 140, 248, 0.08), transparent 20%),
-            linear-gradient(180deg, #fbfcff 0%, #f5f7fb 48%, #eef2ff 100%);
+            radial-gradient(circle at top left, rgba(99, 102, 241, 0.14), transparent 22%),
+            radial-gradient(circle at top right, rgba(129, 140, 248, 0.1), transparent 20%),
+            linear-gradient(180deg, #f8faff 0%, #eff3fa 46%, #e8edf8 100%);
         color: var(--app-text);
     }
 
@@ -112,7 +117,7 @@
             linear-gradient(90deg, rgba(99, 102, 241, 0.015) 1px, transparent 1px);
         background-size: 44px 44px;
         mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.3), transparent 78%);
-        opacity: 0.58;
+        opacity: 0.68;
     }
 
     html.dark body::before,
@@ -206,7 +211,9 @@
             color-mix(in srgb, var(--app-surface-strong) 92%, white 8%),
             color-mix(in srgb, var(--app-surface) 98%, transparent)
         );
-        box-shadow: var(--app-shadow-md);
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.88),
+            var(--app-shadow-md);
         backdrop-filter: blur(18px);
     }
 
@@ -219,7 +226,9 @@
             color-mix(in srgb, var(--app-surface-muted) 94%, white 6%),
             color-mix(in srgb, var(--app-surface-strong) 96%, transparent)
         );
-        box-shadow: var(--app-shadow-sm);
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.8),
+            var(--app-shadow-sm);
         backdrop-filter: blur(14px);
     }
 
@@ -231,7 +240,9 @@
             color-mix(in srgb, var(--app-surface-strong) 96%, white 4%),
             color-mix(in srgb, var(--app-surface) 100%, transparent)
         );
-        box-shadow: var(--app-shadow-lg);
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.94),
+            var(--app-shadow-lg);
         backdrop-filter: blur(22px);
     }
 
@@ -263,7 +274,7 @@
     .soft-hover:hover {
         transform: translateY(-1px);
         border-color: var(--app-border-strong);
-        box-shadow: 0 16px 38px rgba(15, 23, 42, 0.09);
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
     }
 
     .app-kicker,
@@ -551,27 +562,27 @@
     }
 
     .app-badge-success {
-        background: color-mix(in srgb, var(--brand-success) 14%, transparent);
-        border-color: color-mix(in srgb, var(--brand-success) 18%, transparent);
-        color: color-mix(in srgb, var(--brand-success) 78%, var(--app-text-strong) 22%);
+        background: color-mix(in srgb, var(--brand-success) 18%, white 82%);
+        border-color: color-mix(in srgb, var(--brand-success) 26%, transparent);
+        color: color-mix(in srgb, var(--brand-success) 90%, var(--app-text-strong) 10%);
     }
 
     .app-badge-info {
-        background: color-mix(in srgb, var(--brand-accent) 14%, transparent);
-        border-color: color-mix(in srgb, var(--brand-accent) 18%, transparent);
-        color: color-mix(in srgb, var(--brand-accent) 82%, var(--app-text-strong) 18%);
+        background: color-mix(in srgb, var(--brand-process) 16%, white 84%);
+        border-color: color-mix(in srgb, var(--brand-process) 24%, transparent);
+        color: color-mix(in srgb, var(--brand-process) 92%, var(--app-text-strong) 8%);
     }
 
     .app-badge-warning {
-        background: color-mix(in srgb, var(--brand-warning) 14%, transparent);
-        border-color: color-mix(in srgb, var(--brand-warning) 18%, transparent);
-        color: color-mix(in srgb, var(--brand-warning) 82%, var(--app-text-strong) 18%);
+        background: color-mix(in srgb, var(--brand-warning) 18%, white 82%);
+        border-color: color-mix(in srgb, var(--brand-warning) 26%, transparent);
+        color: color-mix(in srgb, var(--brand-warning) 90%, var(--app-text-strong) 10%);
     }
 
     .app-badge-danger {
-        background: color-mix(in srgb, var(--brand-danger) 14%, transparent);
-        border-color: color-mix(in srgb, var(--brand-danger) 18%, transparent);
-        color: color-mix(in srgb, var(--brand-danger) 82%, var(--app-text-strong) 18%);
+        background: color-mix(in srgb, var(--brand-danger) 16%, white 84%);
+        border-color: color-mix(in srgb, var(--brand-danger) 24%, transparent);
+        color: color-mix(in srgb, var(--brand-danger) 90%, var(--app-text-strong) 10%);
     }
 
     .app-card {
@@ -732,13 +743,39 @@
         min-width: 0;
         border-right: 1px solid var(--app-border);
         background:
-            linear-gradient(
-                180deg,
-                color-mix(in srgb, var(--app-surface-strong) 92%, white 8%),
-                color-mix(in srgb, var(--app-surface) 98%, transparent)
-            );
+            radial-gradient(circle at top left, rgba(124, 131, 255, 0.22), transparent 24%),
+            linear-gradient(180deg, var(--brand-sidebar) 0%, var(--brand-sidebar-strong) 100%);
         backdrop-filter: blur(16px);
         overflow-x: hidden;
+        color: #e8ebff;
+    }
+
+    .sidebar-panel {
+        border: 1px solid rgba(226, 232, 240, 0.14);
+        background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.08),
+            0 18px 34px rgba(10, 15, 44, 0.22);
+        backdrop-filter: blur(16px);
+    }
+
+    .sidebar-brand-badge {
+        border-color: rgba(199, 210, 254, 0.2);
+        background: rgba(255, 255, 255, 0.08);
+        color: #c7d2fe;
+    }
+
+    .sidebar-panel-title {
+        color: #f8faff;
+    }
+
+    .sidebar-panel-copy {
+        color: rgba(226, 232, 240, 0.82);
+    }
+
+    .sidebar-panel-eyebrow {
+        color: rgba(199, 210, 254, 0.72);
     }
 
     .app-sidebar-link {
@@ -750,7 +787,7 @@
         border-radius: 1rem;
         border: 1px solid transparent;
         padding: 0.82rem 0.92rem;
-        color: var(--app-muted);
+        color: rgba(232, 235, 255, 0.88);
         font-size: 0.92rem;
         font-weight: 600;
         transition:
@@ -770,16 +807,30 @@
 
     .app-sidebar-link:hover {
         transform: translateY(-1px);
-        border-color: var(--app-border);
-        background: color-mix(in srgb, var(--app-surface-muted) 92%, transparent);
-        color: var(--app-text-strong);
+        border-color: rgba(199, 210, 254, 0.18);
+        background: rgba(255, 255, 255, 0.08);
+        color: white;
     }
 
     .app-sidebar-link[data-active="true"] {
-        border-color: var(--app-border-strong);
-        background: color-mix(in srgb, var(--app-accent-soft) 88%, white 12%);
-        color: var(--app-accent);
-        box-shadow: 0 10px 24px rgba(79, 70, 229, 0.08);
+        position: relative;
+        border-color: rgba(199, 210, 254, 0.24);
+        background:
+            linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(124, 131, 255, 0.18));
+        color: white;
+        box-shadow: 0 12px 28px rgba(16, 24, 40, 0.22);
+    }
+
+    .app-sidebar-link[data-active="true"]::before {
+        content: "";
+        position: absolute;
+        left: -1px;
+        top: 0.45rem;
+        bottom: 0.45rem;
+        width: 3px;
+        border-radius: 999px;
+        background: linear-gradient(180deg, #a5b4fc 0%, #ffffff 100%);
+        box-shadow: 0 0 18px rgba(165, 180, 252, 0.6);
     }
 
     .app-sidebar-icon {
@@ -789,15 +840,15 @@
         align-items: center;
         justify-content: center;
         border-radius: 0.95rem;
-        border: 1px solid var(--app-border);
-        background: color-mix(in srgb, var(--app-surface-strong) 84%, transparent);
-        color: var(--app-muted);
+        border: 1px solid rgba(226, 232, 240, 0.14);
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(232, 235, 255, 0.88);
     }
 
     .app-sidebar-link[data-active="true"] .app-sidebar-icon {
-        border-color: var(--app-border-strong);
-        background: rgba(var(--brand-secondary-rgb), 0.1);
-        color: var(--app-accent);
+        border-color: rgba(199, 210, 254, 0.24);
+        background: rgba(255, 255, 255, 0.12);
+        color: white;
     }
 
     .app-topbar-shell {
@@ -805,10 +856,11 @@
         background:
             linear-gradient(
                 180deg,
-                color-mix(in srgb, var(--app-surface-strong) 90%, transparent),
-                color-mix(in srgb, var(--app-surface) 96%, transparent)
+                color-mix(in srgb, var(--app-surface-strong) 86%, white 14%),
+                color-mix(in srgb, var(--app-surface) 94%, transparent)
             );
         backdrop-filter: blur(18px);
+        box-shadow: 0 10px 28px rgba(148, 163, 184, 0.08);
     }
 
     .app-search-shell {
@@ -887,7 +939,9 @@
         border: 1px solid var(--app-border);
         border-radius: 1.5rem;
         background: color-mix(in srgb, var(--app-surface-strong) 98%, white 2%);
-        box-shadow: var(--app-shadow-sm);
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.9),
+            var(--app-shadow-sm);
     }
 
     .data-table {
@@ -902,7 +956,11 @@
         top: 0;
         z-index: 1;
         border-bottom: 1px solid var(--app-border);
-        background: color-mix(in srgb, var(--app-surface-muted) 96%, white 4%);
+        background: linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--app-surface-muted) 96%, white 4%),
+            color-mix(in srgb, #edf2ff 94%, white 6%)
+        );
         padding: 1rem;
         text-align: left;
         font-size: 0.72rem;
@@ -951,39 +1009,39 @@
     }
 
     .status-chip-abierto {
-        background: color-mix(in srgb, var(--brand-warning) 14%, transparent);
-        border-color: color-mix(in srgb, var(--brand-warning) 18%, transparent);
-        color: color-mix(in srgb, var(--brand-warning) 82%, var(--app-text-strong) 18%);
+        background: color-mix(in srgb, var(--brand-warning) 16%, white 84%);
+        border-color: color-mix(in srgb, var(--brand-warning) 24%, transparent);
+        color: color-mix(in srgb, var(--brand-warning) 92%, var(--app-text-strong) 8%);
     }
 
     .status-chip-en-proceso {
-        background: color-mix(in srgb, var(--brand-secondary) 14%, transparent);
-        border-color: color-mix(in srgb, var(--brand-secondary) 18%, transparent);
-        color: color-mix(in srgb, var(--brand-secondary) 82%, var(--app-text-strong) 18%);
+        background: color-mix(in srgb, var(--brand-process) 16%, white 84%);
+        border-color: color-mix(in srgb, var(--brand-process) 24%, transparent);
+        color: color-mix(in srgb, var(--brand-process) 92%, var(--app-text-strong) 8%);
     }
 
     .status-chip-cerrado {
-        background: color-mix(in srgb, var(--brand-success) 14%, transparent);
-        border-color: color-mix(in srgb, var(--brand-success) 18%, transparent);
-        color: color-mix(in srgb, var(--brand-success) 82%, var(--app-text-strong) 18%);
+        background: color-mix(in srgb, var(--brand-success) 16%, white 84%);
+        border-color: color-mix(in srgb, var(--brand-success) 24%, transparent);
+        color: color-mix(in srgb, var(--brand-success) 92%, var(--app-text-strong) 8%);
     }
 
     .priority-chip-baja {
-        background: color-mix(in srgb, var(--brand-highlight) 18%, transparent);
-        border-color: color-mix(in srgb, var(--brand-highlight) 22%, transparent);
+        background: color-mix(in srgb, #94a3b8 18%, white 82%);
+        border-color: color-mix(in srgb, #94a3b8 26%, transparent);
         color: color-mix(in srgb, var(--app-text-secondary) 88%, var(--app-text-strong) 12%);
     }
 
     .priority-chip-media {
-        background: color-mix(in srgb, var(--brand-warning) 14%, transparent);
-        border-color: color-mix(in srgb, var(--brand-warning) 18%, transparent);
-        color: color-mix(in srgb, var(--brand-warning) 82%, var(--app-text-strong) 18%);
+        background: color-mix(in srgb, var(--brand-warning) 16%, white 84%);
+        border-color: color-mix(in srgb, var(--brand-warning) 24%, transparent);
+        color: color-mix(in srgb, var(--brand-warning) 90%, var(--app-text-strong) 10%);
     }
 
     .priority-chip-alta {
-        background: color-mix(in srgb, var(--brand-danger) 14%, transparent);
-        border-color: color-mix(in srgb, var(--brand-danger) 18%, transparent);
-        color: color-mix(in srgb, var(--brand-danger) 82%, var(--app-text-strong) 18%);
+        background: color-mix(in srgb, var(--brand-danger) 16%, white 84%);
+        border-color: color-mix(in srgb, var(--brand-danger) 24%, transparent);
+        color: color-mix(in srgb, var(--brand-danger) 90%, var(--app-text-strong) 10%);
     }
 
     .modal-backdrop {

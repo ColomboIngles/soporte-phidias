@@ -39,7 +39,7 @@ function SidebarNav({
 
     return (
         <div className="app-sidebar-shell flex h-full min-h-0 flex-col overflow-hidden p-3">
-            <MotionSection className="app-surface rounded-[1.75rem] p-4 shadow-sm">
+            <MotionSection className="sidebar-panel rounded-[1.75rem] p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                     <div
                         className={cn(
@@ -47,16 +47,16 @@ function SidebarNav({
                             collapsed && !mobile && "hidden"
                         )}
                     >
-                        <div className="brand-badge max-w-full">
+                        <div className="brand-badge sidebar-brand-badge max-w-full">
                             <Sparkles className="h-3.5 w-3.5" />
                             Soporte SaaS
                         </div>
-                        <h1 className="app-break-anywhere mt-4 text-[1.45rem] font-semibold tracking-tight text-[color:var(--app-text-primary)]">
+                        <h1 className="app-break-anywhere sidebar-panel-title mt-4 text-[1.45rem] font-semibold tracking-tight">
                             {isEndUser
                                 ? "Portal de seguimiento"
                                 : "Mesa de soporte"}
                         </h1>
-                        <p className="app-break-anywhere mt-3 text-sm leading-6 text-[color:var(--app-text-secondary)]">
+                        <p className="app-break-anywhere sidebar-panel-copy mt-3 text-sm leading-6">
                             {isEndUser
                                 ? "Consulta solicitudes, comparte evidencias y conversa con soporte desde una interfaz simple y profesional."
                                 : "Operacion centralizada de tickets, analitica y seguimiento tecnico con una experiencia clara y empresarial."}
@@ -160,19 +160,19 @@ function SidebarNav({
             <MotionSection
                 delay={0.14}
                 className={cn(
-                    "app-surface mt-6 min-w-0 rounded-[1.4rem] p-4 shadow-sm",
+                    "sidebar-panel mt-6 min-w-0 rounded-[1.4rem] p-4 shadow-sm",
                     collapsed && !mobile && "p-3 text-center"
                 )}
             >
-                <p className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--app-text-tertiary)]">
+                <p className="sidebar-panel-eyebrow text-[11px] uppercase tracking-[0.18em]">
                     Rol activo
                 </p>
-                <p className="mt-2 text-sm font-semibold capitalize text-[color:var(--app-text-primary)]">
+                <p className="sidebar-panel-title mt-2 text-sm font-semibold capitalize">
                     {rol || "cargando"}
                 </p>
                 <p
                     className={cn(
-                        "app-break-anywhere mt-2 text-xs leading-5 text-[color:var(--app-text-secondary)]",
+                        "app-break-anywhere sidebar-panel-copy mt-2 text-xs leading-5",
                         collapsed && !mobile && "hidden"
                     )}
                 >

@@ -9,9 +9,9 @@ const TONES = {
 };
 
 const LEGACY_TONES = {
-    abierto: TONES.success,
+    abierto: TONES.warning,
     proceso: TONES.info,
-    cerrado: TONES.neutral,
+    cerrado: TONES.success,
 };
 
 const SIZES = {

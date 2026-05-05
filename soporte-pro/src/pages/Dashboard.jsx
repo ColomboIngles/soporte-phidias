@@ -51,7 +51,7 @@ const DATE_PRESETS = [
 
 const STATUS_COLORS = {
     abierto: "#d97706",
-    en_proceso: "#6366f1",
+    en_proceso: "#2563eb",
     cerrado: "#16a34a",
 };
 
