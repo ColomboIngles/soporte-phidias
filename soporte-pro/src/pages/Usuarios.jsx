@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     Download,
     FileSpreadsheet,
+    Mail,
+    PencilLine,
+    Plus,
     ShieldCheck,
     Trash2,
     Upload,
@@ -12,20 +15,41 @@ import { supabase } from "../services/supabase";
 import Skeleton from "../components/skeleton";
 import EmptyState from "../components/EmptyState";
 import ConfirmDialog from "../components/ConfirmDialog";
+import Modal from "../components/ui/Modal";
 import { useToast } from "../hooks/useToast";
 import { MotionPage, MotionSection } from "../components/AppMotion";
 import Button from "../components/ui/Button";
 import Alert from "../components/ui/Alert";
+import Input from "../components/ui/Input";
+import Select from "../components/ui/Select";
 import {
     exportUsersTemplateWorkbook,
     exportUsersWorkbook,
     importUsersWorkbook,
 } from "../services/userBulk";
 
+const EMPTY_FORM = {
+    nombre: "",
+    email: "",
+    rol: "usuario",
+};
+
 function roleChipClass(rol) {
     if (rol === "admin") return "status-chip status-chip-cerrado";
     if (rol === "tecnico") return "status-chip status-chip-en-proceso";
     return "status-chip status-chip-abierto";
+}
+
+function normalizeEmail(value) {
+    return String(value || "").trim().toLowerCase();
+}
+
+function createProvisionalId() {
+    if (globalThis.crypto?.randomUUID) {
+        return globalThis.crypto.randomUUID();
+    }
+
+    return `temp-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
 }
 
 export default function Usuarios() {
@@ -37,6 +61,12 @@ export default function Usuarios() {
     const [importing, setImporting] = useState(false);
     const [exporting, setExporting] = useState(false);
     const [bulkSummary, setBulkSummary] = useState(null);
+    const [currentUserId, setCurrentUserId] = useState("");
+    const [userModalOpen, setUserModalOpen] = useState(false);
+    const [editingUser, setEditingUser] = useState(null);
+    const [formValues, setFormValues] = useState(EMPTY_FORM);
+    const [formErrors, setFormErrors] = useState({});
+    const [savingUser, setSavingUser] = useState(false);
     const [searchParams] = useSearchParams();
     const { showToast } = useToast();
     const importInputRef = useRef(null);
@@ -71,6 +101,12 @@ export default function Usuarios() {
 
         setUsuarios(data || []);
         return data || [];
+    }, []);
+
+    useEffect(() => {
+        supabase.auth.getUser().then(({ data }) => {
+            setCurrentUserId(data.user?.id || "");
+        });
     }, []);
 
     useEffect(() => {
@@ -113,6 +149,150 @@ export default function Usuarios() {
         };
     }, [showToast]);
 
+    function resetUserForm() {
+        setFormValues(EMPTY_FORM);
+        setFormErrors({});
+        setEditingUser(null);
+        setUserModalOpen(false);
+    }
+
+    function openCreateModal() {
+        setEditingUser(null);
+        setFormValues(EMPTY_FORM);
+        setFormErrors({});
+        setUserModalOpen(true);
+    }
+
+    function openEditModal(usuario) {
+        setEditingUser(usuario);
+        setFormValues({
+            nombre: usuario.nombre || "",
+            email: usuario.email || "",
+            rol: usuario.rol || "usuario",
+        });
+        setFormErrors({});
+        setUserModalOpen(true);
+    }
+
+    function updateFormValue(field, value) {
+        setFormValues((prev) => ({ ...prev, [field]: value }));
+        setFormErrors((prev) => ({ ...prev, [field]: "" }));
+    }
+
+    function validateUserForm() {
+        const nextErrors = {};
+        const nombre = String(formValues.nombre || "").trim();
+        const email = normalizeEmail(formValues.email);
+        const rol = String(formValues.rol || "").trim().toLowerCase();
+
+        if (!nombre) {
+            nextErrors.nombre = "Ingresa el nombre del usuario.";
+        }
+
+        if (!email) {
+            nextErrors.email = "Ingresa un correo.";
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            nextErrors.email = "Ingresa un correo valido.";
+        }
+
+        if (!["admin", "tecnico", "usuario"].includes(rol)) {
+            nextErrors.rol = "Selecciona un rol valido.";
+        }
+
+        const duplicateEmail = usuarios.find((usuario) => {
+            if (editingUser && usuario.id === editingUser.id) {
+                return false;
+            }
+
+            return normalizeEmail(usuario.email) === email;
+        });
+
+        if (duplicateEmail) {
+            nextErrors.email = "Ya existe un usuario con ese correo.";
+        }
+
+        setFormErrors(nextErrors);
+        return Object.keys(nextErrors).length === 0;
+    }
+
+    async function guardarUsuario() {
+        if (!validateUserForm()) {
+            return;
+        }
+
+        const payload = {
+            nombre: String(formValues.nombre || "").trim(),
+            email: normalizeEmail(formValues.email),
+            rol: String(formValues.rol || "usuario").trim().toLowerCase(),
+        };
+
+        try {
+            setSavingUser(true);
+
+            if (editingUser) {
+                const { data, error } = await supabase
+                    .from("usuarios")
+                    .update(payload)
+                    .eq("id", editingUser.id)
+                    .select("*")
+                    .maybeSingle();
+
+                if (error) {
+                    throw error;
+                }
+
+                setUsuarios((prev) =>
+                    prev.map((usuario) =>
+                        usuario.id === editingUser.id
+                            ? { ...usuario, ...(data || payload) }
+                            : usuario
+                    )
+                );
+
+                showToast({
+                    type: "success",
+                    title: "Usuario actualizado",
+                    message: "Los datos del usuario se guardaron correctamente.",
+                });
+            } else {
+                const { data, error } = await supabase
+                    .from("usuarios")
+                    .insert([
+                        {
+                            id: createProvisionalId(),
+                            ...payload,
+                        },
+                    ])
+                    .select("*")
+                    .maybeSingle();
+
+                if (error) {
+                    throw error;
+                }
+
+                setUsuarios((prev) => [data || payload, ...prev]);
+                showToast({
+                    type: "success",
+                    title: "Usuario creado",
+                    message:
+                        "La cuenta quedo lista en el sistema y sincronizara su identidad al primer acceso seguro.",
+                });
+            }
+
+            resetUserForm();
+        } catch (error) {
+            showToast({
+                type: "error",
+                title: editingUser
+                    ? "No se pudo actualizar el usuario"
+                    : "No se pudo crear el usuario",
+                message: error.message || "Intenta nuevamente en unos segundos.",
+            });
+        } finally {
+            setSavingUser(false);
+        }
+    }
+
     async function cambiarRol(id, rol) {
         try {
             setSavingRoleId(id);
@@ -153,6 +333,12 @@ export default function Usuarios() {
 
         try {
             setDeletingId(usuarioToDelete.id);
+
+            if (usuarioToDelete.id === currentUserId) {
+                throw new Error(
+                    "No puedes eliminar tu propia cuenta mientras estas usando el sistema."
+                );
+            }
 
             const { error } = await supabase
                 .from("usuarios")
@@ -291,6 +477,9 @@ export default function Usuarios() {
                     </div>
 
                     <div className="mt-5 flex flex-wrap gap-3">
+                        <Button iconLeft={Plus} onClick={openCreateModal}>
+                            Nuevo usuario
+                        </Button>
                         <Button
                             variant="secondary"
                             iconLeft={Upload}
@@ -458,6 +647,16 @@ export default function Usuarios() {
                                         </div>
 
                                         <div className="mt-4 grid gap-3">
+                                            <Button
+                                                onClick={() => openEditModal(usuario)}
+                                                variant="secondary"
+                                                size="sm"
+                                                className="w-full"
+                                                iconLeft={PencilLine}
+                                            >
+                                                Editar
+                                            </Button>
+
                                             <select
                                                 value={usuario.rol}
                                                 aria-label={`Cambiar rol de ${usuario.email}`}
@@ -490,6 +689,10 @@ export default function Usuarios() {
                                                 variant="danger"
                                                 size="sm"
                                                 className="w-full"
+                                                disabled={
+                                                    deletingId === usuario.id ||
+                                                    usuario.id === currentUserId
+                                                }
                                             >
                                                 Eliminar
                                             </Button>
@@ -587,19 +790,40 @@ export default function Usuarios() {
                                                         </select>
                                                     </td>
                                                     <td>
-                                                        <Button
-                                                            onClick={() =>
-                                                                setUsuarioToDelete(
-                                                                    usuario
-                                                                )
-                                                            }
-                                                            variant="danger"
-                                                            size="sm"
-                                                            className="w-10 px-0"
-                                                            aria-label={`Eliminar ${usuario.email}`}
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
+                                                        <div className="flex items-center justify-end gap-2">
+                                                            <Button
+                                                                onClick={() =>
+                                                                    openEditModal(
+                                                                        usuario
+                                                                    )
+                                                                }
+                                                                variant="secondary"
+                                                                size="sm"
+                                                                className="w-10 px-0"
+                                                                aria-label={`Editar ${usuario.email}`}
+                                                            >
+                                                                <PencilLine className="h-4 w-4" />
+                                                            </Button>
+                                                            <Button
+                                                                onClick={() =>
+                                                                    setUsuarioToDelete(
+                                                                        usuario
+                                                                    )
+                                                                }
+                                                                variant="danger"
+                                                                size="sm"
+                                                                className="w-10 px-0"
+                                                                aria-label={`Eliminar ${usuario.email}`}
+                                                                disabled={
+                                                                    deletingId ===
+                                                                        usuario.id ||
+                                                                    usuario.id ===
+                                                                        currentUserId
+                                                                }
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             ))}
@@ -625,6 +849,74 @@ export default function Usuarios() {
                 confirmLabel="Eliminar usuario"
                 busy={deletingId === usuarioToDelete?.id}
             />
+
+            <Modal
+                open={userModalOpen}
+                onClose={resetUserForm}
+                title={editingUser ? "Editar usuario" : "Crear usuario"}
+                description={
+                    editingUser
+                        ? "Actualiza nombre, correo y rol sin afectar la experiencia del resto del equipo."
+                        : "Crea una cuenta operativa en el modulo de usuarios. La identidad definitiva se conciliara cuando la persona entre con acceso seguro."
+                }
+                icon={UsersIcon}
+                actions={
+                    <>
+                        <Button
+                            variant="ghost"
+                            onClick={resetUserForm}
+                            disabled={savingUser}
+                        >
+                            Cancelar
+                        </Button>
+                        <Button onClick={guardarUsuario} disabled={savingUser}>
+                            {savingUser
+                                ? editingUser
+                                    ? "Guardando..."
+                                    : "Creando..."
+                                : editingUser
+                                  ? "Guardar cambios"
+                                  : "Crear usuario"}
+                        </Button>
+                    </>
+                }
+            >
+                <div className="grid gap-4 md:grid-cols-2">
+                    <Input
+                        label="Nombre"
+                        value={formValues.nombre}
+                        onChange={(event) =>
+                            updateFormValue("nombre", event.target.value)
+                        }
+                        error={formErrors.nombre}
+                        placeholder="Nombre completo"
+                    />
+                    <Select
+                        label="Rol"
+                        value={formValues.rol}
+                        onChange={(event) =>
+                            updateFormValue("rol", event.target.value)
+                        }
+                        error={formErrors.rol}
+                    >
+                        <option value="admin">Admin</option>
+                        <option value="tecnico">Tecnico</option>
+                        <option value="usuario">Usuario</option>
+                    </Select>
+                    <Input
+                        label="Email"
+                        value={formValues.email}
+                        onChange={(event) =>
+                            updateFormValue("email", event.target.value)
+                        }
+                        error={formErrors.email}
+                        placeholder="persona@empresa.com"
+                        type="email"
+                        icon={Mail}
+                        containerClassName="md:col-span-2"
+                    />
+                </div>
+            </Modal>
         </>
     );
 }
