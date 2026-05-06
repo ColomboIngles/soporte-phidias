@@ -67,6 +67,16 @@ async function getUserByEmail(email) {
     return data || null;
 }
 
+async function getCurrentUserRoleFromRpc() {
+    const { data, error } = await supabase.rpc("current_user_role");
+
+    if (error) {
+        throw error;
+    }
+
+    return normalizeRole(data);
+}
+
 export async function crearUsuarioSiNoExiste(user) {
     const normalizedEmail = normalizeEmail(user.email);
     const existingById = await getUserById(user.id);
@@ -173,14 +183,22 @@ export async function crearUsuarioSiNoExiste(user) {
 
 export async function obtenerRol(userId, email = "") {
     try {
+        const rpcRole = await getCurrentUserRoleFromRpc().catch(() => null);
+
+        if (rpcRole && rpcRole !== "usuario") {
+            return rpcRole;
+        }
+
         const [existingById, existingByEmail] = await Promise.all([
             getUserById(userId),
             getUserByEmail(email),
         ]);
 
-        return normalizeRole(
+        const resolvedRole = normalizeRole(
             pickPreferredUser(existingById, existingByEmail)?.rol
         );
+
+        return rpcRole || resolvedRole;
     } catch {
         return "usuario";
     }

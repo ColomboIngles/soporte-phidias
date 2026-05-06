@@ -23,6 +23,7 @@ import {
 const TRUSTED_EMAIL_KEY = "soporte_phidias_trusted_email";
 const PHIDIAS_SESSION_MODE_KEY = "soporte_phidias_session_mode";
 const PHIDIAS_RETURN_TO_KEY = "soporte_phidias_return_to";
+const PHIDIAS_REFERRER_KEY = "soporte_phidias_referrer";
 
 const routerBasename =
     import.meta.env.BASE_URL && import.meta.env.BASE_URL !== "/"
@@ -38,6 +39,7 @@ function readAccessContext() {
         return {
             email: "",
             source: "",
+            returnTo: "",
         };
     }
 
@@ -46,6 +48,7 @@ function readAccessContext() {
     return {
         email: normalizeEmail(params.get("email") || ""),
         source: (params.get("source") || "").trim().toLowerCase(),
+        returnTo: (params.get("returnTo") || "").trim(),
     };
 }
 
@@ -106,7 +109,15 @@ function readPhidiasReturnTo() {
     return window.localStorage.getItem(PHIDIAS_RETURN_TO_KEY) || "";
 }
 
-function persistPhidiasAccess(returnTo = "") {
+function readPhidiasReferrer() {
+    if (typeof window === "undefined") {
+        return "";
+    }
+
+    return window.localStorage.getItem(PHIDIAS_REFERRER_KEY) || "";
+}
+
+function persistPhidiasAccess({ returnTo = "", referrer = "" } = {}) {
     if (typeof window === "undefined") {
         return;
     }
@@ -115,6 +126,10 @@ function persistPhidiasAccess(returnTo = "") {
 
     if (returnTo) {
         window.localStorage.setItem(PHIDIAS_RETURN_TO_KEY, returnTo);
+    }
+
+    if (referrer) {
+        window.localStorage.setItem(PHIDIAS_REFERRER_KEY, referrer);
     }
 }
 
@@ -175,7 +190,13 @@ function RouteFallback() {
     );
 }
 
-function AppLayout({ rol, session, phidiasMode, phidiasReturnTo }) {
+function AppLayout({
+    rol,
+    session,
+    phidiasMode,
+    phidiasReturnTo,
+    phidiasReferrer,
+}) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const homeRoute = getHomeRouteByRole(rol);
@@ -199,6 +220,7 @@ function AppLayout({ rol, session, phidiasMode, phidiasReturnTo }) {
                         rol={rol}
                         phidiasMode={phidiasMode}
                         phidiasReturnTo={phidiasReturnTo}
+                        phidiasReferrer={phidiasReferrer}
                         onOpenSidebar={() => setSidebarOpen(true)}
                     />
 
@@ -283,6 +305,9 @@ function App() {
     const [phidiasReturnTo, setPhidiasReturnTo] = useState(() =>
         readPhidiasReturnTo()
     );
+    const [phidiasReferrer, setPhidiasReferrer] = useState(() =>
+        readPhidiasReferrer()
+    );
 
     useEffect(() => {
         let isMounted = true;
@@ -326,13 +351,22 @@ function App() {
                 accessContext.source === "phidias" ||
                 readPhidiasSessionMode()
             ) {
-                persistPhidiasAccess(
-                    accessContext.returnTo || readPhidiasReturnTo()
-                );
+                const nextReferrer =
+                    (typeof document !== "undefined" &&
+                    document.referrer &&
+                    !document.referrer.includes(window.location.origin)
+                        ? document.referrer
+                        : "") || readPhidiasReferrer();
+
+                persistPhidiasAccess({
+                    returnTo: accessContext.returnTo || readPhidiasReturnTo(),
+                    referrer: nextReferrer,
+                });
                 setPhidiasMode(true);
                 setPhidiasReturnTo(
                     accessContext.returnTo || readPhidiasReturnTo()
                 );
+                setPhidiasReferrer(nextReferrer);
             }
 
             const hydratedUser = await crearUsuarioSiNoExiste(nextSession.user);
@@ -386,6 +420,7 @@ function App() {
                     session={session}
                     phidiasMode={phidiasMode}
                     phidiasReturnTo={phidiasReturnTo}
+                    phidiasReferrer={phidiasReferrer}
                 />
             )}
         </ToastProvider>

@@ -9,6 +9,7 @@ import { MotionItem, MotionSection, MotionStagger } from "./AppMotion";
 const TRUSTED_EMAIL_KEY = "soporte_phidias_trusted_email";
 const PHIDIAS_SESSION_MODE_KEY = "soporte_phidias_session_mode";
 const PHIDIAS_RETURN_TO_KEY = "soporte_phidias_return_to";
+const PHIDIAS_REFERRER_KEY = "soporte_phidias_referrer";
 
 function getUserInitial(email) {
     return String(email || "?").charAt(0).toUpperCase();
@@ -22,6 +23,7 @@ function clearPhidiasAccess() {
     window.localStorage.removeItem(TRUSTED_EMAIL_KEY);
     window.localStorage.removeItem(PHIDIAS_SESSION_MODE_KEY);
     window.localStorage.removeItem(PHIDIAS_RETURN_TO_KEY);
+    window.localStorage.removeItem(PHIDIAS_REFERRER_KEY);
 }
 
 export default function Topbar({
@@ -29,6 +31,7 @@ export default function Topbar({
     rol,
     phidiasMode = false,
     phidiasReturnTo = "",
+    phidiasReferrer = "",
     onOpenSidebar,
 }) {
     const isEndUser = isEndUserRole(rol);
@@ -44,6 +47,11 @@ export default function Topbar({
     }
 
     function softExit() {
+        if (phidiasReferrer) {
+            window.location.assign(phidiasReferrer);
+            return;
+        }
+
         if (typeof window !== "undefined" && window.history.length > 1) {
             window.history.back();
             return;
