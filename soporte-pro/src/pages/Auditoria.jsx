@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
     CheckCircle2,
     Clock3,
@@ -7,6 +7,7 @@ import {
     ShieldCheck,
     Trash2,
 } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import { obtenerAuditoria } from "../services/audit";
 import Skeleton from "../components/skeleton";
@@ -117,6 +118,25 @@ function TimelineItem({ item, isLast }) {
 export default function Auditoria() {
     const [historial, setHistorial] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [searchParams] = useSearchParams();
+    const searchTerm = (searchParams.get("search") || "").trim().toLowerCase();
+    const historialVisible = useMemo(() => {
+        if (!searchTerm) return historial;
+
+        return historial.filter((item) => {
+            const haystack = [
+                item.usuario,
+                item.accion,
+                item.ticket_id,
+                item.created_at,
+            ]
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase();
+
+            return haystack.includes(searchTerm);
+        });
+    }, [historial, searchTerm]);
 
     useEffect(() => {
         let activo = true;
@@ -180,7 +200,7 @@ export default function Auditoria() {
                             Eventos registrados
                         </p>
                         <p className="mt-1 text-2xl font-semibold text-[color:var(--app-text-primary)]">
-                            {historial.length}
+                            {historialVisible.length}
                         </p>
                     </div>
                 </div>
@@ -190,22 +210,30 @@ export default function Auditoria() {
                 delay={0.08}
                 className="app-surface rounded-[2rem] p-6"
             >
-                {historial.length === 0 ? (
+                {historialVisible.length === 0 ? (
                     <EmptyState
                         icon={ShieldCheck}
-                        eyebrow="Sin trazabilidad"
-                        title="Sin eventos todavia"
-                        description="Las acciones auditadas sobre tickets apareceran aqui automaticamente cuando empiecen a registrarse movimientos."
+                        eyebrow={searchTerm ? "Sin coincidencias" : "Sin trazabilidad"}
+                        title={
+                            searchTerm
+                                ? "No hay eventos para esta busqueda"
+                                : "Sin eventos todavia"
+                        }
+                        description={
+                            searchTerm
+                                ? `No encontramos eventos de auditoria que coincidan con "${searchParams.get("search")}".`
+                                : "Las acciones auditadas sobre tickets apareceran aqui automaticamente cuando empiecen a registrarse movimientos."
+                        }
                     />
                 ) : (
                     <MotionStagger className="space-y-5">
-                        {historial.map((item, index) => (
+                        {historialVisible.map((item, index) => (
                             <MotionItem
                                 key={`${item.ticket_id}-${item.created_at}-${index}`}
                             >
                                 <TimelineItem
                                     item={item}
-                                    isLast={index === historial.length - 1}
+                                    isLast={index === historialVisible.length - 1}
                                 />
                             </MotionItem>
                         ))}

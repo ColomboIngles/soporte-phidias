@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { KanbanSquare, LoaderCircle } from "lucide-react";
 import { DragDropContext, Draggable, Droppable } from "@hello-pangea/dnd";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import API from "../services/api";
 import { useToast } from "../hooks/useToast";
@@ -65,6 +66,25 @@ function patchColumnsTicket(columnas, ticketId, updater) {
             },
         ])
     );
+}
+
+function matchesKanbanSearch(ticket, tecnicos, searchTerm) {
+    if (!searchTerm) return true;
+
+    const tecnico = resolverNombreTecnico(tecnicos, ticket.asignado_a);
+    const haystack = [
+        ticket.titulo,
+        ticket.id,
+        ticket.estado,
+        ticket.prioridad,
+        ticket.email,
+        tecnico,
+    ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+    return haystack.includes(searchTerm);
 }
 
 function TicketCard({
@@ -158,13 +178,38 @@ export default function Kanban({ rol }) {
     const [tickets, setTickets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [movingTicketId, setMovingTicketId] = useState(null);
+    const [searchParams] = useSearchParams();
     const { showToast } = useToast();
     const dragPortal = useMemo(
         () => (typeof document !== "undefined" ? document.body : null),
         []
     );
+    const searchTerm = (searchParams.get("search") || "").trim().toLowerCase();
 
     const canAssign = isAdminRole(rol);
+    const visibleColumns = useMemo(() => {
+        if (!searchTerm) return columnas;
+
+        return Object.fromEntries(
+            Object.entries(columnas).map(([columnId, column]) => [
+                columnId,
+                {
+                    ...column,
+                    items: column.items.filter((ticket) =>
+                        matchesKanbanSearch(ticket, tecnicos, searchTerm)
+                    ),
+                },
+            ])
+        );
+    }, [columnas, tecnicos, searchTerm]);
+    const visibleTicketCount = useMemo(
+        () =>
+            Object.values(visibleColumns).reduce(
+                (total, column) => total + column.items.length,
+                0
+            ),
+        [visibleColumns]
+    );
 
     useEffect(() => {
         let activo = true;
@@ -418,20 +463,33 @@ export default function Kanban({ rol }) {
             </MotionSection>
 
             <DragDropContext onDragEnd={onDragEnd}>
-                {tickets.length === 0 ? (
+                {visibleTicketCount === 0 ? (
                     <EmptyState
                         icon={KanbanSquare}
-                        eyebrow="Sin columnas activas"
-                        title="No hay tickets para organizar"
-                        description="Cuando entren tickets al sistema podras moverlos entre columnas y asignarlos desde aqui."
+                        eyebrow={searchTerm ? "Sin coincidencias" : "Sin columnas activas"}
+                        title={
+                            searchTerm
+                                ? "No hay tickets que coincidan con tu busqueda"
+                                : "No hay tickets para organizar"
+                        }
+                        description={
+                            searchTerm
+                                ? `No encontramos tickets en kanban para "${searchParams.get("search")}".`
+                                : "Cuando entren tickets al sistema podras moverlos entre columnas y asignarlos desde aqui."
+                        }
                     />
                 ) : (
                     <MotionSection
                         delay={0.1}
                         className="pb-2"
                     >
+                        {searchTerm ? (
+                            <div className="mb-4 app-surface-muted rounded-[1.35rem] px-4 py-3 text-sm text-[color:var(--app-text-secondary)]">
+                                La busqueda esta filtrando el tablero. Limpiala para volver a mover tickets entre columnas.
+                            </div>
+                        ) : null}
                         <MotionStagger className="grid gap-4 sm:gap-5 lg:grid-cols-2 xl:grid-cols-3 xl:gap-6">
-                            {Object.entries(columnas).map(([id, col]) => (
+                            {Object.entries(visibleColumns).map(([id, col]) => (
                                 <MotionItem
                                     key={id}
                                     className="app-surface min-w-0 rounded-[1.75rem] p-4 sm:p-5"
@@ -466,6 +524,7 @@ export default function Kanban({ rol }) {
                                                         key={ticket.id}
                                                         draggableId={String(ticket.id)}
                                                         index={index}
+                                                        isDragDisabled={Boolean(searchTerm)}
                                                     >
                                                         {(dragProvided, snapshot) => {
                                                             const card = (

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     Download,
     FileSpreadsheet,
@@ -7,6 +7,7 @@ import {
     Upload,
     Users as UsersIcon,
 } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import Skeleton from "../components/skeleton";
 import EmptyState from "../components/EmptyState";
@@ -36,8 +37,27 @@ export default function Usuarios() {
     const [importing, setImporting] = useState(false);
     const [exporting, setExporting] = useState(false);
     const [bulkSummary, setBulkSummary] = useState(null);
+    const [searchParams] = useSearchParams();
     const { showToast } = useToast();
     const importInputRef = useRef(null);
+    const searchTerm = (searchParams.get("search") || "").trim().toLowerCase();
+    const usuariosVisibles = useMemo(() => {
+        if (!searchTerm) return usuarios;
+
+        return usuarios.filter((usuario) => {
+            const haystack = [
+                usuario.email,
+                usuario.nombre,
+                usuario.rol,
+                usuario.id,
+            ]
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase();
+
+            return haystack.includes(searchTerm);
+        });
+    }, [usuarios, searchTerm]);
 
     const cargarUsuarios = useCallback(async () => {
         const { data, error } = await supabase
@@ -265,7 +285,7 @@ export default function Usuarios() {
                                 Total usuarios
                             </p>
                             <p className="mt-2 text-2xl font-semibold text-[color:var(--app-text-primary)]">
-                                {usuarios.length}
+                                {usuariosVisibles.length}
                             </p>
                         </div>
                     </div>
@@ -373,19 +393,27 @@ export default function Usuarios() {
                         ) : null}
                     </div>
 
-                    {usuarios.length === 0 ? (
+                    {usuariosVisibles.length === 0 ? (
                         <div className="p-2">
                             <EmptyState
                                 icon={UsersIcon}
-                                eyebrow="Sin cuentas"
-                                title="Sin usuarios registrados"
-                                description="Cuando existan usuarios en Supabase apareceran aqui con sus roles y acciones disponibles."
+                                eyebrow={searchTerm ? "Sin coincidencias" : "Sin cuentas"}
+                                title={
+                                    searchTerm
+                                        ? "No encontramos usuarios para esta busqueda"
+                                        : "Sin usuarios registrados"
+                                }
+                                description={
+                                    searchTerm
+                                        ? `No hay usuarios que coincidan con "${searchParams.get("search")}".`
+                                        : "Cuando existan usuarios en Supabase apareceran aqui con sus roles y acciones disponibles."
+                                }
                             />
                         </div>
                     ) : (
                         <>
                             <div className="space-y-3 lg:hidden">
-                                {usuarios.map((usuario) => (
+                                {usuariosVisibles.map((usuario) => (
                                     <div
                                         key={usuario.id}
                                         className="app-surface-muted rounded-[1.6rem] p-4"
@@ -493,7 +521,7 @@ export default function Usuarios() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {usuarios.map((usuario) => (
+                                            {usuariosVisibles.map((usuario) => (
                                                 <tr key={usuario.id}>
                                                     <td>
                                                         <div

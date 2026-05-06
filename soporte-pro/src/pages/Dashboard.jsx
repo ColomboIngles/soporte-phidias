@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
     Activity,
     ArrowDownRight,
@@ -182,6 +183,28 @@ function filtrarTicketsPorRango(lista, inicio, fin) {
         if (fin && createdAt > fin) return false;
         return true;
     });
+}
+
+function matchesDashboardSearch(ticket, usuariosMap, searchTerm) {
+    if (!searchTerm) return true;
+
+    const tecnico =
+        usuariosMap.get(ticket.asignado_a) ||
+        usuariosMap.get(ticket.asignado_por) ||
+        "Sin asignar";
+    const haystack = [
+        ticket.titulo,
+        ticket.id,
+        ticket.estado,
+        ticket.prioridad,
+        ticket.email,
+        tecnico,
+    ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+    return haystack.includes(searchTerm);
 }
 
 function getRangeDays(inicio, fin) {
@@ -692,6 +715,7 @@ export default function Dashboard() {
     const [tickets, setTickets] = useState([]);
     const [usuarios, setUsuarios] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [searchParams] = useSearchParams();
     const [fechaInicio, setFechaInicio] = useState(() => {
         const today = new Date();
         const start = new Date(today);
@@ -699,6 +723,7 @@ export default function Dashboard() {
         return formatDateInput(start);
     });
     const [fechaFin, setFechaFin] = useState(() => formatDateInput(new Date()));
+    const searchTerm = (searchParams.get("search") || "").trim().toLowerCase();
 
     useEffect(() => {
         let activo = true;
@@ -758,9 +783,17 @@ export default function Dashboard() {
             ])
         );
 
-        const currentTickets = filtrarTicketsPorRango(tickets, inicio, fin);
+        const searchableTickets = tickets.filter((ticket) =>
+            matchesDashboardSearch(ticket, usuariosMap, searchTerm)
+        );
+
+        const currentTickets = filtrarTicketsPorRango(searchableTickets, inicio, fin);
         const previousTickets = previousRange.inicio
-            ? filtrarTicketsPorRango(tickets, previousRange.inicio, previousRange.fin)
+            ? filtrarTicketsPorRango(
+                  searchableTickets,
+                  previousRange.inicio,
+                  previousRange.fin
+              )
             : [];
 
         const currentSummary = buildSummary(currentTickets, usuariosMap);
@@ -885,7 +918,7 @@ export default function Dashboard() {
             peakDay,
             dominantStatus,
         };
-    }, [tickets, usuarios, fechaInicio, fechaFin]);
+    }, [tickets, usuarios, fechaInicio, fechaFin, searchTerm]);
 
     function setPresetRange(days) {
         const today = new Date();

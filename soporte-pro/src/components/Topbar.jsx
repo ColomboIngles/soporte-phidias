@@ -11,6 +11,60 @@ const PHIDIAS_SESSION_MODE_KEY = "soporte_phidias_session_mode";
 const PHIDIAS_RETURN_TO_KEY = "soporte_phidias_return_to";
 const PHIDIAS_REFERRER_KEY = "soporte_phidias_referrer";
 
+function getSearchContext(pathname) {
+    if (pathname === "/") {
+        return {
+            pathname: "/",
+            placeholder: "Buscar tickets, tecnicos o estados en dashboard...",
+            label: "Buscar tickets, tecnicos o estados en dashboard",
+            replace: true,
+        };
+    }
+
+    if (pathname === "/kanban") {
+        return {
+            pathname: "/kanban",
+            placeholder: "Buscar tickets, tecnicos o estados en kanban...",
+            label: "Buscar tickets, tecnicos o estados en kanban",
+            replace: true,
+        };
+    }
+
+    if (pathname === "/usuarios") {
+        return {
+            pathname: "/usuarios",
+            placeholder: "Buscar usuarios, correos, roles o IDs...",
+            label: "Buscar usuarios, correos, roles o IDs",
+            replace: true,
+        };
+    }
+
+    if (pathname === "/auditoria") {
+        return {
+            pathname: "/auditoria",
+            placeholder: "Buscar usuarios, acciones o tickets auditados...",
+            label: "Buscar usuarios, acciones o tickets auditados",
+            replace: true,
+        };
+    }
+
+    if (pathname === "/tickets" || pathname.startsWith("/tickets/")) {
+        return {
+            pathname: "/tickets",
+            placeholder: "Buscar tickets, usuarios, tecnicos o estados...",
+            label: "Buscar tickets, usuarios, tecnicos o estados",
+            replace: pathname === "/tickets",
+        };
+    }
+
+    return {
+        pathname,
+        placeholder: "Buscar en este modulo...",
+        label: "Buscar en este modulo",
+        replace: true,
+    };
+}
+
 function getUserInitial(email) {
     return String(email || "?").charAt(0).toUpperCase();
 }
@@ -38,6 +92,7 @@ export default function Topbar({
     const navigate = useNavigate();
     const location = useLocation();
     const [searchParams] = useSearchParams();
+    const searchContext = getSearchContext(location.pathname);
     const currentSearch = searchParams.get("search") || "";
 
     async function logout() {
@@ -67,27 +122,18 @@ export default function Topbar({
         const normalized =
             typeof rawValue === "string" ? rawValue.trim() : "";
 
-        const params = new URLSearchParams();
+        const params = new URLSearchParams(searchParams);
 
         if (normalized) {
             params.set("search", normalized);
-        }
-
-        if (location.pathname === "/tickets") {
-            navigate(
-                {
-                    pathname: "/tickets",
-                    search: params.toString() ? `?${params.toString()}` : "",
-                },
-                { replace: true }
-            );
-            return;
+        } else {
+            params.delete("search");
         }
 
         navigate({
-            pathname: "/tickets",
+            pathname: searchContext.pathname,
             search: params.toString() ? `?${params.toString()}` : "",
-        });
+        }, { replace: searchContext.replace });
     }
 
     return (
@@ -122,8 +168,8 @@ export default function Topbar({
                                 key={currentSearch}
                                 name="global-search"
                                 defaultValue={currentSearch}
-                                placeholder="Buscar tickets, usuarios, tecnicos o estados..."
-                                aria-label="Buscar tickets, usuarios, tecnicos o estados"
+                                placeholder={searchContext.placeholder}
+                                aria-label={searchContext.label}
                             />
                             <button
                                 type="submit"
