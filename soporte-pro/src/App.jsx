@@ -284,11 +284,10 @@ function App() {
                 window.localStorage.setItem(TRUSTED_EMAIL_KEY, sessionEmail);
             }
 
-            await crearUsuarioSiNoExiste(nextSession.user);
-            const nextRol = await obtenerRol(
-                nextSession.user.id,
-                nextSession.user.email
-            );
+            const hydratedUser = await crearUsuarioSiNoExiste(nextSession.user);
+            const nextRol =
+                hydratedUser?.rol ||
+                (await obtenerRol(nextSession.user.id, nextSession.user.email));
 
             if (!isMounted) return;
 

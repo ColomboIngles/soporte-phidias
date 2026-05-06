@@ -4,6 +4,35 @@ function normalizeEmail(value) {
     return String(value ?? "").trim().toLowerCase();
 }
 
+const ROLE_PRIORITY = {
+    admin: 3,
+    tecnico: 2,
+    usuario: 1,
+};
+
+function normalizeRole(value) {
+    const normalized = String(value ?? "").trim().toLowerCase();
+    return ROLE_PRIORITY[normalized] ? normalized : "usuario";
+}
+
+function pickPreferredUser(...users) {
+    return users
+        .filter(Boolean)
+        .sort((left, right) => {
+            const byRole =
+                (ROLE_PRIORITY[normalizeRole(right?.rol)] || 0) -
+                (ROLE_PRIORITY[normalizeRole(left?.rol)] || 0);
+
+            if (byRole !== 0) {
+                return byRole;
+            }
+
+            const leftCreated = new Date(left?.created_at || 0).getTime();
+            const rightCreated = new Date(right?.created_at || 0).getTime();
+            return rightCreated - leftCreated;
+        })[0] || null;
+}
+
 async function getUserById(id) {
     const { data, error } = await supabase
         .from("usuarios")
@@ -39,21 +68,63 @@ async function getUserByEmail(email) {
 }
 
 export async function crearUsuarioSiNoExiste(user) {
+    const normalizedEmail = normalizeEmail(user.email);
     const existingById = await getUserById(user.id);
+    const existingByEmail = await getUserByEmail(normalizedEmail);
+    const preferredUser = pickPreferredUser(existingById, existingByEmail);
 
     if (existingById) {
-        return existingById;
+        const nextRole = normalizeRole(preferredUser?.rol || existingById.rol);
+        const nextNombre =
+            preferredUser?.nombre || existingById.nombre || normalizedEmail;
+        const nextEmail = normalizedEmail || normalizeEmail(existingById.email);
+
+        const needsSync =
+            normalizeRole(existingById.rol) !== nextRole ||
+            normalizeEmail(existingById.email) !== nextEmail ||
+            (existingById.nombre || "") !== (nextNombre || "");
+
+        if (!needsSync) {
+            return {
+                ...existingById,
+                rol: nextRole,
+                email: nextEmail,
+                nombre: nextNombre,
+            };
+        }
+
+        const { data, error } = await supabase
+            .from("usuarios")
+            .update({
+                email: nextEmail,
+                nombre: nextNombre,
+                rol: nextRole,
+            })
+            .eq("id", existingById.id)
+            .select("*")
+            .maybeSingle();
+
+        if (!error && data) {
+            return data;
+        }
+
+        return {
+            ...existingById,
+            rol: nextRole,
+            email: nextEmail,
+            nombre: nextNombre,
+        };
     }
 
-    const existingByEmail = await getUserByEmail(user.email);
-
     if (existingByEmail) {
+        const nextRole = normalizeRole(existingByEmail.rol);
         const { data, error } = await supabase
             .from("usuarios")
             .update({
                 id: user.id,
-                email: normalizeEmail(user.email),
-                nombre: existingByEmail.nombre || user.email,
+                email: normalizedEmail,
+                nombre: existingByEmail.nombre || normalizedEmail,
+                rol: nextRole,
             })
             .eq("id", existingByEmail.id)
             .select("*")
@@ -62,6 +133,14 @@ export async function crearUsuarioSiNoExiste(user) {
         if (!error && data) {
             return data;
         }
+
+        return {
+            ...existingByEmail,
+            id: user.id,
+            email: normalizedEmail,
+            nombre: existingByEmail.nombre || normalizedEmail,
+            rol: nextRole,
+        };
     }
 
     try {
@@ -70,8 +149,8 @@ export async function crearUsuarioSiNoExiste(user) {
             .insert([
                 {
                     id: user.id,
-                    email: normalizeEmail(user.email),
-                    nombre: user.email,
+                    email: normalizedEmail,
+                    nombre: normalizedEmail,
                     rol: "usuario",
                 },
             ])
@@ -94,14 +173,14 @@ export async function crearUsuarioSiNoExiste(user) {
 
 export async function obtenerRol(userId, email = "") {
     try {
-        const existingById = await getUserById(userId);
+        const [existingById, existingByEmail] = await Promise.all([
+            getUserById(userId),
+            getUserByEmail(email),
+        ]);
 
-        if (existingById?.rol) {
-            return existingById.rol;
-        }
-
-        const existingByEmail = await getUserByEmail(email);
-        return existingByEmail?.rol || "usuario";
+        return normalizeRole(
+            pickPreferredUser(existingById, existingByEmail)?.rol
+        );
     } catch {
         return "usuario";
     }
