@@ -190,19 +190,29 @@ export default function Sidebar({
     collapsed = false,
     onToggleCollapse,
 }) {
+    const desktopWidthClass = collapsed ? "w-[6.75rem]" : "w-[19rem]";
+
     return (
         <>
             <aside
                 className={cn(
-                    "hidden h-screen shrink-0 border-r border-transparent lg:block",
-                    collapsed ? "w-[6.75rem]" : "w-[19rem]"
+                    "hidden h-screen shrink-0 lg:block",
+                    desktopWidthClass
                 )}
+                aria-hidden="true"
             >
-                <SidebarNav
-                    rol={rol}
-                    collapsed={collapsed}
-                    onToggleCollapse={onToggleCollapse}
-                />
+                <div
+                    className={cn(
+                        "fixed inset-y-0 left-0 z-30 h-screen border-r border-transparent",
+                        desktopWidthClass
+                    )}
+                >
+                    <SidebarNav
+                        rol={rol}
+                        collapsed={collapsed}
+                        onToggleCollapse={onToggleCollapse}
+                    />
+                </div>
             </aside>
 
             <AnimatePresence>
