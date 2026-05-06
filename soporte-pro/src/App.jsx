@@ -21,6 +21,8 @@ import {
 } from "./utils/permissions";
 
 const TRUSTED_EMAIL_KEY = "soporte_phidias_trusted_email";
+const PHIDIAS_SESSION_MODE_KEY = "soporte_phidias_session_mode";
+const PHIDIAS_RETURN_TO_KEY = "soporte_phidias_return_to";
 
 const routerBasename =
     import.meta.env.BASE_URL && import.meta.env.BASE_URL !== "/"
@@ -88,6 +90,34 @@ function stripAuthParamsFromUrl() {
     }
 }
 
+function readPhidiasSessionMode() {
+    if (typeof window === "undefined") {
+        return false;
+    }
+
+    return window.localStorage.getItem(PHIDIAS_SESSION_MODE_KEY) === "1";
+}
+
+function readPhidiasReturnTo() {
+    if (typeof window === "undefined") {
+        return "";
+    }
+
+    return window.localStorage.getItem(PHIDIAS_RETURN_TO_KEY) || "";
+}
+
+function persistPhidiasAccess(returnTo = "") {
+    if (typeof window === "undefined") {
+        return;
+    }
+
+    window.localStorage.setItem(PHIDIAS_SESSION_MODE_KEY, "1");
+
+    if (returnTo) {
+        window.localStorage.setItem(PHIDIAS_RETURN_TO_KEY, returnTo);
+    }
+}
+
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Tickets = lazy(() => import("./pages/Tickets"));
 const TicketDetalle = lazy(() => import("./pages/TicketDetalle"));
@@ -145,7 +175,7 @@ function RouteFallback() {
     );
 }
 
-function AppLayout({ rol, session }) {
+function AppLayout({ rol, session, phidiasMode, phidiasReturnTo }) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const homeRoute = getHomeRouteByRole(rol);
@@ -167,6 +197,8 @@ function AppLayout({ rol, session }) {
                     <Topbar
                         user={session.user}
                         rol={rol}
+                        phidiasMode={phidiasMode}
+                        phidiasReturnTo={phidiasReturnTo}
                         onOpenSidebar={() => setSidebarOpen(true)}
                     />
 
@@ -245,6 +277,12 @@ function App() {
     const [session, setSession] = useState(null);
     const [rol, setRol] = useState(null);
     const [bootstrapping, setBootstrapping] = useState(true);
+    const [phidiasMode, setPhidiasMode] = useState(() =>
+        readPhidiasSessionMode()
+    );
+    const [phidiasReturnTo, setPhidiasReturnTo] = useState(() =>
+        readPhidiasReturnTo()
+    );
 
     useEffect(() => {
         let isMounted = true;
@@ -282,6 +320,19 @@ function App() {
 
             if (sessionEmail) {
                 window.localStorage.setItem(TRUSTED_EMAIL_KEY, sessionEmail);
+            }
+
+            if (
+                accessContext.source === "phidias" ||
+                readPhidiasSessionMode()
+            ) {
+                persistPhidiasAccess(
+                    accessContext.returnTo || readPhidiasReturnTo()
+                );
+                setPhidiasMode(true);
+                setPhidiasReturnTo(
+                    accessContext.returnTo || readPhidiasReturnTo()
+                );
             }
 
             const hydratedUser = await crearUsuarioSiNoExiste(nextSession.user);
@@ -330,7 +381,12 @@ function App() {
             ) : !session ? (
                 <Login />
             ) : (
-                <AppLayout rol={rol} session={session} />
+                <AppLayout
+                    rol={rol}
+                    session={session}
+                    phidiasMode={phidiasMode}
+                    phidiasReturnTo={phidiasReturnTo}
+                />
             )}
         </ToastProvider>
     );

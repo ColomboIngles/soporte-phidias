@@ -1,4 +1,4 @@
-import { Menu, Search, ShieldCheck } from "lucide-react";
+import { LogOut, Menu, Search, ShieldCheck } from "lucide-react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import Notifications from "./Notifications";
@@ -6,11 +6,31 @@ import ThemeToggle from "./ThemeToggle";
 import { isEndUserRole } from "../utils/permissions";
 import { MotionItem, MotionSection, MotionStagger } from "./AppMotion";
 
+const TRUSTED_EMAIL_KEY = "soporte_phidias_trusted_email";
+const PHIDIAS_SESSION_MODE_KEY = "soporte_phidias_session_mode";
+const PHIDIAS_RETURN_TO_KEY = "soporte_phidias_return_to";
+
 function getUserInitial(email) {
     return String(email || "?").charAt(0).toUpperCase();
 }
 
-export default function Topbar({ user, rol, onOpenSidebar }) {
+function clearPhidiasAccess() {
+    if (typeof window === "undefined") {
+        return;
+    }
+
+    window.localStorage.removeItem(TRUSTED_EMAIL_KEY);
+    window.localStorage.removeItem(PHIDIAS_SESSION_MODE_KEY);
+    window.localStorage.removeItem(PHIDIAS_RETURN_TO_KEY);
+}
+
+export default function Topbar({
+    user,
+    rol,
+    phidiasMode = false,
+    phidiasReturnTo = "",
+    onOpenSidebar,
+}) {
     const isEndUser = isEndUserRole(rol);
     const navigate = useNavigate();
     const location = useLocation();
@@ -18,8 +38,18 @@ export default function Topbar({ user, rol, onOpenSidebar }) {
     const currentSearch = searchParams.get("search") || "";
 
     async function logout() {
+        clearPhidiasAccess();
         await supabase.auth.signOut();
         window.location.reload();
+    }
+
+    function softExit() {
+        if (typeof window !== "undefined" && window.history.length > 1) {
+            window.history.back();
+            return;
+        }
+
+        navigate(phidiasReturnTo || "/tickets", { replace: true });
     }
 
     function submitSearch(event) {
@@ -130,12 +160,32 @@ export default function Topbar({ user, rol, onOpenSidebar }) {
                                 </p>
                             </div>
 
-                            <button
-                                onClick={logout}
-                                className="app-button app-button-ghost h-10 px-3 text-xs font-semibold"
-                            >
-                                Salir
-                            </button>
+                            {phidiasMode ? (
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={softExit}
+                                        className="app-button app-button-ghost h-10 px-3 text-xs font-semibold"
+                                        title="Salir de la vista sin cerrar la sesion validada"
+                                    >
+                                        Volver
+                                    </button>
+                                    <button
+                                        onClick={logout}
+                                        className="app-button app-button-ghost h-10 w-10 rounded-xl px-0 text-xs font-semibold"
+                                        title="Cambiar cuenta y cerrar la sesion validada"
+                                        aria-label="Cambiar cuenta y cerrar sesion"
+                                    >
+                                        <LogOut className="h-4 w-4" />
+                                    </button>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={logout}
+                                    className="app-button app-button-ghost h-10 px-3 text-xs font-semibold"
+                                >
+                                    Salir
+                                </button>
+                            )}
                         </div>
                     </MotionItem>
                 </MotionStagger>
