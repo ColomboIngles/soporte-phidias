@@ -24,6 +24,7 @@ export default function Modal({
     icon: Icon,
     size = "md",
     widthClassName,
+    bodyClassName,
 }) {
     useEffect(() => {
         if (!open) return undefined;
@@ -62,7 +63,7 @@ export default function Modal({
                 >
                     <MotionDiv
                         className={cn(
-                            "modal-card w-full overflow-hidden rounded-[2rem]",
+                            "modal-card flex max-h-[min(88vh,56rem)] w-full flex-col overflow-hidden rounded-[2rem]",
                             WIDTHS[size] || WIDTHS.md,
                             widthClassName
                         )}
@@ -120,7 +121,14 @@ export default function Modal({
                             </button>
                         </div>
 
-                        <div className="px-6 py-6">{children}</div>
+                        <div
+                            className={cn(
+                                "min-h-0 flex-1 overflow-y-auto px-6 py-6",
+                                bodyClassName
+                            )}
+                        >
+                            {children}
+                        </div>
 
                         {actions ? (
                             <div className="flex flex-wrap justify-end gap-3 border-t border-[color:var(--app-border)] px-6 py-5">
