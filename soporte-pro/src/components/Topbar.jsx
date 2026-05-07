@@ -1,6 +1,7 @@
 import { LogOut, Menu, Search, ShieldCheck } from "lucide-react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../services/supabase";
+import HelpAssistant from "./HelpAssistant";
 import Notifications from "./Notifications";
 import ThemeToggle from "./ThemeToggle";
 import { isEndUserRole } from "../utils/permissions";
@@ -187,6 +188,9 @@ export default function Topbar({
                     delayChildren={0.06}
                     staggerChildren={0.05}
                 >
+                    <MotionItem>
+                        <HelpAssistant role={rol} />
+                    </MotionItem>
                     <MotionItem>
                         <Notifications user={user.email} />
                     </MotionItem>
