@@ -21,10 +21,12 @@ import {
     MotionStagger,
 } from "../components/AppMotion";
 import {
+    clearAuthAccessError,
     clearMagicLinkCooldown,
     getTrustedEmail,
     normalizeEmail,
     persistTrustedEmail,
+    readAuthAccessError,
     readAccessContext,
     readMagicLinkCooldown,
     storeMagicLinkCooldown,
@@ -181,7 +183,7 @@ export default function Login({
     const [confirmPassword, setConfirmPassword] = useState("");
     const [view, setView] = useState(LOGIN_VIEW.SIGN_IN);
     const [submitting, setSubmitting] = useState(false);
-    const [errorMessage, setErrorMessage] = useState("");
+    const [errorMessage, setErrorMessage] = useState(() => readAuthAccessError());
     const [successMessage, setSuccessMessage] = useState("");
     const [cooldownUntil, setCooldownUntil] = useState(() =>
         readMagicLinkCooldown()
@@ -217,11 +219,13 @@ export default function Login({
         setSuccessMessage("");
         setPassword("");
         setConfirmPassword("");
+        clearAuthAccessError();
     }
 
     function resetFeedback() {
         setErrorMessage("");
         setSuccessMessage("");
+        clearAuthAccessError();
     }
 
     function goToView(nextView) {
@@ -421,6 +425,7 @@ export default function Login({
             );
 
             window.setTimeout(() => {
+                clearAuthAccessError();
                 onAuthFlowComplete?.();
             }, 900);
         } catch (error) {

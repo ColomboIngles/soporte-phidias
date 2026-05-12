@@ -77,7 +77,10 @@ async function getCurrentUserRoleFromRpc() {
     return normalizeRole(data);
 }
 
-export async function crearUsuarioSiNoExiste(user) {
+export async function crearUsuarioSiNoExiste(
+    user,
+    { allowCreateIfMissing = true } = {}
+) {
     const normalizedEmail = normalizeEmail(user.email);
     const existingById = await getUserById(user.id);
     const existingByEmail = await getUserByEmail(normalizedEmail);
@@ -151,6 +154,10 @@ export async function crearUsuarioSiNoExiste(user) {
             nombre: existingByEmail.nombre || normalizedEmail,
             rol: nextRole,
         };
+    }
+
+    if (!allowCreateIfMissing) {
+        return null;
     }
 
     try {

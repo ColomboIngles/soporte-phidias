@@ -3,8 +3,10 @@ import { Suspense, lazy, useEffect, useState } from "react";
 import { LoaderCircle, ShieldCheck, Sparkles } from "lucide-react";
 import { supabase } from "./services/supabase";
 import {
+    clearAuthAccessError,
     clearAccessFlowFromUrl,
     normalizeEmail,
+    persistAuthAccessError,
     readAccessContext,
     persistPhidiasAccess,
     persistTrustedEmail,
@@ -279,6 +281,7 @@ function App() {
 
             if (!nextSession?.user) {
                 setRol(null);
+                clearAuthAccessError();
                 if (isMounted) {
                     setBootstrapping(false);
                 }
@@ -304,7 +307,25 @@ function App() {
                 syncPhidiasState();
             }
 
-            const hydratedUser = await crearUsuarioSiNoExiste(nextSession.user);
+            const hydratedUser = await crearUsuarioSiNoExiste(nextSession.user, {
+                allowCreateIfMissing: false,
+            });
+
+            if (!hydratedUser) {
+                persistAuthAccessError(
+                    "Este correo no tiene acceso habilitado en el sistema de soporte. Solicita al administrador que lo registre primero en el modulo Usuarios."
+                );
+                await supabase.auth.signOut();
+                persistTrustedEmail("");
+
+                if (!isMounted) return;
+
+                setSession(null);
+                setRol(null);
+                setBootstrapping(false);
+                return;
+            }
+
             const nextRol =
                 hydratedUser?.rol ||
                 (await obtenerRol(nextSession.user.id, nextSession.user.email));

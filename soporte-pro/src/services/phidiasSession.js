@@ -4,6 +4,7 @@ export const PHIDIAS_RETURN_TO_KEY = "soporte_phidias_return_to";
 export const PHIDIAS_REFERRER_KEY = "soporte_phidias_referrer";
 export const MAGIC_LINK_COOLDOWN_KEY =
     "soporte_phidias_magic_link_cooldown_until";
+export const AUTH_ACCESS_ERROR_KEY = "soporte_phidias_auth_access_error";
 
 function hasBrowserWindow() {
     return typeof window !== "undefined";
@@ -153,4 +154,21 @@ export function storeMagicLinkCooldown(timestamp) {
 
 export function clearMagicLinkCooldown() {
     removeStoredValue(MAGIC_LINK_COOLDOWN_KEY);
+}
+
+export function readAuthAccessError() {
+    return readStoredString(AUTH_ACCESS_ERROR_KEY);
+}
+
+export function persistAuthAccessError(message) {
+    if (!message) {
+        removeStoredValue(AUTH_ACCESS_ERROR_KEY);
+        return;
+    }
+
+    writeStoredString(AUTH_ACCESS_ERROR_KEY, String(message));
+}
+
+export function clearAuthAccessError() {
+    removeStoredValue(AUTH_ACCESS_ERROR_KEY);
 }
