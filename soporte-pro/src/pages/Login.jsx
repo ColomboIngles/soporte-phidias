@@ -2,8 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import {
     ArrowRight,
     CheckCircle2,
+    KeyRound,
+    LockKeyhole,
     Mail,
     MoveRight,
+    RotateCcwKey,
     ShieldCheck,
     Sparkles,
 } from "lucide-react";
@@ -17,6 +20,15 @@ import {
     MotionSection,
     MotionStagger,
 } from "../components/AppMotion";
+import {
+    clearMagicLinkCooldown,
+    getTrustedEmail,
+    normalizeEmail,
+    persistTrustedEmail,
+    readAccessContext,
+    readMagicLinkCooldown,
+    storeMagicLinkCooldown,
+} from "../services/phidiasSession";
 
 const HIGHLIGHTS = [
     {
@@ -33,27 +45,14 @@ const HIGHLIGHTS = [
     },
 ];
 
-function readLoginContext() {
-    if (typeof window === "undefined") {
-        return {
-            email: "",
-            source: "",
-            returnTo: "",
-        };
-    }
-
-    const params = new URLSearchParams(window.location.search);
-
-    return {
-        email: (params.get("email") || "").trim().toLowerCase(),
-        source: (params.get("source") || "").trim().toLowerCase(),
-        returnTo: (params.get("returnTo") || "").trim(),
-    };
-}
-
-const TRUSTED_EMAIL_KEY = "soporte_phidias_trusted_email";
-const MAGIC_LINK_COOLDOWN_KEY = "soporte_phidias_magic_link_cooldown_until";
 const MAGIC_LINK_COOLDOWN_SECONDS = 90;
+const LOGIN_VIEW = {
+    SIGN_IN: "sign-in",
+    REQUEST_SETUP: "request-password-setup",
+    REQUEST_RECOVERY: "request-recovery",
+    COMPLETE_SETUP: "complete-password-setup",
+    COMPLETE_RECOVERY: "complete-recovery",
+};
 
 function getFriendlyAuthErrorMessage(error) {
     const rawMessage =
@@ -66,6 +65,17 @@ function getFriendlyAuthErrorMessage(error) {
 
     if (normalized.includes("invalid email")) {
         return "Debes ingresar un correo valido para continuar.";
+    }
+
+    if (
+        normalized.includes("invalid login credentials") ||
+        normalized.includes("invalid_credentials")
+    ) {
+        return "Correo o contrasena incorrectos. Verifica tus datos e intenta nuevamente.";
+    }
+
+    if (normalized.includes("email not confirmed")) {
+        return "Debes validar tu correo primero para ingresar con contrasena.";
     }
 
     if (normalized.includes("failed to fetch")) {
@@ -94,45 +104,13 @@ function getAuthRedirectBase({ appBasePath }) {
     return `${window.location.origin}${appBasePath || ""}`;
 }
 
-function getTrustedEmail() {
-    if (typeof window === "undefined") {
-        return "";
-    }
-
-    return (
-        window.localStorage.getItem(TRUSTED_EMAIL_KEY)?.trim().toLowerCase() || ""
-    );
-}
-
-function readMagicLinkCooldown() {
-    if (typeof window === "undefined") {
-        return 0;
-    }
-
-    const storedValue = Number(
-        window.localStorage.getItem(MAGIC_LINK_COOLDOWN_KEY) || 0
-    );
-
-    return Number.isFinite(storedValue) ? storedValue : 0;
-}
-
-function storeMagicLinkCooldown(timestamp) {
-    if (typeof window === "undefined") {
-        return;
-    }
-
-    window.localStorage.setItem(MAGIC_LINK_COOLDOWN_KEY, String(timestamp));
-}
-
-function clearMagicLinkCooldown() {
-    if (typeof window === "undefined") {
-        return;
-    }
-
-    window.localStorage.removeItem(MAGIC_LINK_COOLDOWN_KEY);
-}
-
-function buildEmailRedirectUrl({ appBasePath, email, source, returnTo }) {
+function buildEmailRedirectUrl({
+    appBasePath,
+    email,
+    source,
+    returnTo,
+    flow = "",
+}) {
     const base = getAuthRedirectBase({ appBasePath });
 
     if (!base) {
@@ -153,15 +131,55 @@ function buildEmailRedirectUrl({ appBasePath, email, source, returnTo }) {
         params.set("returnTo", returnTo);
     }
 
+    if (flow) {
+        params.set("flow", flow);
+    }
+
     const target = `${base}/`;
     return params.toString() ? `${target}?${params.toString()}` : target;
 }
 
-export default function Login() {
-    const loginContext = useMemo(() => readLoginContext(), []);
+function getForcedView(flow) {
+    if (flow === "create-password") {
+        return LOGIN_VIEW.COMPLETE_SETUP;
+    }
+
+    if (flow === "recovery") {
+        return LOGIN_VIEW.COMPLETE_RECOVERY;
+    }
+
+    return "";
+}
+
+function getNextCooldownUntil(nowTimestamp) {
+    return nowTimestamp + MAGIC_LINK_COOLDOWN_SECONDS * 1000;
+}
+
+function getPasswordValidationError(password, confirmPassword) {
+    if (!password || password.length < 8) {
+        return "La contrasena debe tener al menos 8 caracteres.";
+    }
+
+    if (password !== confirmPassword) {
+        return "Las contrasenas no coinciden.";
+    }
+
+    return "";
+}
+
+export default function Login({
+    forcedFlow = "",
+    session = null,
+    onAuthFlowComplete,
+}) {
+    const loginContext = useMemo(() => readAccessContext(), []);
     const appBasePath = useMemo(() => getAppBasePath(), []);
     const trustedEmail = useMemo(() => getTrustedEmail(), []);
+    const forcedView = getForcedView(forcedFlow);
     const [email, setEmail] = useState(loginContext.email || trustedEmail);
+    const [password, setPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
+    const [view, setView] = useState(LOGIN_VIEW.SIGN_IN);
     const [submitting, setSubmitting] = useState(false);
     const [errorMessage, setErrorMessage] = useState("");
     const [successMessage, setSuccessMessage] = useState("");
@@ -177,6 +195,7 @@ export default function Login() {
         0
     );
     const isCooldownActive = cooldownRemaining > 0;
+    const activeView = forcedView || view;
 
     useEffect(() => {
         if (!effectiveCooldownUntil) {
@@ -193,7 +212,60 @@ export default function Login() {
         };
     }, [effectiveCooldownUntil]);
 
-    async function requestMagicLink() {
+    function resetFormState() {
+        setErrorMessage("");
+        setSuccessMessage("");
+        setPassword("");
+        setConfirmPassword("");
+    }
+
+    function resetFeedback() {
+        setErrorMessage("");
+        setSuccessMessage("");
+    }
+
+    function goToView(nextView) {
+        if (forcedView) {
+            return;
+        }
+
+        resetFormState();
+        setView(nextView);
+    }
+
+    async function signInWithPassword() {
+        try {
+            setSubmitting(true);
+            resetFeedback();
+
+            const normalizedEmail = normalizeEmail(email);
+
+            if (!normalizedEmail) {
+                throw new Error("Debes ingresar un correo valido.");
+            }
+
+            if (!password) {
+                throw new Error("Debes ingresar tu contrasena.");
+            }
+
+            const { error } = await supabase.auth.signInWithPassword({
+                email: normalizedEmail,
+                password,
+            });
+
+            if (error) {
+                throw error;
+            }
+
+            persistTrustedEmail(normalizedEmail);
+        } catch (error) {
+            setErrorMessage(getFriendlyAuthErrorMessage(error));
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
+    async function requestPasswordSetup() {
         try {
             if (isCooldownActive) {
                 setErrorMessage(
@@ -203,10 +275,9 @@ export default function Login() {
             }
 
             setSubmitting(true);
-            setErrorMessage("");
-            setSuccessMessage("");
+            resetFeedback();
 
-            const normalizedEmail = email.trim().toLowerCase();
+            const normalizedEmail = normalizeEmail(email);
 
             if (!normalizedEmail) {
                 throw new Error("Debes ingresar un correo valido.");
@@ -217,6 +288,7 @@ export default function Login() {
                 email: normalizedEmail,
                 source: loginContext.source || "phidias",
                 returnTo: loginContext.returnTo,
+                flow: "create-password",
             });
 
             const { error } = await supabase.auth.signInWithOtp({
@@ -231,13 +303,12 @@ export default function Login() {
                 throw error;
             }
 
-            window.localStorage.setItem(TRUSTED_EMAIL_KEY, normalizedEmail);
-            const nextCooldown =
-                Date.now() + MAGIC_LINK_COOLDOWN_SECONDS * 1000;
+            persistTrustedEmail(normalizedEmail);
+            const nextCooldown = getNextCooldownUntil(new Date().getTime());
             setCooldownUntil(nextCooldown);
             storeMagicLinkCooldown(nextCooldown);
             setSuccessMessage(
-                "Te enviamos un enlace seguro al correo. Abre ese mensaje una sola vez y despues esta sesion quedara guardada en este navegador."
+                "Te enviamos un enlace para validar tu correo. Cuando lo abras, podras crear tu contrasena y luego ingresar desde cualquier dispositivo."
             );
         } catch (error) {
             setErrorMessage(getFriendlyAuthErrorMessage(error));
@@ -246,8 +317,7 @@ export default function Login() {
                 typeof error?.message === "string" &&
                 error.message.toLowerCase().includes("email rate limit exceeded")
             ) {
-                const nextCooldown =
-                    Date.now() + MAGIC_LINK_COOLDOWN_SECONDS * 1000;
+                const nextCooldown = getNextCooldownUntil(new Date().getTime());
                 setCooldownUntil(nextCooldown);
                 storeMagicLinkCooldown(nextCooldown);
             }
@@ -256,17 +326,223 @@ export default function Login() {
         }
     }
 
+    async function requestPasswordRecovery() {
+        try {
+            if (isCooldownActive) {
+                setErrorMessage(
+                    `Espera ${cooldownRemaining}s antes de solicitar otro correo de recuperacion.`
+                );
+                return;
+            }
+
+            setSubmitting(true);
+            resetFeedback();
+
+            const normalizedEmail = normalizeEmail(email);
+
+            if (!normalizedEmail) {
+                throw new Error("Debes ingresar un correo valido.");
+            }
+
+            const emailRedirectTo = buildEmailRedirectUrl({
+                appBasePath,
+                email: normalizedEmail,
+                source: loginContext.source || "phidias",
+                returnTo: loginContext.returnTo,
+                flow: "recovery",
+            });
+
+            const { error } = await supabase.auth.resetPasswordForEmail(
+                normalizedEmail,
+                {
+                    redirectTo: emailRedirectTo,
+                }
+            );
+
+            if (error) {
+                throw error;
+            }
+
+            persistTrustedEmail(normalizedEmail);
+            const nextCooldown = getNextCooldownUntil(new Date().getTime());
+            setCooldownUntil(nextCooldown);
+            storeMagicLinkCooldown(nextCooldown);
+            setSuccessMessage(
+                "Te enviamos un correo de recuperacion. Abre ese enlace y podras definir una contrasena nueva."
+            );
+        } catch (error) {
+            setErrorMessage(getFriendlyAuthErrorMessage(error));
+
+            if (
+                typeof error?.message === "string" &&
+                error.message.toLowerCase().includes("email rate limit exceeded")
+            ) {
+                const nextCooldown = getNextCooldownUntil(new Date().getTime());
+                setCooldownUntil(nextCooldown);
+                storeMagicLinkCooldown(nextCooldown);
+            }
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
+    async function completePasswordSetup() {
+        try {
+            setSubmitting(true);
+            resetFeedback();
+
+            if (!session?.user) {
+                throw new Error(
+                    "La sesion de validacion no esta activa. Abre de nuevo el correo enviado e intenta otra vez."
+                );
+            }
+
+            const validationError = getPasswordValidationError(
+                password,
+                confirmPassword
+            );
+
+            if (validationError) {
+                throw new Error(validationError);
+            }
+
+            const { error } = await supabase.auth.updateUser({
+                password,
+            });
+
+            if (error) {
+                throw error;
+            }
+
+            setSuccessMessage(
+                forcedView === LOGIN_VIEW.COMPLETE_RECOVERY
+                    ? "Tu contrasena ya fue actualizada. En unos segundos entraras al sistema."
+                    : "Tu contrasena ya quedo creada. En unos segundos entraras al sistema."
+            );
+
+            window.setTimeout(() => {
+                onAuthFlowComplete?.();
+            }, 900);
+        } catch (error) {
+            setErrorMessage(getFriendlyAuthErrorMessage(error));
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
     function handleEmailKeyDown(event) {
-        if (event.key === "Enter" && !submitting && !isCooldownActive) {
+        if (event.key !== "Enter" || submitting) {
+            return;
+        }
+
+        const emailRequestViews = [
+            LOGIN_VIEW.REQUEST_SETUP,
+            LOGIN_VIEW.REQUEST_RECOVERY,
+        ];
+
+        if (emailRequestViews.includes(activeView) && isCooldownActive) {
             event.preventDefault();
-            requestMagicLink();
+            return;
+        }
+
+        event.preventDefault();
+
+        if (activeView === LOGIN_VIEW.SIGN_IN) {
+            signInWithPassword();
+            return;
+        }
+
+        if (activeView === LOGIN_VIEW.REQUEST_SETUP) {
+            requestPasswordSetup();
+            return;
+        }
+
+        if (activeView === LOGIN_VIEW.REQUEST_RECOVERY) {
+            requestPasswordRecovery();
+        }
+    }
+
+    function handlePasswordKeyDown(event) {
+        if (event.key === "Enter" && !submitting) {
+            event.preventDefault();
+
+            if (
+                activeView === LOGIN_VIEW.COMPLETE_SETUP ||
+                activeView === LOGIN_VIEW.COMPLETE_RECOVERY
+            ) {
+                completePasswordSetup();
+                return;
+            }
+
+            signInWithPassword();
+        }
+    }
+
+    function getViewMeta() {
+        switch (activeView) {
+            case LOGIN_VIEW.REQUEST_SETUP:
+                return {
+                    kickerIcon: Mail,
+                    title: "Crear contrasena",
+                    helper:
+                        "Primero validaremos tu correo y luego te permitiremos definir una contrasena propia para ingresar desde cualquier plataforma.",
+                    submitLabel: isCooldownActive
+                        ? `Espera ${cooldownRemaining}s para reenviar`
+                        : "Validar correo y continuar",
+                    onSubmit: requestPasswordSetup,
+                };
+            case LOGIN_VIEW.REQUEST_RECOVERY:
+                return {
+                    kickerIcon: RotateCcwKey,
+                    title: "Recuperar acceso",
+                    helper:
+                        "Te enviaremos un correo seguro para restablecer tu contrasena y recuperar el ingreso a la plataforma.",
+                    submitLabel: isCooldownActive
+                        ? `Espera ${cooldownRemaining}s para reenviar`
+                        : "Enviar recuperacion",
+                    onSubmit: requestPasswordRecovery,
+                };
+            case LOGIN_VIEW.COMPLETE_SETUP:
+                return {
+                    kickerIcon: KeyRound,
+                    title: "Define tu contrasena",
+                    helper:
+                        "Tu correo ya fue validado. Ahora crea la contrasena con la que podras ingresar desde cualquier dispositivo.",
+                    submitLabel: "Guardar contrasena",
+                    onSubmit: completePasswordSetup,
+                };
+            case LOGIN_VIEW.COMPLETE_RECOVERY:
+                return {
+                    kickerIcon: RotateCcwKey,
+                    title: "Restablece tu contrasena",
+                    helper:
+                        "El correo de recuperacion ya fue validado. Ingresa una contrasena nueva para volver a entrar.",
+                    submitLabel: "Actualizar contrasena",
+                    onSubmit: completePasswordSetup,
+                };
+            case LOGIN_VIEW.SIGN_IN:
+            default:
+                return {
+                    kickerIcon: fromPhidias ? MoveRight : LockKeyhole,
+                    title: "Iniciar sesion",
+                    helper: fromPhidias
+                        ? "Ingresa con tu correo y contrasena. Si es tu primera vez, valida el correo una sola vez y luego podras entrar con tu propia contrasena."
+                        : "Ingresa con tu correo y contrasena para acceder al portal de soporte.",
+                    submitLabel: "Ingresar con contrasena",
+                    onSubmit: signInWithPassword,
+                };
         }
     }
 
     const accessLabel = fromPhidias ? "Acceso desde Phidias" : "Acceso seguro";
-    const helperCopy = fromPhidias
-        ? "Llegaste desde Phidias. Solo validaremos tu correo una vez con un enlace seguro y luego el acceso quedara recordado en este navegador."
-        : "Ingresa al portal de soporte con una experiencia visual premium, consistente y mas amable para el trabajo diario.";
+    const viewMeta = getViewMeta();
+    const showPasswordFields =
+        activeView === LOGIN_VIEW.SIGN_IN ||
+        activeView === LOGIN_VIEW.COMPLETE_SETUP ||
+        activeView === LOGIN_VIEW.COMPLETE_RECOVERY;
+    const isEmailDispatchView =
+        activeView === LOGIN_VIEW.REQUEST_SETUP ||
+        activeView === LOGIN_VIEW.REQUEST_RECOVERY;
 
     return (
         <MotionPage className="app-shell flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
@@ -340,19 +616,15 @@ export default function Login() {
                     >
                         <div className="mx-auto max-w-md">
                             <div className="app-kicker">
-                                {fromPhidias ? (
-                                    <MoveRight className="h-3.5 w-3.5" />
-                                ) : (
-                                    <Sparkles className="h-3.5 w-3.5" />
-                                )}
+                                <viewMeta.kickerIcon className="h-3.5 w-3.5" />
                                 {accessLabel}
                             </div>
 
                             <h2 className="mt-5 text-4xl font-semibold tracking-tight text-[color:var(--app-text-primary)]">
-                                Iniciar sesion
+                                {viewMeta.title}
                             </h2>
                             <p className="mt-3 text-sm leading-7 text-[color:var(--app-text-secondary)]">
-                                {helperCopy}
+                                {viewMeta.helper}
                             </p>
 
                             {fromPhidias ? (
@@ -401,12 +673,75 @@ export default function Login() {
                                                 setEmail(event.target.value)
                                             }
                                             onKeyDown={handleEmailKeyDown}
+                                            disabled={Boolean(forcedView)}
                                         />
                                     </div>
                                 </label>
 
+                                {showPasswordFields ? (
+                                    <>
+                                        <label className="block">
+                                            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--app-text-tertiary)]">
+                                                Contrasena
+                                            </span>
+                                            <div className="field-shell flex items-center gap-3">
+                                                <LockKeyhole className="h-4 w-4 text-[color:var(--app-text-tertiary)]" />
+                                                <input
+                                                    className="w-full bg-transparent outline-none"
+                                                    type="password"
+                                                    placeholder="Tu contrasena"
+                                                    autoComplete={
+                                                        activeView === LOGIN_VIEW.SIGN_IN
+                                                            ? "current-password"
+                                                            : "new-password"
+                                                    }
+                                                    value={password}
+                                                    onChange={(event) =>
+                                                        setPassword(
+                                                            event.target.value
+                                                        )
+                                                    }
+                                                    onKeyDown={handlePasswordKeyDown}
+                                                />
+                                            </div>
+                                        </label>
+
+                                        {(activeView === LOGIN_VIEW.COMPLETE_SETUP ||
+                                            activeView ===
+                                                LOGIN_VIEW.COMPLETE_RECOVERY) && (
+                                            <label className="block">
+                                                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--app-text-tertiary)]">
+                                                    Confirmar contrasena
+                                                </span>
+                                                <div className="field-shell flex items-center gap-3">
+                                                    <KeyRound className="h-4 w-4 text-[color:var(--app-text-tertiary)]" />
+                                                    <input
+                                                        className="w-full bg-transparent outline-none"
+                                                        type="password"
+                                                        placeholder="Repite tu contrasena"
+                                                        autoComplete="new-password"
+                                                        value={confirmPassword}
+                                                        onChange={(event) =>
+                                                            setConfirmPassword(
+                                                                event.target.value
+                                                            )
+                                                        }
+                                                        onKeyDown={
+                                                            handlePasswordKeyDown
+                                                        }
+                                                    />
+                                                </div>
+                                            </label>
+                                        )}
+                                    </>
+                                ) : null}
+
                                 <div className="app-surface-muted rounded-[1.4rem] border border-[color:var(--app-border)] px-4 py-4 text-sm leading-7 text-[color:var(--app-text-secondary)]">
-                                    La primera vez te enviaremos un enlace a tu correo para confirmar que eres el titular. Despues, si mantienes tu sesion activa, entraras directo desde el boton de Phidias.
+                                    {activeView === LOGIN_VIEW.SIGN_IN
+                                        ? "Si es tu primera vez, primero valida tu correo y crea tu contrasena. Despues podras entrar con esa misma contrasena desde cualquier navegador o dispositivo."
+                                        : activeView === LOGIN_VIEW.REQUEST_RECOVERY
+                                          ? "El correo de recuperacion llegara al email registrado y te permitira definir una contrasena nueva de forma segura."
+                                          : "Este paso protege la identidad del usuario y evita que otra persona use su correo para acceder sin autorizacion."}
                                 </div>
                             </div>
 
@@ -415,17 +750,61 @@ export default function Login() {
                                 size="lg"
                                 iconRight={ArrowRight}
                                 className="mt-8"
-                                onClick={requestMagicLink}
+                                onClick={viewMeta.onSubmit}
                                 disabled={
-                                    submitting || !email.trim() || isCooldownActive
+                                    submitting ||
+                                    !email.trim() ||
+                                    (isEmailDispatchView && isCooldownActive)
                                 }
                             >
                                 {submitting
-                                    ? "Enviando acceso seguro..."
-                                    : isCooldownActive
-                                      ? `Espera ${cooldownRemaining}s para reenviar`
-                                      : "Enviar enlace de acceso"}
+                                    ? "Procesando..."
+                                    : viewMeta.submitLabel}
                             </Button>
+
+                            {!forcedView ? (
+                                <div className="mt-5 flex flex-wrap items-center justify-center gap-3 text-sm">
+                                    {activeView !== LOGIN_VIEW.SIGN_IN ? (
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                goToView(LOGIN_VIEW.SIGN_IN)
+                                            }
+                                            className="font-medium text-[color:var(--app-accent)] transition-all duration-200 hover:opacity-80"
+                                        >
+                                            Ya tengo contrasena
+                                        </button>
+                                    ) : null}
+
+                                    {activeView !== LOGIN_VIEW.REQUEST_SETUP ? (
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                goToView(
+                                                    LOGIN_VIEW.REQUEST_SETUP
+                                                )
+                                            }
+                                            className="font-medium text-[color:var(--app-accent)] transition-all duration-200 hover:opacity-80"
+                                        >
+                                            Primera vez / crear contrasena
+                                        </button>
+                                    ) : null}
+
+                                    {activeView !== LOGIN_VIEW.REQUEST_RECOVERY ? (
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                goToView(
+                                                    LOGIN_VIEW.REQUEST_RECOVERY
+                                                )
+                                            }
+                                            className="font-medium text-[color:var(--app-accent)] transition-all duration-200 hover:opacity-80"
+                                        >
+                                            Olvide mi contrasena
+                                        </button>
+                                    ) : null}
+                                </div>
+                            ) : null}
                         </div>
                     </Surface>
                 </MotionSection>

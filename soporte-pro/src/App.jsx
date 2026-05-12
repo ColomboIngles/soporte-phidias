@@ -2,6 +2,15 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Suspense, lazy, useEffect, useState } from "react";
 import { LoaderCircle, ShieldCheck, Sparkles } from "lucide-react";
 import { supabase } from "./services/supabase";
+import {
+    clearAccessFlowFromUrl,
+    normalizeEmail,
+    readAccessContext,
+    persistPhidiasAccess,
+    persistTrustedEmail,
+    readPhidiasAccessState,
+    resolveExternalReferrer,
+} from "./services/phidiasSession";
 import { crearUsuarioSiNoExiste, obtenerRol } from "./services/usuarios";
 
 import Sidebar from "./components/Sidebar";
@@ -20,37 +29,10 @@ import {
     getHomeRouteByRole,
 } from "./utils/permissions";
 
-const TRUSTED_EMAIL_KEY = "soporte_phidias_trusted_email";
-const PHIDIAS_SESSION_MODE_KEY = "soporte_phidias_session_mode";
-const PHIDIAS_RETURN_TO_KEY = "soporte_phidias_return_to";
-const PHIDIAS_REFERRER_KEY = "soporte_phidias_referrer";
-
 const routerBasename =
     import.meta.env.BASE_URL && import.meta.env.BASE_URL !== "/"
         ? import.meta.env.BASE_URL.replace(/\/$/, "")
         : undefined;
-
-function normalizeEmail(value) {
-    return typeof value === "string" ? value.trim().toLowerCase() : "";
-}
-
-function readAccessContext() {
-    if (typeof window === "undefined") {
-        return {
-            email: "",
-            source: "",
-            returnTo: "",
-        };
-    }
-
-    const params = new URLSearchParams(window.location.search);
-
-    return {
-        email: normalizeEmail(params.get("email") || ""),
-        source: (params.get("source") || "").trim().toLowerCase(),
-        returnTo: (params.get("returnTo") || "").trim(),
-    };
-}
 
 function stripAuthParamsFromUrl() {
     if (typeof window === "undefined") {
@@ -90,46 +72,6 @@ function stripAuthParamsFromUrl() {
 
     if (changed) {
         window.history.replaceState({}, document.title, url.toString());
-    }
-}
-
-function readPhidiasSessionMode() {
-    if (typeof window === "undefined") {
-        return false;
-    }
-
-    return window.localStorage.getItem(PHIDIAS_SESSION_MODE_KEY) === "1";
-}
-
-function readPhidiasReturnTo() {
-    if (typeof window === "undefined") {
-        return "";
-    }
-
-    return window.localStorage.getItem(PHIDIAS_RETURN_TO_KEY) || "";
-}
-
-function readPhidiasReferrer() {
-    if (typeof window === "undefined") {
-        return "";
-    }
-
-    return window.localStorage.getItem(PHIDIAS_REFERRER_KEY) || "";
-}
-
-function persistPhidiasAccess({ returnTo = "", referrer = "" } = {}) {
-    if (typeof window === "undefined") {
-        return;
-    }
-
-    window.localStorage.setItem(PHIDIAS_SESSION_MODE_KEY, "1");
-
-    if (returnTo) {
-        window.localStorage.setItem(PHIDIAS_RETURN_TO_KEY, returnTo);
-    }
-
-    if (referrer) {
-        window.localStorage.setItem(PHIDIAS_REFERRER_KEY, referrer);
     }
 }
 
@@ -299,19 +241,19 @@ function App() {
     const [session, setSession] = useState(null);
     const [rol, setRol] = useState(null);
     const [bootstrapping, setBootstrapping] = useState(true);
-    const [phidiasMode, setPhidiasMode] = useState(() =>
-        readPhidiasSessionMode()
-    );
-    const [phidiasReturnTo, setPhidiasReturnTo] = useState(() =>
-        readPhidiasReturnTo()
-    );
-    const [phidiasReferrer, setPhidiasReferrer] = useState(() =>
-        readPhidiasReferrer()
+    const [authFlow, setAuthFlow] = useState(() => readAccessContext().flow);
+    const [phidiasState, setPhidiasState] = useState(() =>
+        readPhidiasAccessState()
     );
 
     useEffect(() => {
         let isMounted = true;
         const accessContext = readAccessContext();
+
+        function syncPhidiasState() {
+            if (!isMounted) return;
+            setPhidiasState(readPhidiasAccessState());
+        }
 
         async function hydrateSession(nextSession) {
             if (!isMounted) return;
@@ -323,7 +265,7 @@ function App() {
 
             if (nextSession?.user && expectedEmail && sessionEmail !== expectedEmail) {
                 await supabase.auth.signOut();
-                window.localStorage.removeItem(TRUSTED_EMAIL_KEY);
+                persistTrustedEmail("");
 
                 if (!isMounted) return;
 
@@ -344,29 +286,22 @@ function App() {
             }
 
             if (sessionEmail) {
-                window.localStorage.setItem(TRUSTED_EMAIL_KEY, sessionEmail);
+                persistTrustedEmail(sessionEmail);
             }
 
             if (
                 accessContext.source === "phidias" ||
-                readPhidiasSessionMode()
+                readPhidiasAccessState().mode
             ) {
+                const currentPhidiasState = readPhidiasAccessState();
                 const nextReferrer =
-                    (typeof document !== "undefined" &&
-                    document.referrer &&
-                    !document.referrer.includes(window.location.origin)
-                        ? document.referrer
-                        : "") || readPhidiasReferrer();
+                    resolveExternalReferrer() || currentPhidiasState.referrer;
 
                 persistPhidiasAccess({
-                    returnTo: accessContext.returnTo || readPhidiasReturnTo(),
+                    returnTo: accessContext.returnTo || currentPhidiasState.returnTo,
                     referrer: nextReferrer,
                 });
-                setPhidiasMode(true);
-                setPhidiasReturnTo(
-                    accessContext.returnTo || readPhidiasReturnTo()
-                );
-                setPhidiasReferrer(nextReferrer);
+                syncPhidiasState();
             }
 
             const hydratedUser = await crearUsuarioSiNoExiste(nextSession.user);
@@ -412,15 +347,24 @@ function App() {
         <ToastProvider>
             {bootstrapping ? (
                 <AppBootSplash />
+            ) : authFlow && session ? (
+                <Login
+                    forcedFlow={authFlow}
+                    session={session}
+                    onAuthFlowComplete={() => {
+                        clearAccessFlowFromUrl();
+                        setAuthFlow("");
+                    }}
+                />
             ) : !session ? (
                 <Login />
             ) : (
                 <AppLayout
                     rol={rol}
                     session={session}
-                    phidiasMode={phidiasMode}
-                    phidiasReturnTo={phidiasReturnTo}
-                    phidiasReferrer={phidiasReferrer}
+                    phidiasMode={phidiasState.mode}
+                    phidiasReturnTo={phidiasState.returnTo}
+                    phidiasReferrer={phidiasState.referrer}
                 />
             )}
         </ToastProvider>
