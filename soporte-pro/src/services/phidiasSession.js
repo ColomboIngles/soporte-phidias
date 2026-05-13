@@ -5,6 +5,7 @@ export const PHIDIAS_REFERRER_KEY = "soporte_phidias_referrer";
 export const MAGIC_LINK_COOLDOWN_KEY =
     "soporte_phidias_magic_link_cooldown_until";
 export const AUTH_ACCESS_ERROR_KEY = "soporte_phidias_auth_access_error";
+export const AUTH_PENDING_FLOW_KEY = "soporte_phidias_auth_pending_flow";
 
 function hasBrowserWindow() {
     return typeof window !== "undefined";
@@ -56,6 +57,11 @@ export function readAccessContext() {
         returnTo: (params.get("returnTo") || "").trim(),
         flow: (params.get("flow") || "").trim().toLowerCase(),
     };
+}
+
+export function resolveRequestedAuthFlow() {
+    const context = readAccessContext();
+    return context.flow || readPendingAuthFlow();
 }
 
 export function clearAccessFlowFromUrl() {
@@ -171,4 +177,21 @@ export function persistAuthAccessError(message) {
 
 export function clearAuthAccessError() {
     removeStoredValue(AUTH_ACCESS_ERROR_KEY);
+}
+
+export function readPendingAuthFlow() {
+    return readStoredString(AUTH_PENDING_FLOW_KEY);
+}
+
+export function persistPendingAuthFlow(flow) {
+    if (!flow) {
+        removeStoredValue(AUTH_PENDING_FLOW_KEY);
+        return;
+    }
+
+    writeStoredString(AUTH_PENDING_FLOW_KEY, String(flow));
+}
+
+export function clearPendingAuthFlow() {
+    removeStoredValue(AUTH_PENDING_FLOW_KEY);
 }

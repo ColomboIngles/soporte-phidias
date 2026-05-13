@@ -23,9 +23,11 @@ import {
 import {
     clearAuthAccessError,
     clearMagicLinkCooldown,
+    clearPendingAuthFlow,
     getTrustedEmail,
     normalizeEmail,
     persistTrustedEmail,
+    persistPendingAuthFlow,
     readAuthAccessError,
     readAccessContext,
     readMagicLinkCooldown,
@@ -262,6 +264,7 @@ export default function Login({
             }
 
             persistTrustedEmail(normalizedEmail);
+            clearPendingAuthFlow();
         } catch (error) {
             setErrorMessage(getFriendlyAuthErrorMessage(error));
         } finally {
@@ -295,24 +298,24 @@ export default function Login({
                 flow: "create-password",
             });
 
-            const { error } = await supabase.auth.signInWithOtp({
-                email: normalizedEmail,
-                options: {
-                    emailRedirectTo,
-                    shouldCreateUser: true,
-                },
-            });
+            const { error } = await supabase.auth.resetPasswordForEmail(
+                normalizedEmail,
+                {
+                    redirectTo: emailRedirectTo,
+                }
+            );
 
             if (error) {
                 throw error;
             }
 
             persistTrustedEmail(normalizedEmail);
+            persistPendingAuthFlow("create-password");
             const nextCooldown = getNextCooldownUntil(new Date().getTime());
             setCooldownUntil(nextCooldown);
             storeMagicLinkCooldown(nextCooldown);
             setSuccessMessage(
-                "Te enviamos un enlace para validar tu correo. Cuando lo abras, podras crear tu contrasena y luego ingresar desde cualquier dispositivo."
+                "Te enviamos un correo para crear tu contrasena. Abre ese enlace y define tu acceso para futuros ingresos desde cualquier dispositivo."
             );
         } catch (error) {
             setErrorMessage(getFriendlyAuthErrorMessage(error));
@@ -368,6 +371,7 @@ export default function Login({
             }
 
             persistTrustedEmail(normalizedEmail);
+            persistPendingAuthFlow("recovery");
             const nextCooldown = getNextCooldownUntil(new Date().getTime());
             setCooldownUntil(nextCooldown);
             storeMagicLinkCooldown(nextCooldown);
@@ -426,6 +430,7 @@ export default function Login({
 
             window.setTimeout(() => {
                 clearAuthAccessError();
+                clearPendingAuthFlow();
                 onAuthFlowComplete?.();
             }, 900);
         } catch (error) {
@@ -493,7 +498,7 @@ export default function Login({
                         "Primero validaremos tu correo y luego te permitiremos definir una contrasena propia para ingresar desde cualquier plataforma.",
                     submitLabel: isCooldownActive
                         ? `Espera ${cooldownRemaining}s para reenviar`
-                        : "Validar correo y continuar",
+                        : "Enviar correo para crear contrasena",
                     onSubmit: requestPasswordSetup,
                 };
             case LOGIN_VIEW.REQUEST_RECOVERY:

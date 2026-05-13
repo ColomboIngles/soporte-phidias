@@ -5,12 +5,14 @@ import { supabase } from "./services/supabase";
 import {
     clearAuthAccessError,
     clearAccessFlowFromUrl,
+    clearPendingAuthFlow,
     normalizeEmail,
     persistAuthAccessError,
     readAccessContext,
     persistPhidiasAccess,
     persistTrustedEmail,
     readPhidiasAccessState,
+    resolveRequestedAuthFlow,
     resolveExternalReferrer,
 } from "./services/phidiasSession";
 import { crearUsuarioSiNoExiste, obtenerRol } from "./services/usuarios";
@@ -243,7 +245,7 @@ function App() {
     const [session, setSession] = useState(null);
     const [rol, setRol] = useState(null);
     const [bootstrapping, setBootstrapping] = useState(true);
-    const [authFlow, setAuthFlow] = useState(() => readAccessContext().flow);
+    const [authFlow, setAuthFlow] = useState(() => resolveRequestedAuthFlow());
     const [phidiasState, setPhidiasState] = useState(() =>
         readPhidiasAccessState()
     );
@@ -374,6 +376,7 @@ function App() {
                     session={session}
                     onAuthFlowComplete={() => {
                         clearAccessFlowFromUrl();
+                        clearPendingAuthFlow();
                         setAuthFlow("");
                     }}
                 />
