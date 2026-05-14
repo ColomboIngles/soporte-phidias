@@ -781,6 +781,39 @@
         );
     }
 
+    .sidebar-header-shell {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+        min-width: 0;
+    }
+
+    .sidebar-brand-title {
+        display: block;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 0.98rem;
+        font-weight: 600;
+        letter-spacing: -0.03em;
+        line-height: 1.2;
+    }
+
+    .sidebar-header-action {
+        height: 2.55rem;
+        width: 2.55rem;
+        border-color: rgba(255, 255, 255, 0.09);
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(243, 246, 252, 0.9);
+        box-shadow: none;
+    }
+
+    .sidebar-header-action:hover {
+        background: rgba(255, 255, 255, 0.12);
+        color: #ffffff;
+    }
+
     .sidebar-panel-title {
         color: #f8faff;
     }
@@ -805,6 +838,7 @@
         color: rgba(232, 235, 255, 0.88);
         font-size: 0.92rem;
         font-weight: 600;
+        line-height: 1.2;
         transition:
             transform 180ms ease,
             border-color 180ms ease,

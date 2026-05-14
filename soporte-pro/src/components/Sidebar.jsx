@@ -40,66 +40,61 @@ function SidebarNav({
     return (
         <div className="app-sidebar-shell flex h-full min-h-0 flex-col overflow-hidden p-3">
             <MotionSection className="sidebar-panel rounded-[1.75rem] p-4 shadow-sm">
-                <div className="flex items-start justify-between gap-3">
-                    <div
-                        className={cn(
-                            "min-w-0 flex-1 pr-1",
-                            collapsed && !mobile && "hidden"
-                        )}
-                    >
-                        <BrandMark
-                            compact={false}
-                            showSubtitle
-                            titleClassName="text-[color:#f8faf5]"
-                            subtitleClassName="text-[rgba(232,237,249,0.66)]"
-                            markClassName="border-white/10 bg-white/10 shadow-none"
-                        />
-                    </div>
-
-                    <div className="flex shrink-0 gap-2">
-                        {mobile ? (
-                            <button
-                                type="button"
-                                onClick={onClose}
-                                className="app-icon-button"
-                                aria-label="Cerrar navegacion"
-                            >
-                                <X className="h-4 w-4" />
-                            </button>
-                        ) : (
-                            <button
-                                type="button"
-                                onClick={onToggleCollapse}
-                                className="app-icon-button hidden lg:inline-flex"
-                                aria-label={
-                                    collapsed
-                                        ? "Expandir sidebar"
-                                        : "Colapsar sidebar"
-                                }
-                            >
-                                {collapsed ? (
-                                    <ChevronRight className="h-4 w-4" />
-                                ) : (
-                                    <ChevronLeft className="h-4 w-4" />
-                                )}
-                            </button>
-                        )}
-                    </div>
-                </div>
-
                 {collapsed && !mobile ? (
-                    <div className="mt-4 flex justify-center">
+                    <div className="flex items-center justify-center">
                         <BrandMark
                             compact
                             className="justify-center"
-                            markClassName="h-14 w-14 rounded-[1.25rem] border-white/10 bg-white/10 p-2.5 shadow-none"
+                            markClassName="h-[3.25rem] w-[3.25rem] rounded-[1.1rem] border-white/10 bg-white/10 p-2.5 shadow-none"
                             titleClassName="hidden"
                             subtitleClassName="hidden"
                         />
                     </div>
                 ) : (
-                    <div className="mt-5 sidebar-divider" />
+                    <div className="sidebar-header-shell">
+                        <div className="min-w-0 flex-1">
+                            <BrandMark
+                                compact
+                                className="min-w-0"
+                                markClassName="h-[3.2rem] w-[3.2rem] rounded-[1.1rem] border-white/10 bg-white/10 p-2.5 shadow-none"
+                                titleClassName="sidebar-brand-title text-[color:#f8faf5]"
+                                subtitleClassName="hidden"
+                            />
+                        </div>
+
+                        <div className="flex shrink-0 gap-2">
+                            {mobile ? (
+                                <button
+                                    type="button"
+                                    onClick={onClose}
+                                    className="app-icon-button sidebar-header-action"
+                                    aria-label="Cerrar navegacion"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={onToggleCollapse}
+                                    className="app-icon-button sidebar-header-action hidden lg:inline-flex"
+                                    aria-label={
+                                        collapsed
+                                            ? "Expandir sidebar"
+                                            : "Colapsar sidebar"
+                                    }
+                                >
+                                    {collapsed ? (
+                                        <ChevronRight className="h-4 w-4" />
+                                    ) : (
+                                        <ChevronLeft className="h-4 w-4" />
+                                    )}
+                                </button>
+                            )}
+                        </div>
+                    </div>
                 )}
+
+                <div className="mt-5 sidebar-divider" />
             </MotionSection>
 
             <div className="hide-scrollbar mt-6 min-h-0 flex-1 overflow-y-auto pr-1">

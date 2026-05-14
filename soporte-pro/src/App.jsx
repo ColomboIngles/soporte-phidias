@@ -102,7 +102,6 @@ function AppBootSplash() {
             >
                 <BrandMark
                     align="center"
-                    showSubtitle
                     className="justify-center"
                     markClassName="mx-auto h-20 w-20 rounded-[1.75rem] p-3"
                 />
