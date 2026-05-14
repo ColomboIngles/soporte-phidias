@@ -40,6 +40,7 @@ import {
 } from "../components/AppMotion";
 import Badge from "../components/ui/Badge";
 import Button from "../components/ui/Button";
+import BrandMark from "../components/BrandMark";
 import Input from "../components/ui/Input";
 import SectionHeader from "../components/ui/SectionHeader";
 import Surface from "../components/ui/Surface";
@@ -51,19 +52,19 @@ const DATE_PRESETS = [
 ];
 
 const STATUS_COLORS = {
-    abierto: "#d97706",
-    en_proceso: "#2563eb",
-    cerrado: "#16a34a",
+    abierto: "#cb9542",
+    en_proceso: "#4475bf",
+    cerrado: "#1d7a53",
 };
 
 const CHART_COLORS = {
-    line: "#4f46e5",
-    lineFill: "#818cf8",
-    techStart: "#4f46e5",
-    techEnd: "#818cf8",
-    timeStart: "#64748b",
-    timeEnd: "#94a3b8",
-    grid: "rgba(99, 102, 241, 0.12)",
+    line: "#173c31",
+    lineFill: "#c6a466",
+    techStart: "#173c31",
+    techEnd: "#275d4c",
+    timeStart: "#8f7850",
+    timeEnd: "#c6a466",
+    grid: "rgba(23, 60, 49, 0.12)",
     activeDotStroke: "var(--app-bg-elevated)",
 };
 
@@ -77,30 +78,30 @@ const DASHBOARD_SURFACES = {
 const KPI_ACCENTS = {
     range: {
         borderColor:
-            "color-mix(in srgb, var(--brand-secondary) 20%, transparent)",
+            "color-mix(in srgb, var(--brand-primary) 20%, transparent)",
         background:
-            "linear-gradient(135deg, color-mix(in srgb, var(--brand-secondary) 76%, white 24%) 0%, color-mix(in srgb, var(--brand-accent) 72%, var(--brand-primary) 28%) 100%)",
+            "linear-gradient(135deg, color-mix(in srgb, var(--brand-primary) 76%, white 24%) 0%, color-mix(in srgb, var(--brand-secondary) 82%, var(--brand-primary) 18%) 100%)",
         boxShadow: "0 12px 28px rgba(29, 35, 32, 0.12)",
     },
     closure: {
         borderColor:
             "color-mix(in srgb, var(--brand-success) 20%, transparent)",
         background:
-            "linear-gradient(135deg, color-mix(in srgb, var(--brand-success) 78%, white 22%) 0%, color-mix(in srgb, var(--brand-primary) 76%, var(--brand-secondary) 24%) 100%)",
+            "linear-gradient(135deg, color-mix(in srgb, var(--brand-success) 78%, white 22%) 0%, color-mix(in srgb, var(--brand-primary) 72%, var(--brand-success) 28%) 100%)",
         boxShadow: "0 12px 28px rgba(29, 35, 32, 0.12)",
     },
     team: {
         borderColor:
-            "color-mix(in srgb, var(--brand-primary) 22%, transparent)",
+            "color-mix(in srgb, var(--brand-accent) 24%, transparent)",
         background:
-            "linear-gradient(135deg, color-mix(in srgb, var(--brand-primary) 82%, white 18%) 0%, color-mix(in srgb, var(--brand-highlight) 58%, var(--brand-primary) 42%) 100%)",
+            "linear-gradient(135deg, color-mix(in srgb, var(--brand-accent) 74%, white 26%) 0%, color-mix(in srgb, var(--brand-highlight) 68%, var(--brand-accent) 32%) 100%)",
         boxShadow: "0 12px 28px rgba(29, 35, 32, 0.12)",
     },
     time: {
         borderColor:
             "color-mix(in srgb, var(--brand-highlight) 24%, transparent)",
         background:
-            "linear-gradient(135deg, color-mix(in srgb, var(--brand-highlight) 82%, white 18%) 0%, color-mix(in srgb, var(--brand-secondary) 58%, var(--brand-primary) 42%) 100%)",
+            "linear-gradient(135deg, color-mix(in srgb, var(--brand-highlight) 84%, white 16%) 0%, color-mix(in srgb, var(--brand-accent) 56%, var(--brand-highlight) 44%) 100%)",
         boxShadow: "0 12px 28px rgba(29, 35, 32, 0.12)",
     },
 };
@@ -993,17 +994,21 @@ export default function Dashboard() {
                     <div>
                         <div className="app-kicker">
                             <Gauge className="h-3.5 w-3.5" />
-                            Analytics overview
+                            Panel principal
                         </div>
 
                         <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                             <div className="max-w-3xl">
+                                <BrandMark
+                                    compact
+                                    className="mb-4"
+                                    markClassName="h-12 w-12 rounded-[1rem] p-2.5"
+                                    titleClassName="text-base"
+                                    subtitleClassName="hidden"
+                                />
                                 <h1 className="text-3xl font-semibold tracking-tight text-[color:var(--app-text-primary)] sm:text-4xl">
-                                    Dashboard ejecutivo para decisiones rapidas
+                                    Resumen operativo
                                 </h1>
-                                <p className="mt-3 text-sm leading-7 text-[color:var(--app-text-secondary)]">
-                                    Lectura operativa del soporte con foco en carga, resolucion, ritmo diario y distribucion de tickets en el periodo filtrado.
-                                </p>
                             </div>
 
                             <div className="app-surface-muted inline-flex rounded-full px-4 py-2 text-sm font-medium text-[color:var(--app-text-secondary)] shadow-sm">
@@ -1015,17 +1020,17 @@ export default function Dashboard() {
                             <InsightCard
                                 label="Abiertos"
                                 value={analytics.currentSummary.abiertos}
-                                helper="Pendientes de atencion inicial"
+                                helper="Pendientes"
                             />
                             <InsightCard
                                 label="En proceso"
                                 value={analytics.currentSummary.enProceso}
-                                helper="Casos en trabajo activo"
+                                helper="En gestion"
                             />
                             <InsightCard
                                 label="Cerrados"
                                 value={analytics.currentSummary.cerrados}
-                                helper="Tickets que ya salieron del flujo"
+                                helper="Resueltos"
                             />
                             <InsightCard
                                 label="Pico diario"
@@ -1049,9 +1054,9 @@ export default function Dashboard() {
                         style={{ boxShadow: DASHBOARD_SURFACES.panelShadowStrong }}
                     >
                         <SectionHeader
-                            eyebrow="Filtros"
-                            title="Control de rango"
-                            description="Ajusta el periodo y compara el comportamiento con la ventana anterior."
+                            eyebrow="Periodo"
+                            title="Filtro"
+                            description="Ajusta el rango."
                             icon={CalendarRange}
                         />
 

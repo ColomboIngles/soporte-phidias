@@ -23,7 +23,7 @@ export function getSystemTheme() {
 }
 
 export function getInitialTheme() {
-    return getStoredTheme() || getSystemTheme();
+    return getStoredTheme() || "light";
 }
 
 export function applyTheme(theme) {

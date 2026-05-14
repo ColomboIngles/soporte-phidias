@@ -1,6 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Suspense, lazy, useEffect, useState } from "react";
-import { LoaderCircle, ShieldCheck, Sparkles } from "lucide-react";
+import { LoaderCircle } from "lucide-react";
 import { supabase } from "./services/supabase";
 import {
     clearAuthAccessError,
@@ -20,6 +20,7 @@ import { crearUsuarioSiNoExiste, obtenerRol } from "./services/usuarios";
 import Sidebar from "./components/Sidebar";
 import Topbar from "./components/Topbar";
 import ThemeToggle from "./components/ThemeToggle";
+import BrandMark from "./components/BrandMark";
 import Login from "./pages/Login";
 import Skeleton from "./components/skeleton";
 import { ToastProvider } from "./components/ToastProvider";
@@ -97,27 +98,22 @@ function AppBootSplash() {
 
             <MotionSection
                 delay={0.08}
-                className="app-surface w-full max-w-2xl rounded-[2rem] p-8 text-center shadow-sm sm:p-10"
+                className="app-surface w-full max-w-xl rounded-[2rem] p-8 text-center shadow-sm sm:p-10"
             >
-                <div className="mx-auto flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-[1.5rem] border border-[color:var(--app-border)] bg-[color:var(--app-accent-soft)]">
-                    <ShieldCheck className="h-8 w-8 text-[color:var(--app-accent)]" />
-                </div>
+                <BrandMark
+                    align="center"
+                    showSubtitle
+                    className="justify-center"
+                    markClassName="mx-auto h-20 w-20 rounded-[1.75rem] p-3"
+                />
 
-                <div className="app-kicker mx-auto mt-6 w-max">
-                    <Sparkles className="h-3.5 w-3.5" />
-                    Preparando entorno
-                </div>
-
-                <h1 className="mt-5 text-4xl font-semibold tracking-tight text-[color:var(--app-text-primary)]">
-                    Cargando tu workspace de soporte
+                <h1 className="mt-6 text-3xl font-semibold tracking-tight text-[color:var(--app-text-primary)] sm:text-4xl">
+                    Cargando sistema
                 </h1>
-                <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-[color:var(--app-text-secondary)]">
-                    Estamos validando sesion, permisos y contexto visual para que la plataforma abra con una experiencia mas limpia, moderna y comercial.
-                </p>
 
                 <div className="app-surface-muted mt-8 inline-flex items-center gap-3 rounded-full px-4 py-3 text-sm text-[color:var(--app-text-secondary)]">
                     <LoaderCircle className="h-4 w-4 animate-spin text-[color:var(--app-accent)]" />
-                    Cargando entorno seguro...
+                    Preparando acceso seguro...
                 </div>
             </MotionSection>
         </MotionPage>

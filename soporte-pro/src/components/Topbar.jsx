@@ -1,16 +1,15 @@
-import { LogOut, Menu, Search, ShieldCheck } from "lucide-react";
+import { LogOut, Menu, Search } from "lucide-react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import {
+    clearPhidiasAccess,
+} from "../services/phidiasSession";
 import { supabase } from "../services/supabase";
 import HelpAssistant from "./HelpAssistant";
 import Notifications from "./Notifications";
 import ThemeToggle from "./ThemeToggle";
+import BrandMark from "./BrandMark";
 import { isEndUserRole } from "../utils/permissions";
 import { MotionItem, MotionSection, MotionStagger } from "./AppMotion";
-
-const TRUSTED_EMAIL_KEY = "soporte_phidias_trusted_email";
-const PHIDIAS_SESSION_MODE_KEY = "soporte_phidias_session_mode";
-const PHIDIAS_RETURN_TO_KEY = "soporte_phidias_return_to";
-const PHIDIAS_REFERRER_KEY = "soporte_phidias_referrer";
 
 function getSearchContext(pathname) {
     if (pathname === "/") {
@@ -68,17 +67,6 @@ function getSearchContext(pathname) {
 
 function getUserInitial(email) {
     return String(email || "?").charAt(0).toUpperCase();
-}
-
-function clearPhidiasAccess() {
-    if (typeof window === "undefined") {
-        return;
-    }
-
-    window.localStorage.removeItem(TRUSTED_EMAIL_KEY);
-    window.localStorage.removeItem(PHIDIAS_SESSION_MODE_KEY);
-    window.localStorage.removeItem(PHIDIAS_RETURN_TO_KEY);
-    window.localStorage.removeItem(PHIDIAS_REFERRER_KEY);
 }
 
 export default function Topbar({
@@ -149,16 +137,26 @@ export default function Topbar({
                     <Menu className="h-4 w-4" />
                 </button>
 
+                <div className="hidden sm:block">
+                    <BrandMark
+                        compact
+                        className="min-w-[15rem] xl:min-w-[18rem]"
+                        markClassName="h-11 w-11 rounded-[1rem] bg-[color:var(--app-surface-strong)] p-2.5"
+                        titleClassName="text-base"
+                        subtitleClassName="hidden"
+                    />
+                </div>
+
                 <MotionSection className="min-w-0 flex-1">
                     {isEndUser ? (
                         <div className="app-search-shell">
-                            <ShieldCheck className="h-4 w-4 shrink-0 text-[color:var(--app-accent)]" />
+                            <Search className="h-4 w-4 shrink-0 text-[color:var(--app-accent)]" />
                             <div className="min-w-0">
                                 <p className="truncate text-sm font-medium text-[color:var(--app-text-primary)]">
-                                    Sigue tus tickets, adjuntos y mensajes
+                                    Gestiona tus tickets
                                 </p>
                                 <p className="truncate text-xs text-[color:var(--app-text-tertiary)]">
-                                    Un solo espacio para dar contexto, conversar y recibir novedades.
+                                    Estado, mensajes y seguimiento en un solo lugar.
                                 </p>
                             </div>
                         </div>
@@ -202,8 +200,7 @@ export default function Topbar({
                             <div
                                 className="flex h-11 w-11 items-center justify-center rounded-[1rem] text-sm font-semibold text-[color:var(--app-accent)]"
                                 style={{
-                                    background:
-                                        "linear-gradient(135deg, color-mix(in srgb, var(--brand-secondary) 16%, white 84%), color-mix(in srgb, var(--brand-accent) 14%, white 86%))",
+                                    background: "linear-gradient(135deg, color-mix(in srgb, var(--brand-primary) 14%, white 86%), color-mix(in srgb, var(--brand-accent) 12%, white 88%))",
                                 }}
                             >
                                 {getUserInitial(user.email)}

@@ -20,6 +20,7 @@ import Skeleton from "../components/skeleton";
 import EmptyState from "../components/EmptyState";
 import ConfirmDialog from "../components/ConfirmDialog";
 import Button from "../components/ui/Button";
+import BrandMark from "../components/BrandMark";
 import {
     MotionItem,
     MotionPage,
@@ -345,16 +346,18 @@ export default function Tickets({ role }) {
                         <div>
                             <div className="app-kicker">
                                 <ClipboardList className="h-3.5 w-3.5" />
-                                {isEndUser ? "Seguimiento personal" : "Operacion tickets"}
+                                {isEndUser ? "Mis tickets" : "Operacion"}
                             </div>
+                            <BrandMark
+                                compact
+                                className="mt-4"
+                                markClassName="h-12 w-12 rounded-[1rem] p-2.5"
+                                titleClassName="text-base"
+                                subtitleClassName="hidden"
+                            />
                             <h1 className="mt-4 text-3xl font-semibold tracking-tight text-[color:var(--app-text-primary)] sm:text-4xl">
                                 Tickets
                             </h1>
-                            <p className="mt-3 text-sm leading-7 text-[color:var(--app-text-secondary)]">
-                                {isEndUser
-                                    ? "Crea solicitudes, consulta el estado de cada caso y manten la conversacion con soporte desde un solo flujo."
-                                    : "Gestiona soporte con mejor visibilidad, asignacion y acciones rapidas."}
-                            </p>
                         </div>
 
                         {canCreateTicket ? (
@@ -372,11 +375,7 @@ export default function Tickets({ role }) {
                     delay={0.06}
                     className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
                 >
-                    <p className="text-sm text-[color:var(--app-text-secondary)]">
-                        {isEndUser
-                            ? "Sigue tus tickets activos, en proceso o cerrados."
-                            : "Filtra y administra el backlog operativo."}
-                    </p>
+                    <p className="text-sm text-[color:var(--app-text-secondary)]">Filtra por estado.</p>
 
                     <div className="flex flex-wrap gap-2">
                         {["todos", "abierto", "en_proceso", "cerrado"].map((item) => (

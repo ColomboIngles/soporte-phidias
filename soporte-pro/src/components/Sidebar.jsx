@@ -6,7 +6,6 @@ import {
     KanbanSquare,
     LayoutDashboard,
     ShieldCheck,
-    Sparkles,
     Ticket,
     Users,
     X,
@@ -14,6 +13,7 @@ import {
 import { getNavigationItems, isEndUserRole } from "../utils/permissions";
 import { cn } from "../utils/cn";
 import { MotionItem, MotionSection, MotionStagger } from "./AppMotion";
+import BrandMark from "./BrandMark";
 
 const MotionAside = motion.aside;
 const MotionDiv = motion.div;
@@ -47,20 +47,13 @@ function SidebarNav({
                             collapsed && !mobile && "hidden"
                         )}
                     >
-                        <div className="brand-badge sidebar-brand-badge max-w-full">
-                            <Sparkles className="h-3.5 w-3.5" />
-                            Soporte SaaS
-                        </div>
-                        <h1 className="app-break-anywhere sidebar-panel-title mt-4 text-[1.45rem] font-semibold tracking-tight">
-                            {isEndUser
-                                ? "Portal de seguimiento"
-                                : "Mesa de soporte"}
-                        </h1>
-                        <p className="app-break-anywhere sidebar-panel-copy mt-3 text-sm leading-6">
-                            {isEndUser
-                                ? "Consulta solicitudes, comparte evidencias y conversa con soporte desde una interfaz simple y profesional."
-                                : "Operacion centralizada de tickets, analitica y seguimiento tecnico con una experiencia clara y empresarial."}
-                        </p>
+                        <BrandMark
+                            compact={false}
+                            showSubtitle
+                            titleClassName="text-[color:#f8faf5]"
+                            subtitleClassName="text-[rgba(232,237,249,0.66)]"
+                            markClassName="border-white/10 bg-white/10 shadow-none"
+                        />
                     </div>
 
                     <div className="flex shrink-0 gap-2">
@@ -96,24 +89,16 @@ function SidebarNav({
 
                 {collapsed && !mobile ? (
                     <div className="mt-4 flex justify-center">
-                        <div className="app-icon-badge">
-                            <Sparkles className="h-5 w-5" />
-                        </div>
+                        <BrandMark
+                            compact
+                            className="justify-center"
+                            markClassName="h-14 w-14 rounded-[1.25rem] border-white/10 bg-white/10 p-2.5 shadow-none"
+                            titleClassName="hidden"
+                            subtitleClassName="hidden"
+                        />
                     </div>
                 ) : (
-                    <div className="mt-5 flex gap-2">
-                        {[
-                            "var(--brand-primary)",
-                            "var(--brand-secondary)",
-                            "var(--brand-accent)",
-                        ].map((color) => (
-                                <span
-                                    key={color}
-                                    className="h-2.5 w-8 rounded-full border border-[color:var(--app-border)] shadow-sm"
-                                    style={{ backgroundColor: color }}
-                                />
-                            ))}
-                    </div>
+                    <div className="mt-5 sidebar-divider" />
                 )}
             </MotionSection>
 
@@ -176,7 +161,9 @@ function SidebarNav({
                         collapsed && !mobile && "hidden"
                     )}
                 >
-                    Interfaz optimizada para un flujo claro, ordenado y listo para entorno empresarial.
+                    {isEndUser
+                        ? "Seguimiento claro y rapido."
+                        : "Control centralizado del soporte."}
                 </p>
             </MotionSection>
         </div>
