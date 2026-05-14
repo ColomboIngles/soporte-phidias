@@ -127,27 +127,39 @@ export default function Topbar({
 
     return (
         <header className="app-topbar-shell sticky top-0 z-20 px-4 py-4 sm:px-6">
-            <div className="mx-auto flex w-full max-w-[1680px] items-center gap-3">
-                <button
-                    type="button"
-                    onClick={onOpenSidebar}
-                    className="app-icon-button lg:hidden"
-                    aria-label="Abrir menu lateral"
-                >
-                    <Menu className="h-4 w-4" />
-                </button>
+            <div className="mx-auto grid w-full max-w-[1680px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 lg:gap-4">
+                <div className="flex min-w-0 items-center gap-3">
+                    <button
+                        type="button"
+                        onClick={onOpenSidebar}
+                        className="app-icon-button lg:hidden"
+                        aria-label="Abrir menu lateral"
+                    >
+                        <Menu className="h-4 w-4" />
+                    </button>
 
-                <div className="hidden sm:block">
-                    <BrandMark
-                        compact
-                        className="min-w-[15rem] xl:min-w-[18rem]"
-                        markClassName="h-11 w-11 rounded-[1rem] bg-[color:var(--app-surface-strong)] p-2.5"
-                        titleClassName="text-base"
-                        subtitleClassName="hidden"
-                    />
+                    <div className="hidden lg:block 2xl:hidden">
+                        <BrandMark
+                            compact
+                            className="min-w-0"
+                            markClassName="h-11 w-11 rounded-[1rem] bg-[color:var(--app-surface-strong)] p-2.5"
+                            titleClassName="hidden"
+                            subtitleClassName="hidden"
+                        />
+                    </div>
+
+                    <div className="hidden 2xl:block min-w-0">
+                        <BrandMark
+                            compact
+                            className="min-w-[18rem]"
+                            markClassName="h-11 w-11 rounded-[1rem] bg-[color:var(--app-surface-strong)] p-2.5"
+                            titleClassName="text-base"
+                            subtitleClassName="hidden"
+                        />
+                    </div>
                 </div>
 
-                <MotionSection className="min-w-0 flex-1">
+                <MotionSection className="min-w-0">
                     {isEndUser ? (
                         <div className="app-search-shell">
                             <Search className="h-4 w-4 shrink-0 text-[color:var(--app-accent)]" />
@@ -172,17 +184,17 @@ export default function Topbar({
                             />
                             <button
                                 type="submit"
-                                className="app-button app-button-ghost h-9 shrink-0 rounded-xl px-3 text-xs font-semibold"
+                                className="app-icon-button h-9 w-9 shrink-0 rounded-xl border-none bg-transparent shadow-none"
                                 aria-label="Ejecutar busqueda"
                             >
-                                Buscar
+                                <Search className="h-4 w-4" />
                             </button>
                         </form>
                     )}
                 </MotionSection>
 
                 <MotionStagger
-                    className="ml-auto flex items-center gap-3"
+                    className="flex shrink-0 items-center gap-2 sm:gap-3"
                     delayChildren={0.06}
                     staggerChildren={0.05}
                 >
@@ -206,7 +218,7 @@ export default function Topbar({
                                 {getUserInitial(user.email)}
                             </div>
 
-                            <div className="hidden min-w-0 sm:block">
+                            <div className="hidden min-w-0 2xl:block">
                                 <p className="max-w-[14rem] truncate text-sm font-semibold text-[color:var(--app-text-primary)]">
                                     {user.email}
                                 </p>

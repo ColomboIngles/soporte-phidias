@@ -301,7 +301,7 @@ export default function HelpAssistant({ role }) {
         <>
             <Button
                 variant="ghost"
-                className="h-11 px-4"
+                className="h-11 w-11 justify-center px-0 2xl:h-11 2xl:w-auto 2xl:px-4"
                 iconLeft={LifeBuoy}
                 onClick={() => {
                     setActiveStep(0);
@@ -310,7 +310,7 @@ export default function HelpAssistant({ role }) {
                 aria-label="Abrir tutorial del sistema"
                 title="Tutorial del sistema"
             >
-                Ayuda
+                <span className="hidden 2xl:inline">Ayuda</span>
             </Button>
 
             <Modal

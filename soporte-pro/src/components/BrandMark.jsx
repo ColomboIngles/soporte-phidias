@@ -9,6 +9,7 @@ export default function BrandMark({
     showSubtitle = false,
     compact = false,
     align = "left",
+    title = "Sistema Soporte T\u00e9cnico",
 }) {
     return (
         <div
@@ -20,7 +21,7 @@ export default function BrandMark({
         >
             <div
                 className={cn(
-                    "flex shrink-0 items-center justify-center rounded-[1.35rem] border border-[color:var(--app-border)] bg-[color:var(--app-surface-strong)] shadow-sm",
+                    "flex shrink-0 items-center justify-center rounded-[1.1rem] border border-[color:var(--app-border)] bg-[color:var(--app-surface-strong)] shadow-sm",
                     compact ? "h-12 w-12 p-2" : "h-16 w-16 p-2.5",
                     markClassName
                 )}
@@ -32,15 +33,15 @@ export default function BrandMark({
                 />
             </div>
 
-            <div className={cn("min-w-0", align === "center" && "text-center")}>
+            <div className={cn("min-w-0 flex-1", align === "center" && "text-center")}>
                 <p
                     className={cn(
-                        "truncate text-lg font-semibold tracking-[-0.03em] text-[color:var(--app-text-primary)]",
-                        compact && "text-base",
+                        "truncate text-lg font-semibold leading-tight tracking-[-0.03em] text-[color:var(--app-text-primary)]",
+                        compact && "text-[0.98rem]",
                         titleClassName
                     )}
                 >
-                    Sistema Soporte Técnico
+                    {title}
                 </p>
                 {showSubtitle ? (
                     <p

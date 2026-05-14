@@ -172,7 +172,7 @@ export default function Sidebar({
     collapsed = false,
     onToggleCollapse,
 }) {
-    const desktopWidthClass = collapsed ? "w-[6.75rem]" : "w-[19rem]";
+    const desktopWidthClass = collapsed ? "w-[6.25rem]" : "w-[21rem]";
 
     return (
         <>

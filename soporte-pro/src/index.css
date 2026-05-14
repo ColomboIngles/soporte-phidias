@@ -784,8 +784,10 @@
     .sidebar-header-shell {
         display: flex;
         align-items: center;
+        justify-content: space-between;
         gap: 0.85rem;
         min-width: 0;
+        width: 100%;
     }
 
     .sidebar-brand-title {
@@ -794,15 +796,15 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        font-size: 0.98rem;
+        font-size: 1rem;
         font-weight: 600;
         letter-spacing: -0.03em;
         line-height: 1.2;
     }
 
     .sidebar-header-action {
-        height: 2.55rem;
-        width: 2.55rem;
+        height: 2.35rem;
+        width: 2.35rem;
         border-color: rgba(255, 255, 255, 0.09);
         background: rgba(255, 255, 255, 0.06);
         color: rgba(243, 246, 252, 0.9);
@@ -916,6 +918,7 @@
         display: flex;
         align-items: center;
         gap: 0.85rem;
+        min-width: 0;
         min-height: 3.4rem;
         border-radius: 1.15rem;
         border: 1px solid var(--app-border);
@@ -950,6 +953,7 @@
         justify-content: center;
         height: 2.9rem;
         width: 2.9rem;
+        min-width: 2.9rem;
         border-radius: 1rem;
         border: 1px solid var(--app-border);
         background: color-mix(in srgb, var(--app-surface-strong) 94%, transparent);
