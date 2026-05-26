@@ -374,16 +374,27 @@ export default function Usuarios() {
             setPreparingAccess(true);
             const result = await preparePasswordChangeForAllUsers();
             await cargarUsuarios();
+            const failedCount = result.failed || 0;
             showToast({
-                type: "success",
+                type: failedCount ? "error" : "success",
                 title: "Accesos preparados",
-                message: `Usuarios sincronizados: ${result.processed || 0}. Se exigira cambio de contrasena al ingresar.`,
+                message: failedCount
+                    ? `Sincronizados: ${result.processed || 0}. Con error: ${failedCount}.`
+                    : `Usuarios sincronizados: ${result.processed || 0}. Se exigira cambio de contrasena al ingresar.`,
             });
         } catch (error) {
+            const details = error.response?.data?.errors
+                ?.slice(0, 2)
+                .map((item) => `${item.email || item.id}: ${item.message}`)
+                .join(" ");
             showToast({
                 type: "error",
                 title: "No se pudieron preparar los accesos",
-                message: error.message || "Intenta nuevamente en unos segundos.",
+                message:
+                    details ||
+                    error.response?.data?.message ||
+                    error.message ||
+                    "Intenta nuevamente en unos segundos.",
             });
         } finally {
             setPreparingAccess(false);

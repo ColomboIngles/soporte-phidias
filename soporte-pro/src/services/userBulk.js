@@ -266,7 +266,16 @@ export async function importUsersWorkbook(file, existingUsers) {
     const batches = chunk(plan.payload, USER_BATCH_SIZE);
 
     for (const batch of batches) {
-        await API.post("/admin/users/bulk", { users: batch });
+        const { data } = await API.post("/admin/users/bulk", { users: batch });
+
+        if (data?.errors?.length) {
+            plan.summary.errors.push(
+                ...data.errors.map(
+                    (error) =>
+                        `${error.email || error.id || "Usuario"}: ${error.message}`
+                )
+            );
+        }
     }
 
     return plan.summary;

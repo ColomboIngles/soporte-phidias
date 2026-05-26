@@ -162,6 +162,10 @@ function createTemporaryPassword() {
     return crypto.randomBytes(24).toString("base64url");
 }
 
+function getErrorMessage(error) {
+    return error?.message || error?.error_description || String(error);
+}
+
 function pickUserProfilePayload(body = {}) {
     const email = normalizeEmail(body.email);
     const nombre = typeof body.nombre === "string" && body.nombre.trim()
@@ -840,6 +844,41 @@ async function updateUserReferences(previousId, nextId) {
     });
 }
 
+async function saveManagedProfile(previousId, nextId, profileRow) {
+    if (previousId && previousId !== nextId) {
+        const { data, error } = await adminSupabase
+            .from("usuarios")
+            .update({
+                ...profileRow,
+                id: nextId,
+            })
+            .eq("id", previousId)
+            .select("*")
+            .single();
+
+        if (!error) {
+            return data;
+        }
+
+        console.warn(
+            "No se pudo migrar el id del perfil, se intentara upsert:",
+            getErrorMessage(error)
+        );
+    }
+
+    const { data, error } = await adminSupabase
+        .from("usuarios")
+        .upsert([profileRow], { onConflict: "id" })
+        .select("*")
+        .single();
+
+    if (error) {
+        throw error;
+    }
+
+    return data;
+}
+
 async function ensureAuthUserForProfile(profile, { requirePasswordChange = true } = {}) {
     const email = normalizeEmail(profile.email);
 
@@ -923,27 +962,31 @@ async function upsertManagedUsuario(body, { requirePasswordChange = true } = {})
 
     if (previousId && previousId !== authUser.id) {
         await updateUserReferences(previousId, authUser.id);
-        const { error: deleteError } = await adminSupabase
-            .from("usuarios")
-            .delete()
-            .eq("id", previousId);
+    }
 
-        if (deleteError) {
-            throw deleteError;
+    return saveManagedProfile(previousId, authUser.id, profileRow);
+}
+
+async function upsertManagedUsuarios(users, options = {}) {
+    const managedUsers = [];
+    const errors = [];
+
+    for (const user of users) {
+        try {
+            managedUsers.push(await upsertManagedUsuario(user, options));
+        } catch (error) {
+            errors.push({
+                email: normalizeEmail(user?.email),
+                id: user?.id || null,
+                message: getErrorMessage(error),
+            });
         }
     }
 
-    const { data, error } = await adminSupabase
-        .from("usuarios")
-        .upsert([profileRow], { onConflict: "id" })
-        .select("*")
-        .single();
-
-    if (error) {
-        throw error;
-    }
-
-    return data;
+    return {
+        managedUsers,
+        errors,
+    };
 }
 
 async function markPasswordChangeComplete(client, user) {
@@ -1193,17 +1236,18 @@ app.post("/admin/users/bulk", async (req, res) => {
             return res.json({ users: [] });
         }
 
-        const managedUsers = [];
+        const { managedUsers, errors } = await upsertManagedUsuarios(users, {
+            requirePasswordChange: true,
+        });
 
-        for (const user of users) {
-            managedUsers.push(
-                await upsertManagedUsuario(user, {
-                    requirePasswordChange: true,
-                })
-            );
+        if (errors.length > 0 && managedUsers.length === 0) {
+            return res.status(500).json({
+                message: "No se pudo procesar ningun usuario.",
+                errors,
+            });
         }
 
-        return res.json({ users: managedUsers });
+        return res.json({ users: managedUsers, errors });
     } catch (error) {
         console.error("Error en carga masiva de usuarios administrados:", error);
         return res.status(500).json({
@@ -1229,19 +1273,27 @@ app.post("/admin/users/bootstrap-password-change", async (req, res) => {
             throw error;
         }
 
-        const managedUsers = [];
+        const { managedUsers, errors } = await upsertManagedUsuarios(
+            usuarios || [],
+            {
+                requirePasswordChange: true,
+            }
+        );
 
-        for (const usuario of usuarios || []) {
-            managedUsers.push(
-                await upsertManagedUsuario(usuario, {
-                    requirePasswordChange: true,
-                })
-            );
+        if (errors.length > 0 && managedUsers.length === 0) {
+            return res.status(500).json({
+                message: "No se pudo preparar ningun acceso.",
+                processed: 0,
+                failed: errors.length,
+                errors,
+            });
         }
 
         return res.json({
-            ok: true,
+            ok: errors.length === 0,
             processed: managedUsers.length,
+            failed: errors.length,
+            errors,
             users: managedUsers,
         });
     } catch (error) {
