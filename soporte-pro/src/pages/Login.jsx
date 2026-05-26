@@ -175,10 +175,14 @@ export default function Login({
     const appBasePath = useMemo(() => getAppBasePath(), []);
     const trustedEmail = useMemo(() => getTrustedEmail(), []);
     const forcedView = getForcedView(forcedFlow);
+    const initialView =
+        loginContext.source === "phidias"
+            ? LOGIN_VIEW.REQUEST_SETUP
+            : LOGIN_VIEW.SIGN_IN;
     const [email, setEmail] = useState(loginContext.email || trustedEmail);
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
-    const [view, setView] = useState(LOGIN_VIEW.SIGN_IN);
+    const [view, setView] = useState(initialView);
     const [submitting, setSubmitting] = useState(false);
     const [errorMessage, setErrorMessage] = useState(() => readAuthAccessError());
     const [successMessage, setSuccessMessage] = useState("");
