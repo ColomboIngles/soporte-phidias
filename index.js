@@ -1306,6 +1306,89 @@ app.post("/admin/users/bootstrap-password-change", async (req, res) => {
     }
 });
 
+app.get("/admin/users/access-readiness", async (req, res) => {
+    try {
+        const context = await getAdminContext(req, res);
+
+        if (!context) {
+            return;
+        }
+
+        const { data: usuarios, error } = await adminSupabase
+            .from("usuarios")
+            .select(
+                "id, email, nombre, rol, requiere_cambio_contrasena, contrasena_actualizada_en"
+            )
+            .order("created_at", { ascending: false });
+
+        if (error) {
+            throw error;
+        }
+
+        const authUsersByEmail = new Map();
+        let page = 1;
+        const perPage = 1000;
+
+        while (page <= 100) {
+            const { data, error: authError } =
+                await adminSupabase.auth.admin.listUsers({
+                    page,
+                    perPage,
+                });
+
+            if (authError) {
+                throw authError;
+            }
+
+            const authUsers = data?.users || [];
+
+            authUsers.forEach((user) => {
+                authUsersByEmail.set(normalizeEmail(user.email), user);
+            });
+
+            if (authUsers.length < perPage) {
+                break;
+            }
+
+            page += 1;
+        }
+
+        const readiness = (usuarios || []).map((usuario) => {
+            const authUser = authUsersByEmail.get(normalizeEmail(usuario.email));
+
+            return {
+                id: usuario.id,
+                email: usuario.email,
+                nombre: usuario.nombre,
+                rol: usuario.rol,
+                authUserId: authUser?.id || null,
+                authExists: Boolean(authUser),
+                idMatchesAuth: authUser ? authUser.id === usuario.id : false,
+                requiereCambioContrasena: Boolean(
+                    usuario.requiere_cambio_contrasena
+                ),
+                contrasenaActualizadaEn: usuario.contrasena_actualizada_en,
+            };
+        });
+
+        return res.json({
+            total: readiness.length,
+            ready: readiness.filter((item) => item.authExists).length,
+            missing: readiness.filter((item) => !item.authExists),
+            mismatched: readiness.filter(
+                (item) => item.authExists && !item.idMatchesAuth
+            ),
+            users: readiness,
+        });
+    } catch (error) {
+        console.error("Error al diagnosticar accesos de usuarios:", error);
+        return res.status(500).json({
+            message:
+                error.message || "No se pudo diagnosticar el estado de accesos.",
+        });
+    }
+});
+
 app.post("/webhook-ticket", async (req, res) => {
     try {
         if (!WEBHOOK_ENABLED) {
