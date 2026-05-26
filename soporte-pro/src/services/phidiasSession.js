@@ -59,9 +59,55 @@ export function readAccessContext() {
     };
 }
 
+function readAuthParamsFromHash() {
+    if (!hasBrowserWindow() || !window.location.hash) {
+        return new URLSearchParams();
+    }
+
+    const hash = window.location.hash.startsWith("#")
+        ? window.location.hash.slice(1)
+        : window.location.hash;
+
+    return new URLSearchParams(hash);
+}
+
+function normalizeRequestedAuthFlow(flow) {
+    const normalizedFlow = String(flow || "").trim().toLowerCase();
+
+    if (
+        normalizedFlow === "recovery" ||
+        normalizedFlow === "password_recovery"
+    ) {
+        return "recovery";
+    }
+
+    if (
+        normalizedFlow === "create-password" ||
+        normalizedFlow === "signup" ||
+        normalizedFlow === "invite"
+    ) {
+        return "create-password";
+    }
+
+    if (normalizedFlow === "change-required") {
+        return "change-required";
+    }
+
+    return "";
+}
+
 export function resolveRequestedAuthFlow() {
     const context = readAccessContext();
-    return context.flow || readPendingAuthFlow();
+    const searchParams = hasBrowserWindow()
+        ? new URLSearchParams(window.location.search)
+        : new URLSearchParams();
+    const hashParams = readAuthParamsFromHash();
+    const urlFlow =
+        normalizeRequestedAuthFlow(context.flow) ||
+        normalizeRequestedAuthFlow(searchParams.get("type")) ||
+        normalizeRequestedAuthFlow(hashParams.get("type"));
+
+    return urlFlow || normalizeRequestedAuthFlow(readPendingAuthFlow());
 }
 
 export function clearAccessFlowFromUrl() {

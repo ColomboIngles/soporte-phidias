@@ -343,6 +343,11 @@ function App() {
         async function bootstrapAuth() {
             const url = new URL(window.location.href);
             const authCode = url.searchParams.get("code");
+            const requestedFlow = resolveRequestedAuthFlow();
+
+            if (requestedFlow) {
+                setAuthFlow(requestedFlow);
+            }
 
             if (authCode) {
                 await supabase.auth.exchangeCodeForSession(authCode).catch(() => null);
