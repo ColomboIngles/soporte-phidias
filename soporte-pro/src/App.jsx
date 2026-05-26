@@ -368,6 +368,50 @@ function App() {
         };
     }, []);
 
+    useEffect(() => {
+        if (!session?.user || passwordChangeRequired) {
+            return undefined;
+        }
+
+        let isActive = true;
+
+        async function refreshPasswordRequirement() {
+            const refreshedUser = await crearUsuarioSiNoExiste(session.user, {
+                allowCreateIfMissing: false,
+            }).catch(() => null);
+
+            if (!isActive || !refreshedUser) {
+                return;
+            }
+
+            if (refreshedUser.requiere_cambio_contrasena) {
+                setPasswordChangeRequired(true);
+            }
+        }
+
+        function handleVisibilityChange() {
+            if (document.visibilityState === "visible") {
+                refreshPasswordRequirement();
+            }
+        }
+
+        refreshPasswordRequirement();
+        window.addEventListener("focus", refreshPasswordRequirement);
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+
+        const timer = window.setInterval(refreshPasswordRequirement, 30000);
+
+        return () => {
+            isActive = false;
+            window.removeEventListener("focus", refreshPasswordRequirement);
+            document.removeEventListener(
+                "visibilitychange",
+                handleVisibilityChange
+            );
+            window.clearInterval(timer);
+        };
+    }, [passwordChangeRequired, session]);
+
     return (
         <ToastProvider>
             {bootstrapping ? (
