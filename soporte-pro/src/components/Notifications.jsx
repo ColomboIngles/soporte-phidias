@@ -5,12 +5,13 @@ import useNotifications from "../hooks/useNotifications";
 import { ITEM_TRANSITION, POPOVER_TRANSITION } from "./motion-presets";
 
 const MotionDiv = motion.div;
+const NOTIFICATION_DATE_FORMATTER = new Intl.DateTimeFormat("es-CO", {
+    dateStyle: "short",
+    timeStyle: "short",
+});
 
 function formatNotificationDate(value) {
-    return new Intl.DateTimeFormat("es-CO", {
-        dateStyle: "short",
-        timeStyle: "short",
-    }).format(new Date(value));
+    return NOTIFICATION_DATE_FORMATTER.format(new Date(value));
 }
 
 function getSeenNotificationsKey(user) {

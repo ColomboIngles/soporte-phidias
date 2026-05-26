@@ -2,12 +2,14 @@ const express = require("express");
 const cors = require("cors");
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
 const PORT = process.env.PORT || 10000;
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SECRET = process.env.SECRET;
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
@@ -65,7 +67,21 @@ const SUPABASE_KEY_ROLE = (() => {
         return "unknown";
     }
 })();
-const WEBHOOK_ENABLED = Boolean(WEBHOOK_SECRET) && SUPABASE_KEY_ROLE === "service_role";
+const SUPABASE_ADMIN_KEY = SUPABASE_SERVICE_ROLE_KEY ||
+    (SUPABASE_KEY_ROLE === "service_role" ? SUPABASE_KEY : "");
+const SUPABASE_ADMIN_KEY_ROLE = (() => {
+    try {
+        if (!SUPABASE_ADMIN_KEY) {
+            return "missing";
+        }
+
+        const payload = SUPABASE_ADMIN_KEY.split(".")[1];
+        return JSON.parse(Buffer.from(payload, "base64url").toString("utf8")).role;
+    } catch (error) {
+        return "unknown";
+    }
+})();
+const WEBHOOK_ENABLED = Boolean(WEBHOOK_SECRET) && SUPABASE_ADMIN_KEY_ROLE === "service_role";
 const FRONTEND_DIST_PATH = path.join(__dirname, "soporte-pro", "dist");
 const FRONTEND_INDEX_PATH = path.join(FRONTEND_DIST_PATH, "index.html");
 const HAS_FRONTEND_BUILD = fs.existsSync(FRONTEND_INDEX_PATH);
@@ -84,6 +100,10 @@ app.use(
 );
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const adminSupabase = SUPABASE_ADMIN_KEY
+    ? createClient(SUPABASE_URL, SUPABASE_ADMIN_KEY)
+    : null;
+const hasSupabaseAdmin = SUPABASE_ADMIN_KEY_ROLE === "service_role";
 
 function createUserScopedClient(token) {
     return createClient(SUPABASE_URL, SUPABASE_KEY, {
@@ -126,6 +146,34 @@ function validateTicketPayload(ticket) {
 
 function normalizeEmail(value) {
     return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+function normalizeRole(value) {
+    const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
+
+    if (["admin", "tecnico", "usuario"].includes(normalized)) {
+        return normalized;
+    }
+
+    return "usuario";
+}
+
+function createTemporaryPassword() {
+    return crypto.randomBytes(24).toString("base64url");
+}
+
+function pickUserProfilePayload(body = {}) {
+    const email = normalizeEmail(body.email);
+    const nombre = typeof body.nombre === "string" && body.nombre.trim()
+        ? body.nombre.trim()
+        : email;
+
+    return {
+        id: body.id || null,
+        email,
+        nombre,
+        rol: normalizeRole(body.rol),
+    };
 }
 
 function normalizePhone(value) {
@@ -674,6 +722,249 @@ function isTechnician(profile) {
     return profile?.rol === "tecnico";
 }
 
+async function getAdminContext(req, res) {
+    const context = await getAuthenticatedContext(req);
+
+    if (context.error) {
+        res.status(context.status).json({ message: context.error });
+        return null;
+    }
+
+    if (!isAdmin(context.profile)) {
+        res.status(403).json({ message: "Solo admin puede gestionar usuarios." });
+        return null;
+    }
+
+    if (!hasSupabaseAdmin) {
+        res.status(503).json({
+            message:
+                "La gestion segura de usuarios requiere SUPABASE_SERVICE_ROLE_KEY con rol service_role en el servidor.",
+        });
+        return null;
+    }
+
+    return context;
+}
+
+async function findAuthUserByEmail(email) {
+    const targetEmail = normalizeEmail(email);
+    let page = 1;
+    const perPage = 1000;
+
+    while (page <= 100) {
+        const { data, error } = await adminSupabase.auth.admin.listUsers({
+            page,
+            perPage,
+        });
+
+        if (error) {
+            throw error;
+        }
+
+        const users = data?.users || [];
+        const foundUser = users.find(
+            (user) => normalizeEmail(user.email) === targetEmail
+        );
+
+        if (foundUser) {
+            return foundUser;
+        }
+
+        if (users.length < perPage) {
+            return null;
+        }
+
+        page += 1;
+    }
+
+    return null;
+}
+
+async function findUsuarioByIdOrEmail({ id, email }) {
+    const normalizedEmail = normalizeEmail(email);
+
+    if (id) {
+        const { data } = await adminSupabase
+            .from("usuarios")
+            .select("*")
+            .eq("id", id)
+            .maybeSingle();
+
+        if (data) {
+            return data;
+        }
+    }
+
+    if (!normalizedEmail) {
+        return null;
+    }
+
+    const { data, error } = await adminSupabase
+        .from("usuarios")
+        .select("*")
+        .ilike("email", normalizedEmail)
+        .maybeSingle();
+
+    if (error) {
+        throw error;
+    }
+
+    return data || null;
+}
+
+async function updateUserReferences(previousId, nextId) {
+    if (!previousId || !nextId || previousId === nextId) {
+        return;
+    }
+
+    const ticketReferenceUpdates = [
+        adminSupabase
+            .from("tickets")
+            .update({ asignado_a: nextId })
+            .eq("asignado_a", previousId),
+        adminSupabase
+            .from("tickets")
+            .update({ asignado_por: nextId })
+            .eq("asignado_por", previousId),
+    ];
+
+    const results = await Promise.allSettled(ticketReferenceUpdates);
+
+    results.forEach((result) => {
+        if (result.status === "fulfilled" && result.value.error) {
+            console.warn(
+                "No se pudo actualizar una referencia de usuario:",
+                result.value.error.message
+            );
+        }
+    });
+}
+
+async function ensureAuthUserForProfile(profile, { requirePasswordChange = true } = {}) {
+    const email = normalizeEmail(profile.email);
+
+    if (!email) {
+        throw new Error("El email del usuario es obligatorio.");
+    }
+
+    let existingAuthUser = null;
+
+    if (profile.id) {
+        const { data, error } = await adminSupabase.auth.admin.getUserById(profile.id);
+
+        if (!error && data?.user) {
+            existingAuthUser = data.user;
+        }
+    }
+
+    if (!existingAuthUser) {
+        existingAuthUser = await findAuthUserByEmail(email);
+    }
+
+    if (existingAuthUser) {
+        const { data, error } = await adminSupabase.auth.admin.updateUserById(
+            existingAuthUser.id,
+            {
+                email,
+                email_confirm: true,
+                user_metadata: {
+                    nombre: profile.nombre || email,
+                    rol: normalizeRole(profile.rol),
+                },
+            }
+        );
+
+        if (error) {
+            throw error;
+        }
+
+        return data.user;
+    }
+
+    const { data, error } = await adminSupabase.auth.admin.createUser({
+        email,
+        password: createTemporaryPassword(),
+        email_confirm: true,
+        user_metadata: {
+            nombre: profile.nombre || email,
+            rol: normalizeRole(profile.rol),
+            requirePasswordChange,
+        },
+    });
+
+    if (error) {
+        throw error;
+    }
+
+    return data.user;
+}
+
+async function upsertManagedUsuario(body, { requirePasswordChange = true } = {}) {
+    const payload = pickUserProfilePayload(body);
+    const authUser = await ensureAuthUserForProfile(payload, {
+        requirePasswordChange,
+    });
+    const existingProfile = await findUsuarioByIdOrEmail({
+        id: payload.id,
+        email: payload.email,
+    });
+    const previousId = existingProfile?.id;
+    const profileRow = {
+        id: authUser.id,
+        email: payload.email,
+        nombre: payload.nombre,
+        rol: payload.rol,
+        requiere_cambio_contrasena: requirePasswordChange,
+    };
+
+    if (requirePasswordChange) {
+        profileRow.contrasena_temporal_establecida_en = new Date().toISOString();
+    }
+
+    if (previousId && previousId !== authUser.id) {
+        await updateUserReferences(previousId, authUser.id);
+        const { error: deleteError } = await adminSupabase
+            .from("usuarios")
+            .delete()
+            .eq("id", previousId);
+
+        if (deleteError) {
+            throw deleteError;
+        }
+    }
+
+    const { data, error } = await adminSupabase
+        .from("usuarios")
+        .upsert([profileRow], { onConflict: "id" })
+        .select("*")
+        .single();
+
+    if (error) {
+        throw error;
+    }
+
+    return data;
+}
+
+async function markPasswordChangeComplete(client, user) {
+    const targetClient = hasSupabaseAdmin ? adminSupabase : client;
+    const { data, error } = await targetClient
+        .from("usuarios")
+        .update({
+            requiere_cambio_contrasena: false,
+            contrasena_actualizada_en: new Date().toISOString(),
+        })
+        .eq("id", user.id)
+        .select("*")
+        .maybeSingle();
+
+    if (error) {
+        throw error;
+    }
+
+    return data || null;
+}
+
 function canReadTicket(ticket, context) {
     const email = context.user.email?.toLowerCase();
 
@@ -750,6 +1041,7 @@ app.get("/health", (_req, res) => {
             supabaseUrl: Boolean(SUPABASE_URL),
             supabaseKey: Boolean(SUPABASE_KEY),
             supabaseKeyRole: SUPABASE_KEY_ROLE,
+            supabaseAdminKeyRole: SUPABASE_ADMIN_KEY_ROLE,
             secret: Boolean(SECRET),
             webhookSecret: Boolean(WEBHOOK_SECRET),
             webhookEnabled: WEBHOOK_ENABLED,
@@ -776,6 +1068,190 @@ app.get(["/phidias/access", "/login-phidias", "/login"], (req, res) => {
             returnTo,
         })
     );
+});
+
+app.post("/auth/password-change-complete", async (req, res) => {
+    try {
+        const context = await getAuthenticatedContext(req);
+
+        if (context.error) {
+            return res.status(context.status).json({ message: context.error });
+        }
+
+        const profile = await markPasswordChangeComplete(
+            context.supabase,
+            context.user
+        );
+
+        return res.json({ ok: true, profile });
+    } catch (error) {
+        console.error("Error al marcar cambio de contrasena:", error);
+        return res.status(500).json({
+            message:
+                "La contrasena fue actualizada, pero no se pudo cerrar el estado de cambio obligatorio.",
+        });
+    }
+});
+
+app.post("/admin/users", async (req, res) => {
+    try {
+        const context = await getAdminContext(req, res);
+
+        if (!context) {
+            return;
+        }
+
+        const user = await upsertManagedUsuario(req.body, {
+            requirePasswordChange: true,
+        });
+
+        return res.status(201).json(user);
+    } catch (error) {
+        console.error("Error al crear usuario administrado:", error);
+        return res.status(500).json({
+            message: error.message || "No se pudo crear el usuario.",
+        });
+    }
+});
+
+app.put("/admin/users/:id", async (req, res) => {
+    try {
+        const context = await getAdminContext(req, res);
+
+        if (!context) {
+            return;
+        }
+
+        const user = await upsertManagedUsuario(
+            {
+                ...req.body,
+                id: req.params.id,
+            },
+            {
+                requirePasswordChange:
+                    req.body.requiere_cambio_contrasena !== false,
+            }
+        );
+
+        return res.json(user);
+    } catch (error) {
+        console.error("Error al actualizar usuario administrado:", error);
+        return res.status(500).json({
+            message: error.message || "No se pudo actualizar el usuario.",
+        });
+    }
+});
+
+app.delete("/admin/users/:id", async (req, res) => {
+    try {
+        const context = await getAdminContext(req, res);
+
+        if (!context) {
+            return;
+        }
+
+        if (req.params.id === context.user.id) {
+            return res.status(400).json({
+                message:
+                    "No puedes eliminar tu propia cuenta mientras estas usando el sistema.",
+            });
+        }
+
+        await adminSupabase.auth.admin.deleteUser(req.params.id).catch((error) => {
+            console.warn("No se pudo eliminar el usuario en Auth:", error.message);
+        });
+
+        const { error } = await adminSupabase
+            .from("usuarios")
+            .delete()
+            .eq("id", req.params.id);
+
+        if (error) {
+            throw error;
+        }
+
+        return res.json({ ok: true, id: req.params.id });
+    } catch (error) {
+        console.error("Error al eliminar usuario administrado:", error);
+        return res.status(500).json({
+            message: error.message || "No se pudo eliminar el usuario.",
+        });
+    }
+});
+
+app.post("/admin/users/bulk", async (req, res) => {
+    try {
+        const context = await getAdminContext(req, res);
+
+        if (!context) {
+            return;
+        }
+
+        const users = Array.isArray(req.body.users) ? req.body.users : [];
+
+        if (users.length === 0) {
+            return res.json({ users: [] });
+        }
+
+        const managedUsers = [];
+
+        for (const user of users) {
+            managedUsers.push(
+                await upsertManagedUsuario(user, {
+                    requirePasswordChange: true,
+                })
+            );
+        }
+
+        return res.json({ users: managedUsers });
+    } catch (error) {
+        console.error("Error en carga masiva de usuarios administrados:", error);
+        return res.status(500).json({
+            message: error.message || "No se pudo procesar la carga masiva.",
+        });
+    }
+});
+
+app.post("/admin/users/bootstrap-password-change", async (req, res) => {
+    try {
+        const context = await getAdminContext(req, res);
+
+        if (!context) {
+            return;
+        }
+
+        const { data: usuarios, error } = await adminSupabase
+            .from("usuarios")
+            .select("id, email, nombre, rol")
+            .order("created_at", { ascending: false });
+
+        if (error) {
+            throw error;
+        }
+
+        const managedUsers = [];
+
+        for (const usuario of usuarios || []) {
+            managedUsers.push(
+                await upsertManagedUsuario(usuario, {
+                    requirePasswordChange: true,
+                })
+            );
+        }
+
+        return res.json({
+            ok: true,
+            processed: managedUsers.length,
+            users: managedUsers,
+        });
+    } catch (error) {
+        console.error("Error al preparar cambio obligatorio de contrasena:", error);
+        return res.status(500).json({
+            message:
+                error.message ||
+                "No se pudo preparar el cambio obligatorio de contrasena.",
+        });
+    }
 });
 
 app.post("/webhook-ticket", async (req, res) => {

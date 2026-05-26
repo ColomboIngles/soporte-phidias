@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import API from "./api";
 
 const VALID_ROLES = new Set(["admin", "tecnico", "usuario"]);
 const TEMPLATE_COLUMNS = ["Nombre", "Cargo", "Email", "Rol Sistema"];
@@ -162,7 +162,7 @@ function buildImportPlan(rows, existingUsers) {
         } else {
             inserted += 1;
             warnings.push(
-                `Fila ${line}: ${email} se preparo como usuario nuevo. El sistema completara su identidad definitiva cuando esa persona entre por primera vez con el acceso seguro por correo.`
+                `Fila ${line}: ${email} se preparo como usuario nuevo y debera definir su contrasena en el primer acceso seguro.`
             );
         }
     });
@@ -231,9 +231,7 @@ export async function exportUsersTemplateWorkbook() {
         ["Reglas de importacion"],
         ["1. Usa las columnas Nombre, Cargo, Email y Rol Sistema."],
         ["2. Rol Sistema solo admite: Administrador, Tecnico o Usuario."],
-        [
-            "3. Ya no necesitas enviar ID en el archivo. El sistema genera un identificador provisional y lo sincroniza cuando la persona entra por primera vez con el acceso seguro por correo.",
-        ],
+        ["3. Ya no necesitas enviar ID en el archivo."],
         [
             "4. Si el email ya existe, se actualizan nombre y rol con la informacion del archivo.",
         ],
@@ -268,13 +266,7 @@ export async function importUsersWorkbook(file, existingUsers) {
     const batches = chunk(plan.payload, USER_BATCH_SIZE);
 
     for (const batch of batches) {
-        const { error } = await supabase
-            .from("usuarios")
-            .upsert(batch, { onConflict: "id" });
-
-        if (error) {
-            throw error;
-        }
+        await API.post("/admin/users/bulk", { users: batch });
     }
 
     return plan.summary;

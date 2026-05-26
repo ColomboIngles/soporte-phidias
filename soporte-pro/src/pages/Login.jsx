@@ -8,6 +8,7 @@ import {
     RotateCcwKey,
 } from "lucide-react";
 import { supabase } from "../services/supabase";
+import API from "../services/api";
 import ThemeToggle from "../components/ThemeToggle";
 import Button from "../components/ui/Button";
 import Surface from "../components/ui/Surface";
@@ -37,6 +38,7 @@ const LOGIN_VIEW = {
     REQUEST_RECOVERY: "request-recovery",
     COMPLETE_SETUP: "complete-password-setup",
     COMPLETE_RECOVERY: "complete-recovery",
+    CHANGE_REQUIRED: "change-required",
 };
 
 function getFriendlyAuthErrorMessage(error) {
@@ -133,6 +135,10 @@ function getForcedView(flow) {
         return LOGIN_VIEW.COMPLETE_RECOVERY;
     }
 
+    if (flow === "change-required") {
+        return LOGIN_VIEW.CHANGE_REQUIRED;
+    }
+
     return "";
 }
 
@@ -147,6 +153,14 @@ function getPasswordValidationError(password, confirmPassword) {
 
     if (password !== confirmPassword) {
         return "Las contrasenas no coinciden.";
+    }
+
+    return "";
+}
+
+function getPasswordEqualsEmailError(password, email) {
+    if (normalizeEmail(password) === normalizeEmail(email)) {
+        return "Por seguridad, la nueva contrasena no puede ser igual al correo.";
     }
 
     return "";
@@ -389,7 +403,7 @@ export default function Login({
             const validationError = getPasswordValidationError(
                 password,
                 confirmPassword
-            );
+            ) || getPasswordEqualsEmailError(password, session.user.email);
 
             if (validationError) {
                 throw new Error(validationError);
@@ -403,10 +417,12 @@ export default function Login({
                 throw error;
             }
 
+            await API.post("/auth/password-change-complete");
+
             setSuccessMessage(
-                forcedView === LOGIN_VIEW.COMPLETE_RECOVERY
+                activeView === LOGIN_VIEW.COMPLETE_RECOVERY
                     ? "Tu contrasena ya fue actualizada. En unos segundos entraras al sistema."
-                    : "Tu contrasena ya quedo creada. En unos segundos entraras al sistema."
+                    : "Tu contrasena ya quedo guardada. En unos segundos entraras al sistema."
             );
 
             window.setTimeout(() => {
@@ -459,7 +475,8 @@ export default function Login({
 
             if (
                 activeView === LOGIN_VIEW.COMPLETE_SETUP ||
-                activeView === LOGIN_VIEW.COMPLETE_RECOVERY
+                activeView === LOGIN_VIEW.COMPLETE_RECOVERY ||
+                activeView === LOGIN_VIEW.CHANGE_REQUIRED
             ) {
                 completePasswordSetup();
                 return;
@@ -507,6 +524,14 @@ export default function Login({
                     submitLabel: "Actualizar contrasena",
                     onSubmit: completePasswordSetup,
                 };
+            case LOGIN_VIEW.CHANGE_REQUIRED:
+                return {
+                    kickerIcon: KeyRound,
+                    title: "Cambia tu contrasena",
+                    helper: "Tu acceso requiere una contrasena personal antes de entrar al sistema.",
+                    submitLabel: "Guardar nueva contrasena",
+                    onSubmit: completePasswordSetup,
+                };
             case LOGIN_VIEW.SIGN_IN:
             default:
                 return {
@@ -524,7 +549,8 @@ export default function Login({
     const showPasswordFields =
         activeView === LOGIN_VIEW.SIGN_IN ||
         activeView === LOGIN_VIEW.COMPLETE_SETUP ||
-        activeView === LOGIN_VIEW.COMPLETE_RECOVERY;
+        activeView === LOGIN_VIEW.COMPLETE_RECOVERY ||
+        activeView === LOGIN_VIEW.CHANGE_REQUIRED;
     const isEmailDispatchView =
         activeView === LOGIN_VIEW.REQUEST_SETUP ||
         activeView === LOGIN_VIEW.REQUEST_RECOVERY;
@@ -640,7 +666,9 @@ export default function Login({
 
                                         {(activeView === LOGIN_VIEW.COMPLETE_SETUP ||
                                             activeView ===
-                                                LOGIN_VIEW.COMPLETE_RECOVERY) && (
+                                                LOGIN_VIEW.COMPLETE_RECOVERY ||
+                                            activeView ===
+                                                LOGIN_VIEW.CHANGE_REQUIRED) && (
                                             <label className="block">
                                                 <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--app-text-tertiary)]">
                                                     Confirmar contrasena

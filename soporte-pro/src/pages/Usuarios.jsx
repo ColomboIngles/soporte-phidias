@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     Download,
     FileSpreadsheet,
+    KeyRound,
     Mail,
     PencilLine,
     Plus,
@@ -27,6 +28,13 @@ import {
     exportUsersWorkbook,
     importUsersWorkbook,
 } from "../services/userBulk";
+import {
+    createManagedUser,
+    deleteManagedUser,
+    preparePasswordChangeForAllUsers,
+    updateManagedUser,
+} from "../services/adminUsers";
+import { ROLE_OPTIONS, loadUsuariosList } from "../utils/usuariosList";
 
 const EMPTY_FORM = {
     nombre: "",
@@ -44,14 +52,6 @@ function normalizeEmail(value) {
     return String(value || "").trim().toLowerCase();
 }
 
-function createProvisionalId() {
-    if (globalThis.crypto?.randomUUID) {
-        return globalThis.crypto.randomUUID();
-    }
-
-    return `temp-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
-}
-
 export default function Usuarios() {
     const [usuarios, setUsuarios] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -60,6 +60,7 @@ export default function Usuarios() {
     const [deletingId, setDeletingId] = useState(null);
     const [importing, setImporting] = useState(false);
     const [exporting, setExporting] = useState(false);
+    const [preparingAccess, setPreparingAccess] = useState(false);
     const [bulkSummary, setBulkSummary] = useState(null);
     const [currentUserId, setCurrentUserId] = useState("");
     const [userModalOpen, setUserModalOpen] = useState(false);
@@ -89,18 +90,8 @@ export default function Usuarios() {
         });
     }, [usuarios, searchTerm]);
 
-    const cargarUsuarios = useCallback(async () => {
-        const { data, error } = await supabase
-            .from("usuarios")
-            .select("*")
-            .order("created_at", { ascending: false });
-
-        if (error) {
-            throw error;
-        }
-
-        setUsuarios(data || []);
-        return data || [];
+    const cargarUsuarios = useCallback(async ({ updateState = true } = {}) => {
+        return loadUsuariosList(supabase, { updateState, setUsuarios });
     }, []);
 
     useEffect(() => {
@@ -114,14 +105,7 @@ export default function Usuarios() {
 
         async function cargarInicial() {
             try {
-                const { data, error } = await supabase
-                    .from("usuarios")
-                    .select("*")
-                    .order("created_at", { ascending: false });
-
-                if (error) {
-                    throw error;
-                }
+                const data = await cargarUsuarios({ updateState: false });
 
                 if (!activo) return;
 
@@ -147,7 +131,7 @@ export default function Usuarios() {
         return () => {
             activo = false;
         };
-    }, [showToast]);
+    }, [cargarUsuarios, showToast]);
 
     function resetUserForm() {
         setFormValues(EMPTY_FORM);
@@ -230,21 +214,19 @@ export default function Usuarios() {
             setSavingUser(true);
 
             if (editingUser) {
-                const { data, error } = await supabase
-                    .from("usuarios")
-                    .update(payload)
-                    .eq("id", editingUser.id)
-                    .select("*")
-                    .maybeSingle();
-
-                if (error) {
-                    throw error;
-                }
+                const emailChanged =
+                    normalizeEmail(editingUser.email) !== payload.email;
+                const data = await updateManagedUser(editingUser.id, {
+                    ...payload,
+                    requiere_cambio_contrasena: emailChanged
+                        ? true
+                        : Boolean(editingUser.requiere_cambio_contrasena),
+                });
 
                 setUsuarios((prev) =>
                     prev.map((usuario) =>
                         usuario.id === editingUser.id
-                            ? { ...usuario, ...(data || payload) }
+                            ? { ...usuario, ...data }
                             : usuario
                     )
                 );
@@ -255,27 +237,14 @@ export default function Usuarios() {
                     message: "Los datos del usuario se guardaron correctamente.",
                 });
             } else {
-                const { data, error } = await supabase
-                    .from("usuarios")
-                    .insert([
-                        {
-                            id: createProvisionalId(),
-                            ...payload,
-                        },
-                    ])
-                    .select("*")
-                    .maybeSingle();
+                const data = await createManagedUser(payload);
 
-                if (error) {
-                    throw error;
-                }
-
-                setUsuarios((prev) => [data || payload, ...prev]);
+                setUsuarios((prev) => [data, ...prev]);
                 showToast({
                     type: "success",
                     title: "Usuario creado",
                     message:
-                        "La cuenta quedo lista en el sistema y sincronizara su identidad al primer acceso seguro.",
+                        "La cuenta quedo lista en Supabase Auth y debera cambiar contrasena al ingresar.",
                 });
             }
 
@@ -296,15 +265,16 @@ export default function Usuarios() {
     async function cambiarRol(id, rol) {
         try {
             setSavingRoleId(id);
+            const usuarioActual = usuarios.find((usuario) => usuario.id === id);
 
-            const { error } = await supabase
-                .from("usuarios")
-                .update({ rol })
-                .eq("id", id);
-
-            if (error) {
-                throw error;
-            }
+            await updateManagedUser(id, {
+                nombre: usuarioActual?.nombre || usuarioActual?.email,
+                email: usuarioActual?.email,
+                rol,
+                requiere_cambio_contrasena: Boolean(
+                    usuarioActual?.requiere_cambio_contrasena
+                ),
+            });
 
             setUsuarios((prev) =>
                 prev.map((usuario) =>
@@ -340,14 +310,7 @@ export default function Usuarios() {
                 );
             }
 
-            const { error } = await supabase
-                .from("usuarios")
-                .delete()
-                .eq("id", usuarioToDelete.id);
-
-            if (error) {
-                throw error;
-            }
+            await deleteManagedUser(usuarioToDelete.id);
 
             setUsuarios((prev) =>
                 prev.filter((usuario) => usuario.id !== usuarioToDelete.id)
@@ -403,6 +366,27 @@ export default function Usuarios() {
                 title: "No se pudo generar la plantilla",
                 message: error.message || "Intenta nuevamente en unos segundos.",
             });
+        }
+    }
+
+    async function handlePreparePasswordChange() {
+        try {
+            setPreparingAccess(true);
+            const result = await preparePasswordChangeForAllUsers();
+            await cargarUsuarios();
+            showToast({
+                type: "success",
+                title: "Accesos preparados",
+                message: `Usuarios sincronizados: ${result.processed || 0}. Se exigira cambio de contrasena al ingresar.`,
+            });
+        } catch (error) {
+            showToast({
+                type: "error",
+                title: "No se pudieron preparar los accesos",
+                message: error.message || "Intenta nuevamente en unos segundos.",
+            });
+        } finally {
+            setPreparingAccess(false);
         }
     }
 
@@ -503,6 +487,14 @@ export default function Usuarios() {
                         >
                             Plantilla
                         </Button>
+                        <Button
+                            variant="secondary"
+                            iconLeft={KeyRound}
+                            onClick={handlePreparePasswordChange}
+                            disabled={preparingAccess || !usuarios.length}
+                        >
+                            {preparingAccess ? "Preparando..." : "Preparar accesos"}
+                        </Button>
                         <input
                             ref={importInputRef}
                             type="file"
@@ -533,10 +525,9 @@ export default function Usuarios() {
                             <strong>Nombre</strong>, <strong>Cargo</strong>,{" "}
                             <strong>Email</strong> y{" "}
                             <strong>Rol Sistema</strong>. Ya no necesitas
-                            enviar ID en la plantilla: el sistema asigna una
-                            identidad provisional y la sincroniza con Supabase
-                            cuando la persona entra por primera vez con el
-                            acceso seguro por correo.
+                            enviar ID en la plantilla: el sistema crea o
+                            sincroniza la identidad en Supabase Auth y exige
+                            cambio de contrasena al primer acceso.
                         </Alert>
 
                         {bulkSummary ? (
@@ -671,15 +662,14 @@ export default function Usuarios() {
                                                 }
                                                 className="app-input-shell w-full text-sm"
                                             >
-                                                <option value="admin">
-                                                    Admin
-                                                </option>
-                                                <option value="tecnico">
-                                                    Tecnico
-                                                </option>
-                                                <option value="usuario">
-                                                    Usuario
-                                                </option>
+                                                {ROLE_OPTIONS.map((option) => (
+                                                    <option
+                                                        key={option.value}
+                                                        value={option.value}
+                                                    >
+                                                        {option.label}
+                                                    </option>
+                                                ))}
                                             </select>
 
                                             <Button
@@ -778,15 +768,22 @@ export default function Usuarios() {
                                                             }
                                                             className="app-input-shell w-full text-sm"
                                                         >
-                                                            <option value="admin">
-                                                                Admin
-                                                            </option>
-                                                            <option value="tecnico">
-                                                                Tecnico
-                                                            </option>
-                                                            <option value="usuario">
-                                                                Usuario
-                                                            </option>
+                                                            {ROLE_OPTIONS.map(
+                                                                (option) => (
+                                                                    <option
+                                                                        key={
+                                                                            option.value
+                                                                        }
+                                                                        value={
+                                                                            option.value
+                                                                        }
+                                                                    >
+                                                                        {
+                                                                            option.label
+                                                                        }
+                                                                    </option>
+                                                                )
+                                                            )}
                                                         </select>
                                                     </td>
                                                     <td>
@@ -857,7 +854,7 @@ export default function Usuarios() {
                 description={
                     editingUser
                         ? "Actualiza nombre, correo y rol sin afectar la experiencia del resto del equipo."
-                        : "Crea una cuenta operativa en el modulo de usuarios. La identidad definitiva se conciliara cuando la persona entre con acceso seguro."
+                        : "Crea una cuenta operativa en Supabase Auth y exige cambio de contrasena al primer acceso."
                 }
                 icon={UsersIcon}
                 actions={
@@ -899,9 +896,11 @@ export default function Usuarios() {
                         }
                         error={formErrors.rol}
                     >
-                        <option value="admin">Admin</option>
-                        <option value="tecnico">Tecnico</option>
-                        <option value="usuario">Usuario</option>
+                        {ROLE_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                                {option.label}
+                            </option>
+                        ))}
                     </Select>
                     <Input
                         label="Email"

@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
+    "test": "node src/utils/notifications.test.js && node src/utils/usuariosList.test.js",
     "preview": "vite preview"
   },
   "dependencies": {

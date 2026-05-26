@@ -241,6 +241,7 @@ function App() {
     const [rol, setRol] = useState(null);
     const [bootstrapping, setBootstrapping] = useState(true);
     const [authFlow, setAuthFlow] = useState(() => resolveRequestedAuthFlow());
+    const [passwordChangeRequired, setPasswordChangeRequired] = useState(false);
     const [phidiasState, setPhidiasState] = useState(() =>
         readPhidiasAccessState()
     );
@@ -270,6 +271,7 @@ function App() {
 
                 setSession(null);
                 setRol(null);
+                setPasswordChangeRequired(false);
                 setBootstrapping(false);
                 return;
             }
@@ -278,6 +280,7 @@ function App() {
 
             if (!nextSession?.user) {
                 setRol(null);
+                setPasswordChangeRequired(false);
                 clearAuthAccessError();
                 if (isMounted) {
                     setBootstrapping(false);
@@ -319,6 +322,7 @@ function App() {
 
                 setSession(null);
                 setRol(null);
+                setPasswordChangeRequired(false);
                 setBootstrapping(false);
                 return;
             }
@@ -330,6 +334,9 @@ function App() {
             if (!isMounted) return;
 
             setRol(nextRol);
+            setPasswordChangeRequired(
+                Boolean(hydratedUser?.requiere_cambio_contrasena)
+            );
             setBootstrapping(false);
         }
 
@@ -365,6 +372,14 @@ function App() {
         <ToastProvider>
             {bootstrapping ? (
                 <AppBootSplash />
+            ) : passwordChangeRequired && session ? (
+                <Login
+                    forcedFlow="change-required"
+                    session={session}
+                    onAuthFlowComplete={() => {
+                        setPasswordChangeRequired(false);
+                    }}
+                />
             ) : authFlow && session ? (
                 <Login
                     forcedFlow={authFlow}
