@@ -104,6 +104,8 @@ const adminSupabase = SUPABASE_ADMIN_KEY
     ? createClient(SUPABASE_URL, SUPABASE_ADMIN_KEY)
     : null;
 const hasSupabaseAdmin = SUPABASE_ADMIN_KEY_ROLE === "service_role";
+const passwordLinkRequests = new Map();
+const PASSWORD_LINK_COOLDOWN_MS = 90 * 1000;
 
 function createUserScopedClient(token) {
     return createClient(SUPABASE_URL, SUPABASE_KEY, {
@@ -216,7 +218,12 @@ function sanitizeReturnTo(value) {
     return trimmed;
 }
 
-function buildFrontendAccessUrl({ email = "", source = "phidias", returnTo = "" } = {}) {
+function buildFrontendAccessUrl({
+    email = "",
+    source = "phidias",
+    returnTo = "",
+    flow = "",
+} = {}) {
     const url = new URL(FRONTEND_APP_URL);
 
     if (email) {
@@ -229,6 +236,10 @@ function buildFrontendAccessUrl({ email = "", source = "phidias", returnTo = "" 
 
     if (returnTo) {
         url.searchParams.set("returnTo", sanitizeReturnTo(returnTo));
+    }
+
+    if (flow) {
+        url.searchParams.set("flow", flow);
     }
 
     return url.toString();
@@ -816,6 +827,82 @@ async function findUsuarioByIdOrEmail({ id, email }) {
     return data || null;
 }
 
+function getPasswordLinkRequestKey(req, email) {
+    const forwardedFor = req.headers["x-forwarded-for"];
+    const ip = Array.isArray(forwardedFor)
+        ? forwardedFor[0]
+        : String(forwardedFor || req.ip || "").split(",")[0].trim();
+
+    return `${normalizeEmail(email)}:${ip}`;
+}
+
+function assertPasswordLinkCooldown(req, email) {
+    const key = getPasswordLinkRequestKey(req, email);
+    const now = Date.now();
+    const previousRequestAt = passwordLinkRequests.get(key) || 0;
+    const elapsed = now - previousRequestAt;
+
+    if (elapsed < PASSWORD_LINK_COOLDOWN_MS) {
+        const retryAfterSeconds = Math.ceil(
+            (PASSWORD_LINK_COOLDOWN_MS - elapsed) / 1000
+        );
+        const error = new Error(
+            `Espera ${retryAfterSeconds}s antes de solicitar otro enlace.`
+        );
+        error.status = 429;
+        throw error;
+    }
+
+    passwordLinkRequests.set(key, now);
+}
+
+async function sendPasswordSetupLink({
+    email,
+    source = "phidias",
+    returnTo = "",
+    flow = "create-password",
+}) {
+    const normalizedEmail = normalizeEmail(email);
+    const existingProfile = await findUsuarioByIdOrEmail({
+        email: normalizedEmail,
+    });
+
+    if (!existingProfile) {
+        const error = new Error(
+            "Este correo no esta registrado en el sistema de soporte."
+        );
+        error.status = 404;
+        throw error;
+    }
+
+    await upsertManagedUsuario(existingProfile, {
+        requirePasswordChange: true,
+    });
+
+    const redirectTo = buildFrontendAccessUrl({
+        email: normalizedEmail,
+        source: source || "phidias",
+        returnTo,
+        flow,
+    });
+
+    const { error } = await supabase.auth.resetPasswordForEmail(
+        normalizedEmail,
+        {
+            redirectTo,
+        }
+    );
+
+    if (error) {
+        throw error;
+    }
+
+    return {
+        email: normalizedEmail,
+        redirectTo,
+    };
+}
+
 async function updateUserReferences(previousId, nextId) {
     if (!previousId || !nextId || previousId === nextId) {
         return;
@@ -1111,6 +1198,47 @@ app.get(["/phidias/access", "/login-phidias", "/login"], (req, res) => {
             returnTo,
         })
     );
+});
+
+app.post("/auth/request-password-link", async (req, res) => {
+    try {
+        if (!hasSupabaseAdmin) {
+            return res.status(503).json({
+                message:
+                    "El envio seguro de enlaces requiere SUPABASE_SERVICE_ROLE_KEY configurada.",
+            });
+        }
+
+        const email = normalizeEmail(req.body.email);
+        const flow = req.body.flow === "recovery" ? "recovery" : "create-password";
+
+        if (!email) {
+            return res.status(400).json({
+                message: "Debes ingresar un correo valido.",
+            });
+        }
+
+        assertPasswordLinkCooldown(req, email);
+
+        const result = await sendPasswordSetupLink({
+            email,
+            source: req.body.source || "phidias",
+            returnTo: sanitizeReturnTo(req.body.returnTo),
+            flow,
+        });
+
+        return res.json({
+            ok: true,
+            email: result.email,
+        });
+    } catch (error) {
+        console.error("Error al enviar enlace seguro de contrasena:", error);
+        return res.status(error.status || 500).json({
+            message:
+                error.message ||
+                "No se pudo enviar el enlace seguro de contrasena.",
+        });
+    }
 });
 
 app.post("/auth/password-change-complete", async (req, res) => {

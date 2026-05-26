@@ -42,8 +42,13 @@ const LOGIN_VIEW = {
 };
 
 function getFriendlyAuthErrorMessage(error) {
+    const apiMessage =
+        typeof error?.response?.data?.message === "string"
+            ? error.response.data.message.trim()
+            : "";
     const rawMessage =
-        typeof error?.message === "string" ? error.message.trim() : "";
+        apiMessage ||
+        (typeof error?.message === "string" ? error.message.trim() : "");
     const normalized = rawMessage.toLowerCase();
 
     if (normalized.includes("email rate limit exceeded")) {
@@ -70,60 +75,6 @@ function getFriendlyAuthErrorMessage(error) {
     }
 
     return rawMessage || "No se pudo enviar el acceso seguro.";
-}
-
-function getAppBasePath() {
-    const baseUrl = import.meta.env.BASE_URL || "/";
-    return baseUrl === "/" ? "" : baseUrl.replace(/\/$/, "");
-}
-
-function getAuthRedirectBase({ appBasePath }) {
-    const configuredAppUrl = (import.meta.env.VITE_APP_URL || "").trim();
-
-    if (configuredAppUrl) {
-        return configuredAppUrl.replace(/\/$/, "");
-    }
-
-    if (typeof window === "undefined") {
-        return "";
-    }
-
-    return `${window.location.origin}${appBasePath || ""}`;
-}
-
-function buildEmailRedirectUrl({
-    appBasePath,
-    email,
-    source,
-    returnTo,
-    flow = "",
-}) {
-    const base = getAuthRedirectBase({ appBasePath });
-
-    if (!base) {
-        return undefined;
-    }
-
-    const params = new URLSearchParams();
-
-    if (email) {
-        params.set("email", email);
-    }
-
-    if (source) {
-        params.set("source", source);
-    }
-
-    if (returnTo) {
-        params.set("returnTo", returnTo);
-    }
-
-    if (flow) {
-        params.set("flow", flow);
-    }
-
-    const target = `${base}/`;
-    return params.toString() ? `${target}?${params.toString()}` : target;
 }
 
 function getForcedView(flow) {
@@ -172,7 +123,6 @@ export default function Login({
     onAuthFlowComplete,
 }) {
     const loginContext = useMemo(() => readAccessContext(), []);
-    const appBasePath = useMemo(() => getAppBasePath(), []);
     const trustedEmail = useMemo(() => getTrustedEmail(), []);
     const forcedView = getForcedView(forcedFlow);
     const initialView =
@@ -315,24 +265,12 @@ export default function Login({
                 throw new Error("Debes ingresar un correo valido.");
             }
 
-            const emailRedirectTo = buildEmailRedirectUrl({
-                appBasePath,
+            await API.post("/auth/request-password-link", {
                 email: normalizedEmail,
                 source: loginContext.source || "phidias",
                 returnTo: loginContext.returnTo,
                 flow: "create-password",
             });
-
-            const { error } = await supabase.auth.resetPasswordForEmail(
-                normalizedEmail,
-                {
-                    redirectTo: emailRedirectTo,
-                }
-            );
-
-            if (error) {
-                throw error;
-            }
 
             persistTrustedEmail(normalizedEmail);
             persistPendingAuthFlow("create-password");
@@ -376,24 +314,12 @@ export default function Login({
                 throw new Error("Debes ingresar un correo valido.");
             }
 
-            const emailRedirectTo = buildEmailRedirectUrl({
-                appBasePath,
+            await API.post("/auth/request-password-link", {
                 email: normalizedEmail,
                 source: loginContext.source || "phidias",
                 returnTo: loginContext.returnTo,
                 flow: "recovery",
             });
-
-            const { error } = await supabase.auth.resetPasswordForEmail(
-                normalizedEmail,
-                {
-                    redirectTo: emailRedirectTo,
-                }
-            );
-
-            if (error) {
-                throw error;
-            }
 
             persistTrustedEmail(normalizedEmail);
             persistPendingAuthFlow("recovery");
