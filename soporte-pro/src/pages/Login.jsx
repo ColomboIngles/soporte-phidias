@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
     ArrowRight,
     CheckCircle2,
@@ -186,6 +186,7 @@ export default function Login({
     const [submitting, setSubmitting] = useState(false);
     const [errorMessage, setErrorMessage] = useState(() => readAuthAccessError());
     const [successMessage, setSuccessMessage] = useState("");
+    const autoSetupRequestSentRef = useRef(false);
     const [cooldownUntil, setCooldownUntil] = useState(() =>
         readMagicLinkCooldown()
     );
@@ -214,6 +215,31 @@ export default function Login({
             window.clearInterval(timer);
         };
     }, [effectiveCooldownUntil]);
+
+    useEffect(() => {
+        if (
+            autoSetupRequestSentRef.current ||
+            forcedView ||
+            loginContext.source !== "phidias" ||
+            !loginContext.email ||
+            activeView !== LOGIN_VIEW.REQUEST_SETUP ||
+            isCooldownActive ||
+            submitting
+        ) {
+            return;
+        }
+
+        autoSetupRequestSentRef.current = true;
+        requestPasswordSetup();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+        activeView,
+        forcedView,
+        isCooldownActive,
+        loginContext.email,
+        loginContext.source,
+        submitting,
+    ]);
 
     function resetFormState() {
         setErrorMessage("");
@@ -496,7 +522,10 @@ export default function Login({
                 return {
                     kickerIcon: Mail,
                     title: "Crear contrasena",
-                    helper: "Te enviaremos un enlace seguro para definir tu contrasena.",
+                    helper:
+                        loginContext.source === "phidias" && loginContext.email
+                            ? "Estamos enviando un enlace seguro a tu correo para que definas tu contrasena."
+                            : "Te enviaremos un enlace seguro para definir tu contrasena.",
                     submitLabel: isCooldownActive
                         ? `Espera ${cooldownRemaining}s para reenviar`
                         : "Enviar correo para crear contrasena",
