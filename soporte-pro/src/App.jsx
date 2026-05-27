@@ -1,30 +1,19 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import { Suspense, lazy, useEffect, useState } from "react";
+import { Suspense, lazy, useState } from "react";
 import { LoaderCircle } from "lucide-react";
-import { supabase } from "./services/supabase";
-import {
-    clearAuthAccessError,
-    clearAccessFlowFromUrl,
-    clearPendingAuthFlow,
-    normalizeEmail,
-    persistAuthAccessError,
-    readAccessContext,
-    persistPhidiasAccess,
-    persistTrustedEmail,
-    readPhidiasAccessState,
-    resolveRequestedAuthFlow,
-    resolveExternalReferrer,
-} from "./services/phidiasSession";
-import { crearUsuarioSiNoExiste, obtenerRol } from "./services/usuarios";
+import { AuthProvider } from "./auth/AuthProvider";
+import { useAuth } from "./auth/authContext";
 
 import Sidebar from "./components/Sidebar";
 import Topbar from "./components/Topbar";
 import ThemeToggle from "./components/ThemeToggle";
 import BrandMark from "./components/BrandMark";
-import Login from "./pages/Login";
 import Skeleton from "./components/skeleton";
 import { ToastProvider } from "./components/ToastProvider";
 import { MotionPage, MotionSection } from "./components/AppMotion";
+import PhidiasAccess from "./pages/auth/PhidiasAccess";
+import LoginPage from "./pages/auth/LoginPage";
+import SetPassword from "./pages/auth/SetPassword";
 import {
     canAccessDashboard,
     canAccessKanban,
@@ -38,47 +27,6 @@ const routerBasename =
     import.meta.env.BASE_URL && import.meta.env.BASE_URL !== "/"
         ? import.meta.env.BASE_URL.replace(/\/$/, "")
         : undefined;
-
-function stripAuthParamsFromUrl() {
-    if (typeof window === "undefined") {
-        return;
-    }
-
-    const url = new URL(window.location.href);
-    const authParams = [
-        "code",
-        "type",
-        "access_token",
-        "refresh_token",
-        "expires_at",
-        "expires_in",
-        "token_type",
-    ];
-
-    let changed = false;
-
-    authParams.forEach((param) => {
-        if (url.searchParams.has(param)) {
-            url.searchParams.delete(param);
-            changed = true;
-        }
-    });
-
-    const hash = url.hash || "";
-    if (
-        hash.includes("access_token") ||
-        hash.includes("refresh_token") ||
-        hash.includes("token_type") ||
-        hash.includes("expires_in")
-    ) {
-        changed = true;
-        url.hash = "";
-    }
-
-    if (changed) {
-        window.history.replaceState({}, document.title, url.toString());
-    }
-}
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Tickets = lazy(() => import("./pages/Tickets"));
@@ -131,325 +79,161 @@ function RouteFallback() {
     );
 }
 
-function AppLayout({
-    rol,
-    session,
-    phidiasMode,
-    phidiasReturnTo,
-    phidiasReferrer,
-}) {
+function AppLayout() {
+    const { session, role } = useAuth();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-    const homeRoute = getHomeRouteByRole(rol);
+    const homeRoute = getHomeRouteByRole(role);
 
     return (
-        <BrowserRouter basename={routerBasename}>
-            <div className="app-shell flex min-h-screen bg-[color:var(--app-bg)]">
-                <Sidebar
-                    rol={rol}
-                    isOpen={sidebarOpen}
-                    onClose={() => setSidebarOpen(false)}
-                    collapsed={sidebarCollapsed}
-                    onToggleCollapse={() =>
-                        setSidebarCollapsed((previous) => !previous)
-                    }
+        <div className="app-shell flex min-h-screen bg-[color:var(--app-bg)]">
+            <Sidebar
+                rol={role}
+                isOpen={sidebarOpen}
+                onClose={() => setSidebarOpen(false)}
+                collapsed={sidebarCollapsed}
+                onToggleCollapse={() =>
+                    setSidebarCollapsed((previous) => !previous)
+                }
+            />
+
+            <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+                <Topbar
+                    user={session.user}
+                    rol={role}
+                    phidiasMode
+                    onOpenSidebar={() => setSidebarOpen(true)}
                 />
 
-                <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-                    <Topbar
-                        user={session.user}
-                        rol={rol}
-                        phidiasMode={phidiasMode}
-                        phidiasReturnTo={phidiasReturnTo}
-                        phidiasReferrer={phidiasReferrer}
-                        onOpenSidebar={() => setSidebarOpen(true)}
-                    />
+                <main className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6 xl:px-8">
+                    <div className="mx-auto flex w-full max-w-[1680px] flex-col">
+                        <Suspense fallback={<RouteFallback />}>
+                            <Routes>
+                                <Route
+                                    path="/"
+                                    element={
+                                        canAccessDashboard(role) ? (
+                                            <Dashboard />
+                                        ) : (
+                                            <Navigate to="/tickets" replace />
+                                        )
+                                    }
+                                />
+                                <Route
+                                    path="/dashboard"
+                                    element={
+                                        canAccessDashboard(role) ? (
+                                            <Dashboard />
+                                        ) : (
+                                            <Navigate to="/tickets" replace />
+                                        )
+                                    }
+                                />
+                                <Route path="/tickets" element={<Tickets role={role} />} />
+                                <Route
+                                    path="/tickets/nuevo"
+                                    element={
+                                        canCreateTickets(role) ? (
+                                            <NuevoTicket rol={role} />
+                                        ) : (
+                                            <Navigate to={homeRoute} replace />
+                                        )
+                                    }
+                                />
+                                <Route
+                                    path="/tickets/:id"
+                                    element={<TicketDetalle rol={role} />}
+                                />
+                                <Route
+                                    path="/tickets/:id/editar"
+                                    element={
+                                        canAccessTicketEdit(role) ? (
+                                            <EditarTicket />
+                                        ) : (
+                                            <Navigate to="/tickets" replace />
+                                        )
+                                    }
+                                />
+                                <Route
+                                    path="/kanban"
+                                    element={
+                                        canAccessKanban(role) ? (
+                                            <Kanban rol={role} />
+                                        ) : (
+                                            <Navigate to="/tickets" replace />
+                                        )
+                                    }
+                                />
 
-                    <main className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6 xl:px-8">
-                        <div className="mx-auto flex w-full max-w-[1680px] flex-col">
-                            <Suspense fallback={<RouteFallback />}>
-                                <Routes>
-                                    <Route
-                                        path="/"
-                                        element={
-                                            canAccessDashboard(rol) ? (
-                                                <Dashboard />
-                                            ) : (
-                                                <Navigate to="/tickets" replace />
-                                            )
-                                        }
-                                    />
-                                    <Route path="/tickets" element={<Tickets role={rol} />} />
-                                    <Route
-                                        path="/tickets/nuevo"
-                                        element={
-                                            canCreateTickets(rol) ? (
-                                                <NuevoTicket rol={rol} />
-                                            ) : (
-                                                <Navigate to={homeRoute} replace />
-                                            )
-                                        }
-                                    />
-                                    <Route
-                                        path="/tickets/:id"
-                                        element={<TicketDetalle rol={rol} />}
-                                    />
-                                    <Route
-                                        path="/tickets/:id/editar"
-                                        element={
-                                            canAccessTicketEdit(rol) ? (
-                                                <EditarTicket />
-                                            ) : (
-                                                <Navigate to="/tickets" replace />
-                                            )
-                                        }
-                                    />
-                                    <Route
-                                        path="/kanban"
-                                        element={
-                                            canAccessKanban(rol) ? (
-                                                <Kanban rol={rol} />
-                                            ) : (
-                                                <Navigate to="/tickets" replace />
-                                            )
-                                        }
-                                    />
+                                {canAccessUserAdmin(role) ? (
+                                    <>
+                                        <Route path="/usuarios" element={<Usuarios />} />
+                                        <Route path="/auditoria" element={<Auditoria />} />
+                                    </>
+                                ) : null}
 
-                                    {canAccessUserAdmin(rol) ? (
-                                        <>
-                                            <Route path="/usuarios" element={<Usuarios />} />
-                                            <Route path="/auditoria" element={<Auditoria />} />
-                                        </>
-                                    ) : null}
-
-                                    <Route
-                                        path="*"
-                                        element={<Navigate to={homeRoute} replace />}
-                                    />
-                                </Routes>
-                            </Suspense>
-                        </div>
-                    </main>
-                </div>
+                                <Route
+                                    path="*"
+                                    element={<Navigate to={homeRoute} replace />}
+                                />
+                            </Routes>
+                        </Suspense>
+                    </div>
+                </main>
             </div>
-        </BrowserRouter>
+        </div>
+    );
+}
+
+function PrivateApp() {
+    const { session, profile, loading } = useAuth();
+
+    if (loading) {
+        return <AppBootSplash />;
+    }
+
+    if (!session) {
+        return <Navigate to="/phidias/access" replace />;
+    }
+
+    if (profile?.requiere_cambio_contrasena) {
+        return <Navigate to="/auth/set-password" replace />;
+    }
+
+    return <AppLayout />;
+}
+
+function AuthRoutes() {
+    const { loading, session, profile, role } = useAuth();
+    const homeRoute = getHomeRouteByRole(role);
+
+    return (
+        <Routes>
+            <Route
+                path="/phidias/access"
+                element={
+                    !loading && session && !profile?.requiere_cambio_contrasena ? (
+                        <Navigate to={homeRoute} replace />
+                    ) : (
+                        <PhidiasAccess />
+                    )
+                }
+            />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/auth/set-password" element={<SetPassword />} />
+            <Route path="/*" element={<PrivateApp />} />
+        </Routes>
     );
 }
 
 function App() {
-    const [session, setSession] = useState(null);
-    const [rol, setRol] = useState(null);
-    const [bootstrapping, setBootstrapping] = useState(true);
-    const [authFlow, setAuthFlow] = useState(() => resolveRequestedAuthFlow());
-    const [passwordChangeRequired, setPasswordChangeRequired] = useState(false);
-    const [phidiasState, setPhidiasState] = useState(() =>
-        readPhidiasAccessState()
-    );
-
-    useEffect(() => {
-        let isMounted = true;
-        const accessContext = readAccessContext();
-
-        function syncPhidiasState() {
-            if (!isMounted) return;
-            setPhidiasState(readPhidiasAccessState());
-        }
-
-        async function hydrateSession(nextSession) {
-            if (!isMounted) return;
-
-            const sessionEmail = normalizeEmail(nextSession?.user?.email || "");
-            const expectedEmail = accessContext.source === "phidias"
-                ? normalizeEmail(accessContext.email)
-                : "";
-
-            if (nextSession?.user && expectedEmail && sessionEmail !== expectedEmail) {
-                await supabase.auth.signOut();
-                persistTrustedEmail("");
-
-                if (!isMounted) return;
-
-                setSession(null);
-                setRol(null);
-                setPasswordChangeRequired(false);
-                setBootstrapping(false);
-                return;
-            }
-
-            setSession(nextSession);
-
-            if (!nextSession?.user) {
-                setRol(null);
-                setPasswordChangeRequired(false);
-                clearAuthAccessError();
-                if (isMounted) {
-                    setBootstrapping(false);
-                }
-                return;
-            }
-
-            if (sessionEmail) {
-                persistTrustedEmail(sessionEmail);
-            }
-
-            if (
-                accessContext.source === "phidias" ||
-                readPhidiasAccessState().mode
-            ) {
-                const currentPhidiasState = readPhidiasAccessState();
-                const nextReferrer =
-                    resolveExternalReferrer() || currentPhidiasState.referrer;
-
-                persistPhidiasAccess({
-                    returnTo: accessContext.returnTo || currentPhidiasState.returnTo,
-                    referrer: nextReferrer,
-                });
-                syncPhidiasState();
-            }
-
-            const hydratedUser = await crearUsuarioSiNoExiste(nextSession.user, {
-                allowCreateIfMissing: false,
-            });
-
-            if (!hydratedUser) {
-                persistAuthAccessError(
-                    "Este correo no tiene acceso habilitado en el sistema de soporte. Solicita al administrador que lo registre primero en el modulo Usuarios."
-                );
-                await supabase.auth.signOut();
-                persistTrustedEmail("");
-
-                if (!isMounted) return;
-
-                setSession(null);
-                setRol(null);
-                setPasswordChangeRequired(false);
-                setBootstrapping(false);
-                return;
-            }
-
-            const nextRol =
-                hydratedUser?.rol ||
-                (await obtenerRol(nextSession.user.id, nextSession.user.email));
-
-            if (!isMounted) return;
-
-            setRol(nextRol);
-            setPasswordChangeRequired(
-                Boolean(hydratedUser?.requiere_cambio_contrasena)
-            );
-            setBootstrapping(false);
-        }
-
-        async function bootstrapAuth() {
-            const url = new URL(window.location.href);
-            const authCode = url.searchParams.get("code");
-            const requestedFlow = resolveRequestedAuthFlow();
-
-            if (requestedFlow) {
-                setAuthFlow(requestedFlow);
-            }
-
-            if (authCode) {
-                await supabase.auth.exchangeCodeForSession(authCode).catch(() => null);
-            }
-
-            const { data } = await supabase.auth.getSession();
-            stripAuthParamsFromUrl();
-            hydrateSession(data.session);
-        }
-
-        bootstrapAuth();
-
-        const {
-            data: { subscription },
-        } = supabase.auth.onAuthStateChange((_, nextSession) => {
-            setBootstrapping(true);
-            hydrateSession(nextSession);
-        });
-
-        return () => {
-            isMounted = false;
-            subscription.unsubscribe();
-        };
-    }, []);
-
-    useEffect(() => {
-        if (!session?.user || passwordChangeRequired) {
-            return undefined;
-        }
-
-        let isActive = true;
-
-        async function refreshPasswordRequirement() {
-            const refreshedUser = await crearUsuarioSiNoExiste(session.user, {
-                allowCreateIfMissing: false,
-            }).catch(() => null);
-
-            if (!isActive || !refreshedUser) {
-                return;
-            }
-
-            if (refreshedUser.requiere_cambio_contrasena) {
-                setPasswordChangeRequired(true);
-            }
-        }
-
-        function handleVisibilityChange() {
-            if (document.visibilityState === "visible") {
-                refreshPasswordRequirement();
-            }
-        }
-
-        refreshPasswordRequirement();
-        window.addEventListener("focus", refreshPasswordRequirement);
-        document.addEventListener("visibilitychange", handleVisibilityChange);
-
-        const timer = window.setInterval(refreshPasswordRequirement, 30000);
-
-        return () => {
-            isActive = false;
-            window.removeEventListener("focus", refreshPasswordRequirement);
-            document.removeEventListener(
-                "visibilitychange",
-                handleVisibilityChange
-            );
-            window.clearInterval(timer);
-        };
-    }, [passwordChangeRequired, session]);
-
     return (
         <ToastProvider>
-            {bootstrapping ? (
-                <AppBootSplash />
-            ) : passwordChangeRequired && session ? (
-                <Login
-                    forcedFlow="change-required"
-                    session={session}
-                    onAuthFlowComplete={() => {
-                        setPasswordChangeRequired(false);
-                    }}
-                />
-            ) : authFlow && session ? (
-                <Login
-                    forcedFlow={authFlow}
-                    session={session}
-                    onAuthFlowComplete={() => {
-                        clearAccessFlowFromUrl();
-                        clearPendingAuthFlow();
-                        setAuthFlow("");
-                    }}
-                />
-            ) : !session ? (
-                <Login />
-            ) : (
-                <AppLayout
-                    rol={rol}
-                    session={session}
-                    phidiasMode={phidiasState.mode}
-                    phidiasReturnTo={phidiasState.returnTo}
-                    phidiasReferrer={phidiasState.referrer}
-                />
-            )}
+            <BrowserRouter basename={routerBasename}>
+                <AuthProvider>
+                    <AuthRoutes />
+                </AuthProvider>
+            </BrowserRouter>
         </ToastProvider>
     );
 }

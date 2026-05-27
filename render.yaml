@@ -18,3 +18,7 @@ services:
         sync: false
       - key: FRONTEND_ORIGINS
         sync: false
+      - key: FRONTEND_APP_URL
+        sync: false
+      - key: SUPPORT_ALLOWED_EMAIL_DOMAINS
+        sync: false

@@ -25,6 +25,10 @@ const EMAIL_NOTIFICATIONS_WEBHOOK_URL = process.env.EMAIL_NOTIFICATIONS_WEBHOOK_
 const EMAIL_NOTIFICATIONS_WEBHOOK_TOKEN = process.env.EMAIL_NOTIFICATIONS_WEBHOOK_TOKEN;
 const WHATSAPP_NOTIFICATIONS_WEBHOOK_URL = process.env.WHATSAPP_NOTIFICATIONS_WEBHOOK_URL;
 const WHATSAPP_NOTIFICATIONS_WEBHOOK_TOKEN = process.env.WHATSAPP_NOTIFICATIONS_WEBHOOK_TOKEN;
+const SUPPORT_ALLOWED_EMAIL_DOMAINS = (process.env.SUPPORT_ALLOWED_EMAIL_DOMAINS || "")
+    .split(",")
+    .map((domain) => domain.trim().toLowerCase().replace(/^@/, ""))
+    .filter(Boolean);
 const FRONTEND_APP_URL = (process.env.FRONTEND_APP_URL || "https://soporte-phidias.onrender.com/app")
     .replace(/\/+$/, "");
 const FRONTEND_APP_ORIGIN = (() => {
@@ -150,6 +154,18 @@ function normalizeEmail(value) {
     return typeof value === "string" ? value.trim().toLowerCase() : "";
 }
 
+function getEmailDomain(email) {
+    return normalizeEmail(email).split("@")[1] || "";
+}
+
+function isAllowedSupportEmail(email) {
+    if (SUPPORT_ALLOWED_EMAIL_DOMAINS.length === 0) {
+        return true;
+    }
+
+    return SUPPORT_ALLOWED_EMAIL_DOMAINS.includes(getEmailDomain(email));
+}
+
 function normalizeRole(value) {
     const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
 
@@ -218,31 +234,42 @@ function sanitizeReturnTo(value) {
     return trimmed;
 }
 
+function buildFrontendUrl(pathname = "/", params = {}) {
+    const basePath = new URL(FRONTEND_APP_URL).pathname.replace(/\/+$/, "");
+    const cleanPath = pathname.startsWith("/") ? pathname : `/${pathname}`;
+    const url = new URL(FRONTEND_APP_URL);
+
+    url.pathname = `${basePath}${cleanPath}`.replace(/\/{2,}/g, "/");
+
+    Object.entries(params).forEach(([key, value]) => {
+        if (value) {
+            url.searchParams.set(key, String(value));
+        }
+    });
+
+    return url.toString();
+}
+
 function buildFrontendAccessUrl({
     email = "",
     source = "phidias",
     returnTo = "",
-    flow = "",
 } = {}) {
-    const url = new URL(FRONTEND_APP_URL);
+    const params = {};
 
     if (email) {
-        url.searchParams.set("email", normalizeEmail(email));
+        params.email = normalizeEmail(email);
     }
 
     if (source) {
-        url.searchParams.set("source", source);
+        params.source = source;
     }
 
     if (returnTo) {
-        url.searchParams.set("returnTo", sanitizeReturnTo(returnTo));
+        params.returnTo = sanitizeReturnTo(returnTo);
     }
 
-    if (flow) {
-        url.searchParams.set("flow", flow);
-    }
-
-    return url.toString();
+    return buildFrontendUrl("/phidias/access", params);
 }
 
 function formatStatusLabel(status) {
@@ -938,7 +965,6 @@ async function sendPasswordSetupLink({
     email,
     source = "phidias",
     returnTo = "",
-    flow = "create-password",
 }) {
     const normalizedEmail = normalizeEmail(email);
     const existingProfile = await findUsuarioByIdOrEmail({
@@ -953,51 +979,52 @@ async function sendPasswordSetupLink({
         throw error;
     }
 
+    if (!isAllowedSupportEmail(normalizedEmail)) {
+        const error = new Error("Este dominio de correo no esta autorizado.");
+        error.status = 403;
+        throw error;
+    }
+
+    if (!userIsEnabled(existingProfile)) {
+        const error = new Error("Este correo no esta habilitado para acceder.");
+        error.status = 403;
+        throw error;
+    }
+
     await upsertManagedUsuario(existingProfile, {
         requirePasswordChange: true,
     });
 
-    const redirectTo = buildFrontendAccessUrl({
-        email: normalizedEmail,
-        source: source || "phidias",
-        returnTo,
-        flow,
-    });
+    const redirectTo = buildFrontendUrl("/auth/set-password");
 
-    const { data: linkData, error } = await adminSupabase.auth.admin.generateLink({
-        type: "recovery",
-        email: normalizedEmail,
-        options: {
+    const { error } = await supabase.auth.resetPasswordForEmail(
+        normalizedEmail,
+        {
             redirectTo,
-        },
-    });
+        }
+    );
 
     if (error) {
         throw error;
-    }
-
-    const actionLink = linkData?.properties?.action_link;
-
-    if (!actionLink) {
-        throw new Error("No se pudo generar el enlace seguro de contrasena.");
-    }
-
-    const sent = await sendPasswordAccessEmail({
-        to: normalizedEmail,
-        actionLink,
-        flow,
-    });
-
-    if (!sent) {
-        throw new Error(
-            "No se pudo enviar el correo con el enlace seguro de contrasena."
-        );
     }
 
     return {
         email: normalizedEmail,
         redirectTo,
     };
+}
+
+function userNeedsPasswordSetup(profile) {
+    return Boolean(profile?.requiere_cambio_contrasena) ||
+        !profile?.contrasena_actualizada_en;
+}
+
+function userIsEnabled(profile) {
+    if (!profile || !Object.prototype.hasOwnProperty.call(profile, "habilitado")) {
+        return true;
+    }
+
+    return profile.habilitado !== false;
 }
 
 async function updateUserReferences(previousId, nextId) {
@@ -1284,7 +1311,7 @@ app.get("/health", (_req, res) => {
     });
 });
 
-app.get(["/phidias/access", "/login-phidias", "/login"], (req, res) => {
+app.get(["/phidias/access", "/login-phidias"], (req, res) => {
     const email = normalizeEmail(req.query.email);
     const returnTo = sanitizeReturnTo(req.query.returnTo);
 
@@ -1297,6 +1324,77 @@ app.get(["/phidias/access", "/login-phidias", "/login"], (req, res) => {
     );
 });
 
+app.get("/login", (req, res) => {
+    const email = normalizeEmail(req.query.email);
+
+    return res.redirect(
+        buildFrontendUrl("/login", email ? { email } : {})
+    );
+});
+
+app.post("/auth/lookup", async (req, res) => {
+    try {
+        if (!hasSupabaseAdmin) {
+            return res.status(503).json({
+                message:
+                    "La validacion de acceso requiere SUPABASE_SERVICE_ROLE_KEY configurada.",
+            });
+        }
+
+        const email = normalizeEmail(req.body.email);
+
+        if (!email) {
+            return res.status(400).json({
+                message: "Debes ingresar un correo valido.",
+            });
+        }
+
+        if (!isAllowedSupportEmail(email)) {
+            return res.status(403).json({
+                authorized: false,
+                message: "Este dominio de correo no esta autorizado.",
+            });
+        }
+
+        const profile = await findUsuarioByIdOrEmail({ email });
+
+        if (!profile) {
+            return res.status(404).json({
+                authorized: false,
+                message: "Tu correo no esta autorizado para acceder.",
+            });
+        }
+
+        if (!userIsEnabled(profile)) {
+            return res.status(403).json({
+                authorized: false,
+                message: "Tu correo no esta habilitado para acceder.",
+            });
+        }
+
+        const authUser = await findAuthUserByEmail(email);
+
+        if (!authUser) {
+            await upsertManagedUsuario(profile, {
+                requirePasswordChange: true,
+            });
+        }
+
+        return res.json({
+            authorized: true,
+            email,
+            nombre: profile.nombre || email,
+            rol: normalizeRole(profile.rol),
+            needsPasswordSetup: userNeedsPasswordSetup(profile) || !authUser,
+        });
+    } catch (error) {
+        console.error("Error al validar correo de soporte:", error);
+        return res.status(error.status || 500).json({
+            message: error.message || "No se pudo validar el correo.",
+        });
+    }
+});
+
 app.post("/auth/request-password-link", async (req, res) => {
     try {
         if (!hasSupabaseAdmin) {
@@ -1307,7 +1405,6 @@ app.post("/auth/request-password-link", async (req, res) => {
         }
 
         const email = normalizeEmail(req.body.email);
-        const flow = req.body.flow === "recovery" ? "recovery" : "create-password";
 
         if (!email) {
             return res.status(400).json({
@@ -1321,7 +1418,6 @@ app.post("/auth/request-password-link", async (req, res) => {
             email,
             source: req.body.source || "phidias",
             returnTo: sanitizeReturnTo(req.body.returnTo),
-            flow,
         });
 
         return res.json({
