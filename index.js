@@ -371,6 +371,84 @@ async function sendViaResend({ to, subject, message, ticket }) {
     }
 }
 
+function buildPasswordAccessEmailHtml({ title, message, actionLink }) {
+    return `
+        <div style="font-family:Inter,Arial,sans-serif;background:#f7f4ee;padding:32px;color:#24342d">
+            <div style="max-width:640px;margin:0 auto;border:1px solid #e8dccb;background:#fffdf8;border-radius:24px;padding:28px">
+                <div style="display:inline-block;border:1px solid #d7c8b4;background:#f3ede3;color:#315a49;padding:6px 12px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase">
+                    Soporte Tecnico
+                </div>
+                <h1 style="margin:20px 0 12px;font-size:28px;line-height:1.2;color:#1f2d27">${escapeHtml(title)}</h1>
+                <p style="margin:0 0 22px;font-size:15px;line-height:1.7;color:#66746d">${escapeHtml(message)}</p>
+                <a href="${escapeHtml(actionLink)}" style="display:inline-block;background:#1f5c46;color:#fff;text-decoration:none;border-radius:14px;padding:14px 22px;font-weight:700">
+                    Crear o cambiar contrasena
+                </a>
+                <p style="margin:22px 0 0;font-size:12px;line-height:1.6;color:#8b958f">
+                    Si el boton no abre, copia y pega este enlace en tu navegador:<br>
+                    <span style="word-break:break-all">${escapeHtml(actionLink)}</span>
+                </p>
+            </div>
+        </div>
+    `;
+}
+
+async function sendPasswordAccessEmail({ to, actionLink, flow }) {
+    if (!RESEND_API_KEY || !RESEND_FROM_EMAIL) {
+        return false;
+    }
+
+    const recipient = normalizeEmail(to);
+
+    if (!recipient || !actionLink) {
+        return false;
+    }
+
+    const isRecovery = flow === "recovery";
+    const subject = isRecovery
+        ? "Recupera tu acceso al sistema de soporte"
+        : "Crea tu contrasena del sistema de soporte";
+    const message = isRecovery
+        ? "Recibimos una solicitud para recuperar tu acceso. Usa este enlace seguro para definir una contrasena nueva."
+        : "Usa este enlace seguro para crear tu contrasena personal e ingresar al sistema de soporte.";
+
+    try {
+        const response = await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${RESEND_API_KEY}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                from: RESEND_FROM_EMAIL,
+                to: [recipient],
+                subject,
+                html: buildPasswordAccessEmailHtml({
+                    title: subject,
+                    message,
+                    actionLink,
+                }),
+                text: `${subject}\n\n${message}\n\n${actionLink}`,
+                ...(RESEND_REPLY_TO ? { reply_to: RESEND_REPLY_TO } : {}),
+            }),
+        });
+
+        if (!response.ok) {
+            const body = await response.text();
+            console.error(
+                "Fallo el envio del enlace de contrasena por Resend:",
+                response.status,
+                body
+            );
+            return false;
+        }
+
+        return true;
+    } catch (error) {
+        console.error("Error al enviar enlace de contrasena con Resend:", error);
+        return false;
+    }
+}
+
 function buildWhatsAppPayload({ to, message }) {
     if (WHATSAPP_TEMPLATE_NAME) {
         return {
@@ -886,15 +964,34 @@ async function sendPasswordSetupLink({
         flow,
     });
 
-    const { error } = await supabase.auth.resetPasswordForEmail(
-        normalizedEmail,
-        {
+    const { data: linkData, error } = await adminSupabase.auth.admin.generateLink({
+        type: "recovery",
+        email: normalizedEmail,
+        options: {
             redirectTo,
-        }
-    );
+        },
+    });
 
     if (error) {
         throw error;
+    }
+
+    const actionLink = linkData?.properties?.action_link;
+
+    if (!actionLink) {
+        throw new Error("No se pudo generar el enlace seguro de contrasena.");
+    }
+
+    const sent = await sendPasswordAccessEmail({
+        to: normalizedEmail,
+        actionLink,
+        flow,
+    });
+
+    if (!sent) {
+        throw new Error(
+            "No se pudo enviar el correo con el enlace seguro de contrasena."
+        );
     }
 
     return {
