@@ -29,6 +29,10 @@ const SUPPORT_ALLOWED_EMAIL_DOMAINS = (process.env.SUPPORT_ALLOWED_EMAIL_DOMAINS
     .split(",")
     .map((domain) => domain.trim().toLowerCase().replace(/^@/, ""))
     .filter(Boolean);
+const PASSWORD_ACTIVATION_TOKEN_TTL_HOURS = Math.min(
+    24,
+    Math.max(0.5, Number(process.env.PASSWORD_ACTIVATION_TOKEN_TTL_HOURS || 24))
+);
 const FRONTEND_APP_URL = (process.env.FRONTEND_APP_URL || "https://soporte-phidias.onrender.com/app")
     .replace(/\/+$/, "");
 const FRONTEND_APP_ORIGIN = (() => {
@@ -178,6 +182,14 @@ function normalizeRole(value) {
 
 function createTemporaryPassword() {
     return crypto.randomBytes(24).toString("base64url");
+}
+
+function createPasswordActivationToken() {
+    return crypto.randomBytes(32).toString("base64url");
+}
+
+function hashPasswordActivationToken(token) {
+    return crypto.createHash("sha256").update(String(token || "")).digest("hex");
 }
 
 function getErrorMessage(error) {
@@ -398,7 +410,15 @@ async function sendViaResend({ to, subject, message, ticket }) {
     }
 }
 
-function buildPasswordAccessEmailHtml({ title, message, actionLink }) {
+function buildPasswordAccessEmailHtml({ title, message, actionLink, expiresAt }) {
+    const expirationText = expiresAt
+        ? `Este enlace vence el ${new Date(expiresAt).toLocaleString("es-CO", {
+            timeZone: "America/Bogota",
+            dateStyle: "medium",
+            timeStyle: "short",
+        })}.`
+        : "Este enlace es de un solo uso.";
+
     return `
         <div style="font-family:Inter,Arial,sans-serif;background:#f7f4ee;padding:32px;color:#24342d">
             <div style="max-width:640px;margin:0 auto;border:1px solid #e8dccb;background:#fffdf8;border-radius:24px;padding:28px">
@@ -410,6 +430,7 @@ function buildPasswordAccessEmailHtml({ title, message, actionLink }) {
                 <a href="${escapeHtml(actionLink)}" style="display:inline-block;background:#1f5c46;color:#fff;text-decoration:none;border-radius:14px;padding:14px 22px;font-weight:700">
                     Crear o cambiar contrasena
                 </a>
+                <p style="margin:18px 0 0;font-size:13px;line-height:1.6;color:#66746d">${escapeHtml(expirationText)}</p>
                 <p style="margin:22px 0 0;font-size:12px;line-height:1.6;color:#8b958f">
                     Si el boton no abre, copia y pega este enlace en tu navegador:<br>
                     <span style="word-break:break-all">${escapeHtml(actionLink)}</span>
@@ -419,7 +440,7 @@ function buildPasswordAccessEmailHtml({ title, message, actionLink }) {
     `;
 }
 
-async function sendPasswordAccessEmail({ to, actionLink, flow }) {
+async function sendPasswordAccessEmail({ to, actionLink, expiresAt }) {
     if (!RESEND_API_KEY || !RESEND_FROM_EMAIL) {
         return false;
     }
@@ -430,13 +451,8 @@ async function sendPasswordAccessEmail({ to, actionLink, flow }) {
         return false;
     }
 
-    const isRecovery = flow === "recovery";
-    const subject = isRecovery
-        ? "Recupera tu acceso al sistema de soporte"
-        : "Crea tu contrasena del sistema de soporte";
-    const message = isRecovery
-        ? "Recibimos una solicitud para recuperar tu acceso. Usa este enlace seguro para definir una contrasena nueva."
-        : "Usa este enlace seguro para crear tu contrasena personal e ingresar al sistema de soporte.";
+    const subject = "Crea o recupera tu contrasena del sistema de soporte";
+    const message = "Usa este enlace seguro de un solo uso para definir tu contrasena personal e ingresar al sistema de soporte desde cualquier navegador o dispositivo.";
 
     try {
         const response = await fetch("https://api.resend.com/emails", {
@@ -453,8 +469,9 @@ async function sendPasswordAccessEmail({ to, actionLink, flow }) {
                     title: subject,
                     message,
                     actionLink,
+                    expiresAt,
                 }),
-                text: `${subject}\n\n${message}\n\n${actionLink}`,
+                text: `${subject}\n\n${message}\n\n${expiresAt ? `Vence: ${expiresAt}\n\n` : ""}${actionLink}`,
                 ...(RESEND_REPLY_TO ? { reply_to: RESEND_REPLY_TO } : {}),
             }),
         });
@@ -964,7 +981,6 @@ function assertPasswordLinkCooldown(req, email) {
 async function sendPasswordSetupLink({
     email,
     source = "phidias",
-    returnTo = "",
 }) {
     const normalizedEmail = normalizeEmail(email);
     const existingProfile = await findUsuarioByIdOrEmail({
@@ -991,26 +1007,190 @@ async function sendPasswordSetupLink({
         throw error;
     }
 
-    await upsertManagedUsuario(existingProfile, {
+    const managedProfile = await upsertManagedUsuario(existingProfile, {
         requirePasswordChange: true,
     });
 
-    const redirectTo = buildFrontendUrl("/auth/set-password");
+    const token = createPasswordActivationToken();
+    const tokenHash = hashPasswordActivationToken(token);
+    const expiresAt = new Date(
+        Date.now() + PASSWORD_ACTIVATION_TOKEN_TTL_HOURS * 60 * 60 * 1000
+    ).toISOString();
+    const actionLink = buildFrontendUrl("/set-password", { token });
 
-    const { error } = await supabase.auth.resetPasswordForEmail(
-        normalizedEmail,
-        {
-            redirectTo,
-        }
-    );
+    await adminSupabase
+        .from("password_activation_tokens")
+        .update({ used_at: new Date().toISOString() })
+        .eq("user_id", managedProfile.id)
+        .is("used_at", null);
+
+    const { data: tokenRow, error: tokenError } = await adminSupabase
+        .from("password_activation_tokens")
+        .insert([
+            {
+                user_id: managedProfile.id,
+                email: normalizedEmail,
+                token_hash: tokenHash,
+                source: source || "phidias",
+                expires_at: expiresAt,
+            },
+        ])
+        .select("id")
+        .single();
+
+    if (tokenError) {
+        throw tokenError;
+    }
+
+    const sent = await sendPasswordAccessEmail({
+        to: normalizedEmail,
+        actionLink,
+        expiresAt,
+    });
+
+    if (!sent) {
+        await adminSupabase
+            .from("password_activation_tokens")
+            .update({ used_at: new Date().toISOString() })
+            .eq("id", tokenRow.id);
+
+        throw new Error(
+            "No se pudo enviar el correo con el enlace seguro de contrasena."
+        );
+    }
+
+    return {
+        email: normalizedEmail,
+        expiresAt,
+    };
+}
+
+async function getValidPasswordActivationToken(token) {
+    const tokenHash = hashPasswordActivationToken(token);
+
+    if (!token || !tokenHash) {
+        const error = new Error(
+            "El enlace de activacion ya expiro o fue utilizado anteriormente. Solicita uno nuevo desde Phidias para continuar."
+        );
+        error.status = 400;
+        throw error;
+    }
+
+    const { data, error } = await adminSupabase
+        .from("password_activation_tokens")
+        .select("id, user_id, email, expires_at, used_at")
+        .eq("token_hash", tokenHash)
+        .maybeSingle();
 
     if (error) {
         throw error;
     }
 
+    const now = new Date();
+    const expired = data?.expires_at
+        ? new Date(data.expires_at).getTime() <= now.getTime()
+        : true;
+
+    if (!data || data.used_at || expired) {
+        const invalidError = new Error(
+            "El enlace de activacion ya expiro o fue utilizado anteriormente. Solicita uno nuevo desde Phidias para continuar."
+        );
+        invalidError.status = 410;
+        throw invalidError;
+    }
+
+    const profile = await findUsuarioByIdOrEmail({
+        id: data.user_id,
+        email: data.email,
+    });
+
+    if (!profile || !userIsEnabled(profile)) {
+        const accessError = new Error("Tu correo no esta autorizado para acceder.");
+        accessError.status = 403;
+        throw accessError;
+    }
+
+    return {
+        token: data,
+        profile,
+    };
+}
+
+async function completePasswordActivation({ token, password }) {
+    const { token: tokenRow, profile } = await getValidPasswordActivationToken(token);
+    const normalizedEmail = normalizeEmail(profile.email || tokenRow.email);
+
+    if (!password || password.length < 8) {
+        const error = new Error("La contrasena debe tener al menos 8 caracteres.");
+        error.status = 400;
+        throw error;
+    }
+
+    if (normalizeEmail(password) === normalizedEmail) {
+        const error = new Error(
+            "Por seguridad, la nueva contrasena no puede ser igual al correo."
+        );
+        error.status = 400;
+        throw error;
+    }
+
+    const now = new Date().toISOString();
+    const { data: consumedToken, error: consumeError } = await adminSupabase
+        .from("password_activation_tokens")
+        .update({ used_at: now })
+        .eq("id", tokenRow.id)
+        .is("used_at", null)
+        .gt("expires_at", now)
+        .select("id")
+        .maybeSingle();
+
+    if (consumeError) {
+        throw consumeError;
+    }
+
+    if (!consumedToken) {
+        const error = new Error(
+            "El enlace de activacion ya expiro o fue utilizado anteriormente. Solicita uno nuevo desde Phidias para continuar."
+        );
+        error.status = 410;
+        throw error;
+    }
+
+    const { error: authError } = await adminSupabase.auth.admin.updateUserById(
+        tokenRow.user_id,
+        {
+            password,
+            email_confirm: true,
+        }
+    );
+
+    if (authError) {
+        throw authError;
+    }
+
+    const { data: updatedProfile, error: profileError } = await adminSupabase
+        .from("usuarios")
+        .update({
+            requiere_cambio_contrasena: false,
+            contrasena_actualizada_en: now,
+        })
+        .eq("id", tokenRow.user_id)
+        .select("*")
+        .maybeSingle();
+
+    if (profileError) {
+        throw profileError;
+    }
+
+    await adminSupabase
+        .from("password_activation_tokens")
+        .update({ used_at: now })
+        .eq("user_id", tokenRow.user_id)
+        .is("used_at", null);
+
     return {
         email: normalizedEmail,
-        redirectTo,
+        profile: updatedProfile,
     };
 }
 
@@ -1332,6 +1512,12 @@ app.get("/login", (req, res) => {
     );
 });
 
+app.get("/set-password", (req, res) => {
+    const token = typeof req.query.token === "string" ? req.query.token : "";
+
+    return res.redirect(buildFrontendUrl("/set-password", token ? { token } : {}));
+});
+
 app.post("/auth/lookup", async (req, res) => {
     try {
         if (!hasSupabaseAdmin) {
@@ -1430,6 +1616,62 @@ app.post("/auth/request-password-link", async (req, res) => {
             message:
                 error.message ||
                 "No se pudo enviar el enlace seguro de contrasena.",
+        });
+    }
+});
+
+app.get("/auth/password-token", async (req, res) => {
+    try {
+        if (!hasSupabaseAdmin) {
+            return res.status(503).json({
+                message:
+                    "La validacion del enlace requiere SUPABASE_SERVICE_ROLE_KEY configurada.",
+            });
+        }
+
+        const { token, profile } = await getValidPasswordActivationToken(
+            req.query.token
+        );
+
+        return res.json({
+            ok: true,
+            email: normalizeEmail(profile.email || token.email),
+            expiresAt: token.expires_at,
+        });
+    } catch (error) {
+        console.error("Error al validar token de activacion:", error);
+        return res.status(error.status || 500).json({
+            message:
+                error.message ||
+                "No se pudo validar el enlace de activacion.",
+        });
+    }
+});
+
+app.post("/auth/password-token/complete", async (req, res) => {
+    try {
+        if (!hasSupabaseAdmin) {
+            return res.status(503).json({
+                message:
+                    "La activacion de contrasena requiere SUPABASE_SERVICE_ROLE_KEY configurada.",
+            });
+        }
+
+        const result = await completePasswordActivation({
+            token: req.body.token,
+            password: req.body.password,
+        });
+
+        return res.json({
+            ok: true,
+            email: result.email,
+        });
+    } catch (error) {
+        console.error("Error al completar activacion de contrasena:", error);
+        return res.status(error.status || 500).json({
+            message:
+                error.message ||
+                "No se pudo completar la activacion de contrasena.",
         });
     }
 });

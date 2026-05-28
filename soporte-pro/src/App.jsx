@@ -197,7 +197,7 @@ function PrivateApp() {
     }
 
     if (profile?.requiere_cambio_contrasena) {
-        return <Navigate to="/auth/set-password" replace />;
+        return <Navigate to="/phidias/access" replace />;
     }
 
     return <AppLayout />;
@@ -220,6 +220,7 @@ function AuthRoutes() {
                 }
             />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/set-password" element={<SetPassword />} />
             <Route path="/auth/set-password" element={<SetPassword />} />
             <Route path="/*" element={<PrivateApp />} />
         </Routes>

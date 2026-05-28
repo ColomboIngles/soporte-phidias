@@ -1,48 +1,75 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, CheckCircle2, KeyRound, Mail } from "lucide-react";
-import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import API from "../../services/api";
-import { supabase } from "../../services/supabase";
 import Button from "../../components/ui/Button";
 import AuthShell from "./AuthShell";
-import { useAuth } from "../../auth/authContext";
 import {
     getFriendlyAuthErrorMessage,
     getPasswordValidationError,
     normalizeEmail,
 } from "../../auth/authUtils";
-import { getHomeRouteByRole } from "../../utils/permissions";
+
+const EXPIRED_TOKEN_MESSAGE =
+    "El enlace de activacion ya expiro o fue utilizado anteriormente. Solicita uno nuevo desde Phidias para continuar.";
 
 export default function SetPassword() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const {
-        session,
-        profile,
-        role,
-        loading,
-        recoveryMode,
-        refreshProfile,
-        markRecoveryHandled,
-    } = useAuth();
+    const token = useMemo(() => searchParams.get("token") || "", [searchParams]);
+    const [email, setEmail] = useState("");
+    const [expiresAt, setExpiresAt] = useState("");
+    const [validating, setValidating] = useState(true);
+    const [tokenValid, setTokenValid] = useState(false);
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [errorMessage, setErrorMessage] = useState("");
     const [successMessage, setSuccessMessage] = useState("");
-    const email = useMemo(
-        () =>
-            normalizeEmail(
-                session?.user?.email || searchParams.get("email") || profile?.email || ""
-            ),
-        [profile?.email, searchParams, session?.user?.email]
-    );
-    const isRequiredChange = Boolean(profile?.requiere_cambio_contrasena);
-    const canEditPassword = Boolean(session?.user);
 
-    if (!loading && session && !recoveryMode && !isRequiredChange && successMessage) {
-        return <Navigate to={getHomeRouteByRole(role)} replace />;
-    }
+    useEffect(() => {
+        let active = true;
+
+        async function validateToken() {
+            setValidating(true);
+            setErrorMessage("");
+            setTokenValid(false);
+
+            try {
+                if (!token) {
+                    throw new Error(EXPIRED_TOKEN_MESSAGE);
+                }
+
+                const { data } = await API.get("/auth/password-token", {
+                    params: { token },
+                });
+
+                if (!active) {
+                    return;
+                }
+
+                setEmail(normalizeEmail(data?.email || ""));
+                setExpiresAt(data?.expiresAt || "");
+                setTokenValid(true);
+            } catch (error) {
+                if (!active) {
+                    return;
+                }
+
+                setErrorMessage(getFriendlyAuthErrorMessage(error));
+            } finally {
+                if (active) {
+                    setValidating(false);
+                }
+            }
+        }
+
+        validateToken();
+
+        return () => {
+            active = false;
+        };
+    }, [token]);
 
     async function handleSubmit(event) {
         event.preventDefault();
@@ -51,10 +78,8 @@ export default function SetPassword() {
         setSuccessMessage("");
 
         try {
-            if (!session?.user) {
-                throw new Error(
-                    "El enlace expiro o no tiene una sesion valida. Solicita uno nuevo desde Phidias."
-                );
+            if (!tokenValid) {
+                throw new Error(EXPIRED_TOKEN_MESSAGE);
             }
 
             const validationError = getPasswordValidationError(
@@ -67,19 +92,16 @@ export default function SetPassword() {
                 throw new Error(validationError);
             }
 
-            const { error } = await supabase.auth.updateUser({
+            const { data } = await API.post("/auth/password-token/complete", {
+                token,
                 password,
             });
 
-            if (error) {
-                throw error;
-            }
-
-            await API.post("/auth/password-change-complete").catch(() => null);
-            markRecoveryHandled();
-            await refreshProfile();
+            const completedEmail = normalizeEmail(data?.email || email);
             setSuccessMessage("Tu contrasena fue creada correctamente.");
-            navigate(getHomeRouteByRole(role), { replace: true });
+            navigate(`/login?email=${encodeURIComponent(completedEmail)}`, {
+                replace: true,
+            });
         } catch (error) {
             setErrorMessage(getFriendlyAuthErrorMessage(error));
         } finally {
@@ -92,28 +114,27 @@ export default function SetPassword() {
             title="Crear tu contrasena"
             description="Define una contrasena personal para entrar al sistema de soporte."
         >
-            {loading ? (
+            {validating ? (
                 <div className="app-surface-muted rounded-2xl px-4 py-4 text-center text-sm text-[color:var(--app-text-secondary)]">
                     Validando enlace seguro...
                 </div>
             ) : null}
 
-            {!loading && !canEditPassword ? (
+            {!validating && !tokenValid ? (
                 <div className="space-y-5">
                     <div className="rounded-2xl border border-rose-200/80 bg-rose-50/80 px-4 py-3 text-sm text-rose-700">
-                        El enlace expiro o no tiene una sesion valida. Solicita uno nuevo
-                        desde Phidias.
+                        {errorMessage || EXPIRED_TOKEN_MESSAGE}
                     </div>
                     <Button
                         fullWidth
                         onClick={() => navigate("/phidias/access", { replace: true })}
                     >
-                        Volver al acceso
+                        Solicitar uno nuevo
                     </Button>
                 </div>
             ) : null}
 
-            {!loading && canEditPassword ? (
+            {!validating && tokenValid ? (
                 <form className="space-y-5" onSubmit={handleSubmit}>
                     {successMessage ? (
                         <div className="app-surface-muted flex gap-3 rounded-2xl border border-emerald-200/70 px-4 py-3 text-sm text-emerald-700">
@@ -141,6 +162,12 @@ export default function SetPassword() {
                             />
                         </span>
                     </label>
+
+                    {expiresAt ? (
+                        <p className="text-center text-xs text-[color:var(--app-text-tertiary)]">
+                            Este enlace es de un solo uso y tiene vencimiento.
+                        </p>
+                    ) : null}
 
                     <label className="block">
                         <span className="text-xs font-semibold uppercase tracking-[0.25em] text-[color:var(--app-text-muted)]">

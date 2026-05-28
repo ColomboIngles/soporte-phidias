@@ -35,7 +35,7 @@ export function getFriendlyAuthErrorMessage(error) {
         normalized.includes("auth session missing") ||
         normalized.includes("session from session_id claim")
     ) {
-        return "El enlace expiro o ya fue usado. Solicita uno nuevo desde el acceso de Phidias.";
+        return "El enlace de activacion ya expiro o fue utilizado anteriormente. Solicita uno nuevo desde Phidias para continuar.";
     }
 
     if (normalized.includes("failed to fetch")) {
@@ -59,72 +59,4 @@ export function getPasswordValidationError(password, confirmPassword, email = ""
     }
 
     return "";
-}
-
-export function readAuthUrlState() {
-    if (typeof window === "undefined") {
-        return {
-            code: "",
-            hasRecoveryToken: false,
-            recoveryType: false,
-        };
-    }
-
-    const url = new URL(window.location.href);
-    const hash = url.hash.startsWith("#") ? url.hash.slice(1) : url.hash;
-    const hashParams = new URLSearchParams(hash);
-    const searchType = url.searchParams.get("type");
-    const hashType = hashParams.get("type");
-
-    return {
-        code: url.searchParams.get("code") || "",
-        hasRecoveryToken:
-            hashParams.has("access_token") || url.searchParams.has("access_token"),
-        recoveryType:
-            searchType === "recovery" ||
-            hashType === "recovery" ||
-            url.searchParams.get("type") === "password_recovery",
-    };
-}
-
-export function stripAuthTokensFromUrl() {
-    if (typeof window === "undefined") {
-        return;
-    }
-
-    const url = new URL(window.location.href);
-    const removable = [
-        "code",
-        "type",
-        "access_token",
-        "refresh_token",
-        "expires_at",
-        "expires_in",
-        "token_type",
-    ];
-    let changed = false;
-
-    removable.forEach((param) => {
-        if (url.searchParams.has(param)) {
-            url.searchParams.delete(param);
-            changed = true;
-        }
-    });
-
-    if (url.hash) {
-        const hash = url.hash.toLowerCase();
-        if (
-            hash.includes("access_token") ||
-            hash.includes("refresh_token") ||
-            hash.includes("token_type") ||
-            hash.includes("type=recovery")
-        ) {
-            url.hash = "";
-            changed = true;
-        }
-    }
-
-    if (changed) {
-        window.history.replaceState({}, document.title, url.toString());
-    }
 }

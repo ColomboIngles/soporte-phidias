@@ -22,3 +22,5 @@ services:
         sync: false
       - key: SUPPORT_ALLOWED_EMAIL_DOMAINS
         sync: false
+      - key: PASSWORD_ACTIVATION_TOKEN_TTL_HOURS
+        sync: false

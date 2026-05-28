@@ -23,7 +23,7 @@ export default function LoginPage() {
     const [successMessage, setSuccessMessage] = useState("");
 
     if (!loading && session && profile?.requiere_cambio_contrasena) {
-        return <Navigate to="/auth/set-password" replace />;
+        return <Navigate to="/phidias/access" replace />;
     }
 
     if (!loading && session) {

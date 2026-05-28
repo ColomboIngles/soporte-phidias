@@ -7,7 +7,6 @@ import {
 } from "react";
 import { supabase } from "../services/supabase";
 import { crearUsuarioSiNoExiste, obtenerRol } from "../services/usuarios";
-import { readAuthUrlState, stripAuthTokensFromUrl } from "./authUtils";
 import { AuthContext } from "./authContext";
 
 export function AuthProvider({ children }) {
@@ -16,10 +15,6 @@ export function AuthProvider({ children }) {
     const [role, setRole] = useState(null);
     const [loading, setLoading] = useState(true);
     const [authError, setAuthError] = useState("");
-    const [recoveryMode, setRecoveryMode] = useState(() => {
-        const urlState = readAuthUrlState();
-        return urlState.hasRecoveryToken || urlState.recoveryType;
-    });
     const hydratedUserIdRef = useRef("");
     const profileRef = useRef(null);
 
@@ -92,15 +87,6 @@ export function AuthProvider({ children }) {
         async function bootstrap() {
             setLoading(true);
 
-            const urlState = readAuthUrlState();
-            if (urlState.hasRecoveryToken || urlState.recoveryType) {
-                setRecoveryMode(true);
-            }
-
-            if (urlState.code) {
-                await supabase.auth.exchangeCodeForSession(urlState.code).catch(() => null);
-            }
-
             const { data } = await supabase.auth.getSession();
 
             if (!active) {
@@ -114,15 +100,7 @@ export function AuthProvider({ children }) {
 
         const {
             data: { subscription },
-        } = supabase.auth.onAuthStateChange((event, nextSession) => {
-            if (event === "PASSWORD_RECOVERY") {
-                setRecoveryMode(true);
-            }
-
-            if (event === "SIGNED_OUT") {
-                setRecoveryMode(false);
-            }
-
+        } = supabase.auth.onAuthStateChange((_, nextSession) => {
             setLoading(true);
             hydrateSession(nextSession);
         });
@@ -133,11 +111,6 @@ export function AuthProvider({ children }) {
         };
     }, [hydrateSession]);
 
-    const markRecoveryHandled = useCallback(() => {
-        setRecoveryMode(false);
-        stripAuthTokensFromUrl();
-    }, []);
-
     const value = useMemo(
         () => ({
             session,
@@ -146,9 +119,7 @@ export function AuthProvider({ children }) {
             role,
             loading,
             authError,
-            recoveryMode,
             refreshProfile,
-            markRecoveryHandled,
         }),
         [
             session,
@@ -156,9 +127,7 @@ export function AuthProvider({ children }) {
             role,
             loading,
             authError,
-            recoveryMode,
             refreshProfile,
-            markRecoveryHandled,
         ]
     );
 
