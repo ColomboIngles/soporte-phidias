@@ -459,13 +459,13 @@ function buildPasswordAccessEmailHtml({ title, message, actionLink, expiresAt })
 
 async function sendPasswordAccessEmail({ to, actionLink, expiresAt }) {
     if (!RESEND_API_KEY || !RESEND_FROM_EMAIL) {
-        return false;
+        throw new Error("El servicio de correo no esta configurado.");
     }
 
     const recipient = normalizeEmail(to);
 
     if (!recipient || !actionLink) {
-        return false;
+        throw new Error("Falta el destinatario o el enlace de activacion.");
     }
 
     const subject = "Crea o recupera tu contrasena del sistema de soporte";
@@ -500,13 +500,15 @@ async function sendPasswordAccessEmail({ to, actionLink, expiresAt }) {
                 response.status,
                 body
             );
-            return false;
+            throw new Error(
+                "No se pudo enviar el correo de activacion. Verifica la configuracion del remitente en Resend."
+            );
         }
 
         return true;
     } catch (error) {
         console.error("Error al enviar enlace de contrasena con Resend:", error);
-        return false;
+        throw error;
     }
 }
 
@@ -991,8 +993,11 @@ function assertPasswordLinkCooldown(req, email) {
         error.status = 429;
         throw error;
     }
+}
 
-    passwordLinkRequests.set(key, now);
+function markPasswordLinkRequest(req, email) {
+    const key = getPasswordLinkRequestKey(req, email);
+    passwordLinkRequests.set(key, Date.now());
 }
 
 async function sendPasswordSetupLink({
@@ -1035,12 +1040,6 @@ async function sendPasswordSetupLink({
     ).toISOString();
     const actionLink = buildFrontendUrl("/set-password", { token });
 
-    await adminSupabase
-        .from("password_activation_tokens")
-        .update({ used_at: new Date().toISOString() })
-        .eq("user_id", managedProfile.id)
-        .is("used_at", null);
-
     const { data: tokenRow, error: tokenError } = await adminSupabase
         .from("password_activation_tokens")
         .insert([
@@ -1059,22 +1058,27 @@ async function sendPasswordSetupLink({
         throw tokenError;
     }
 
-    const sent = await sendPasswordAccessEmail({
-        to: normalizedEmail,
-        actionLink,
-        expiresAt,
-    });
-
-    if (!sent) {
+    try {
+        await sendPasswordAccessEmail({
+            to: normalizedEmail,
+            actionLink,
+            expiresAt,
+        });
+    } catch (error) {
         await adminSupabase
             .from("password_activation_tokens")
             .update({ used_at: new Date().toISOString() })
             .eq("id", tokenRow.id);
 
-        throw new Error(
-            "No se pudo enviar el correo con el enlace seguro de contrasena."
-        );
+        throw error;
     }
+
+    await adminSupabase
+        .from("password_activation_tokens")
+        .update({ used_at: new Date().toISOString() })
+        .eq("user_id", managedProfile.id)
+        .is("used_at", null)
+        .neq("id", tokenRow.id);
 
     return {
         email: normalizedEmail,
@@ -1173,11 +1177,20 @@ async function completePasswordActivation({ token, password }) {
         throw error;
     }
 
+    const { data: currentAuthData } = await adminSupabase.auth.admin
+        .getUserById(tokenRow.user_id)
+        .catch(() => ({ data: null }));
+    const currentUserMetadata = currentAuthData?.user?.user_metadata || {};
+
     const { error: authError } = await adminSupabase.auth.admin.updateUserById(
         tokenRow.user_id,
         {
             password,
             email_confirm: true,
+            user_metadata: {
+                ...currentUserMetadata,
+                requirePasswordChange: false,
+            },
         }
     );
 
@@ -1214,6 +1227,10 @@ async function completePasswordActivation({ token, password }) {
 function userNeedsPasswordSetup(profile) {
     return Boolean(profile?.requiere_cambio_contrasena) ||
         !profile?.contrasena_actualizada_en;
+}
+
+function authUserNeedsPasswordSetup(authUser) {
+    return Boolean(authUser?.user_metadata?.requirePasswordChange);
 }
 
 function userIsEnabled(profile) {
@@ -1315,8 +1332,10 @@ async function ensureAuthUserForProfile(profile, { requirePasswordChange = true 
                 email,
                 email_confirm: true,
                 user_metadata: {
+                    ...(existingAuthUser.user_metadata || {}),
                     nombre: profile.nombre || email,
                     rol: normalizeRole(profile.rol),
+                    requirePasswordChange,
                 },
             }
         );
@@ -1588,7 +1607,10 @@ app.post("/auth/lookup", async (req, res) => {
             email,
             nombre: profile.nombre || email,
             rol: normalizeRole(profile.rol),
-            needsPasswordSetup: userNeedsPasswordSetup(profile) || !authUser,
+            needsPasswordSetup:
+                userNeedsPasswordSetup(profile) ||
+                authUserNeedsPasswordSetup(authUser) ||
+                !authUser,
         });
     } catch (error) {
         console.error("Error al validar correo de soporte:", error);
@@ -1622,6 +1644,8 @@ app.post("/auth/request-password-link", async (req, res) => {
             source: req.body.source || "phidias",
             returnTo: sanitizeReturnTo(req.body.returnTo),
         });
+
+        markPasswordLinkRequest(req, email);
 
         return res.json({
             ok: true,
