@@ -196,6 +196,23 @@ function getErrorMessage(error) {
     return error?.message || error?.error_description || String(error);
 }
 
+function isMissingPasswordActivationTableError(error) {
+    const message = getErrorMessage(error).toLowerCase();
+
+    return message.includes("password_activation_tokens") &&
+        (message.includes("schema cache") ||
+            message.includes("could not find the table") ||
+            message.includes("does not exist"));
+}
+
+function getPasswordActivationPublicError(error, fallback) {
+    if (isMissingPasswordActivationTableError(error)) {
+        return "La activacion de contrasena aun no esta configurada en la base de datos. Contacta al administrador del sistema.";
+    }
+
+    return error.message || fallback;
+}
+
 function pickUserProfilePayload(body = {}) {
     const email = normalizeEmail(body.email);
     const nombre = typeof body.nombre === "string" && body.nombre.trim()
@@ -1613,9 +1630,10 @@ app.post("/auth/request-password-link", async (req, res) => {
     } catch (error) {
         console.error("Error al enviar enlace seguro de contrasena:", error);
         return res.status(error.status || 500).json({
-            message:
-                error.message ||
-                "No se pudo enviar el enlace seguro de contrasena.",
+            message: getPasswordActivationPublicError(
+                error,
+                "No se pudo enviar el enlace seguro de contrasena."
+            ),
         });
     }
 });
@@ -1641,9 +1659,10 @@ app.get("/auth/password-token", async (req, res) => {
     } catch (error) {
         console.error("Error al validar token de activacion:", error);
         return res.status(error.status || 500).json({
-            message:
-                error.message ||
-                "No se pudo validar el enlace de activacion.",
+            message: getPasswordActivationPublicError(
+                error,
+                "No se pudo validar el enlace de activacion."
+            ),
         });
     }
 });
@@ -1669,9 +1688,10 @@ app.post("/auth/password-token/complete", async (req, res) => {
     } catch (error) {
         console.error("Error al completar activacion de contrasena:", error);
         return res.status(error.status || 500).json({
-            message:
-                error.message ||
-                "No se pudo completar la activacion de contrasena.",
+            message: getPasswordActivationPublicError(
+                error,
+                "No se pudo completar la activacion de contrasena."
+            ),
         });
     }
 });
