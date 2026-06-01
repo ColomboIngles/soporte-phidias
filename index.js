@@ -1065,12 +1065,26 @@ async function sendPasswordSetupLink({
             expiresAt,
         });
     } catch (error) {
-        await adminSupabase
-            .from("password_activation_tokens")
-            .update({ used_at: new Date().toISOString() })
-            .eq("id", tokenRow.id);
+        console.warn(
+            "No se pudo enviar el enlace por Resend, se intentara Supabase Auth:",
+            getErrorMessage(error)
+        );
 
-        throw error;
+        const { error: fallbackEmailError } = await supabase.auth
+            .resetPasswordForEmail(normalizedEmail, {
+                redirectTo: actionLink,
+            });
+
+        if (fallbackEmailError) {
+            await adminSupabase
+                .from("password_activation_tokens")
+                .update({ used_at: new Date().toISOString() })
+                .eq("id", tokenRow.id);
+
+            throw new Error(
+                `No se pudo enviar el correo de activacion. Resend: ${getErrorMessage(error)} Supabase: ${getErrorMessage(fallbackEmailError)}`
+            );
+        }
     }
 
     await adminSupabase
