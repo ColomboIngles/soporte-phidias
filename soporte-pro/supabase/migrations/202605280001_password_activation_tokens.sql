@@ -30,3 +30,5 @@ comment on column public.password_activation_tokens.expires_at is
 
 comment on column public.password_activation_tokens.used_at is
     'Fecha UTC en la que el token fue consumido. Null significa pendiente.';
+
+notify pgrst, 'reload schema';
