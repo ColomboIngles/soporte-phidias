@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     Download,
     FileSpreadsheet,
-    KeyRound,
     Mail,
     PencilLine,
     Plus,
@@ -31,7 +30,6 @@ import {
 import {
     createManagedUser,
     deleteManagedUser,
-    preparePasswordChangeForAllUsers,
     updateManagedUser,
 } from "../services/adminUsers";
 import { ROLE_OPTIONS, loadUsuariosList } from "../utils/usuariosList";
@@ -39,6 +37,7 @@ import { ROLE_OPTIONS, loadUsuariosList } from "../utils/usuariosList";
 const EMPTY_FORM = {
     nombre: "",
     email: "",
+    telefono: "",
     rol: "usuario",
 };
 
@@ -60,7 +59,6 @@ export default function Usuarios() {
     const [deletingId, setDeletingId] = useState(null);
     const [importing, setImporting] = useState(false);
     const [exporting, setExporting] = useState(false);
-    const [preparingAccess, setPreparingAccess] = useState(false);
     const [bulkSummary, setBulkSummary] = useState(null);
     const [currentUserId, setCurrentUserId] = useState("");
     const [userModalOpen, setUserModalOpen] = useState(false);
@@ -152,6 +150,7 @@ export default function Usuarios() {
         setFormValues({
             nombre: usuario.nombre || "",
             email: usuario.email || "",
+            telefono: usuario.telefono || "",
             rol: usuario.rol || "usuario",
         });
         setFormErrors({});
@@ -168,6 +167,7 @@ export default function Usuarios() {
         const nombre = String(formValues.nombre || "").trim();
         const email = normalizeEmail(formValues.email);
         const rol = String(formValues.rol || "").trim().toLowerCase();
+        const telefono = String(formValues.telefono || "").trim();
 
         if (!nombre) {
             nextErrors.nombre = "Ingresa el nombre del usuario.";
@@ -181,6 +181,10 @@ export default function Usuarios() {
 
         if (!["admin", "tecnico", "usuario"].includes(rol)) {
             nextErrors.rol = "Selecciona un rol valido.";
+        }
+
+        if (telefono && telefono.replace(/\D/g, "").length < 7) {
+            nextErrors.telefono = "Ingresa un numero de telefono valido o dejalo vacio.";
         }
 
         const duplicateEmail = usuarios.find((usuario) => {
@@ -207,6 +211,7 @@ export default function Usuarios() {
         const payload = {
             nombre: String(formValues.nombre || "").trim(),
             email: normalizeEmail(formValues.email),
+            telefono: String(formValues.telefono || "").trim(),
             rol: String(formValues.rol || "usuario").trim().toLowerCase(),
         };
 
@@ -214,14 +219,7 @@ export default function Usuarios() {
             setSavingUser(true);
 
             if (editingUser) {
-                const emailChanged =
-                    normalizeEmail(editingUser.email) !== payload.email;
-                const data = await updateManagedUser(editingUser.id, {
-                    ...payload,
-                    requiere_cambio_contrasena: emailChanged
-                        ? true
-                        : Boolean(editingUser.requiere_cambio_contrasena),
-                });
+                const data = await updateManagedUser(editingUser.id, payload);
 
                 setUsuarios((prev) =>
                     prev.map((usuario) =>
@@ -244,7 +242,7 @@ export default function Usuarios() {
                     type: "success",
                     title: "Usuario creado",
                     message:
-                        "La cuenta quedo lista en Supabase Auth y debera cambiar contrasena al ingresar.",
+                        "La cuenta quedo lista. El usuario definira su contrasena con un codigo temporal.",
                 });
             }
 
@@ -270,10 +268,8 @@ export default function Usuarios() {
             await updateManagedUser(id, {
                 nombre: usuarioActual?.nombre || usuarioActual?.email,
                 email: usuarioActual?.email,
+                telefono: usuarioActual?.telefono || "",
                 rol,
-                requiere_cambio_contrasena: Boolean(
-                    usuarioActual?.requiere_cambio_contrasena
-                ),
             });
 
             setUsuarios((prev) =>
@@ -366,38 +362,6 @@ export default function Usuarios() {
                 title: "No se pudo generar la plantilla",
                 message: error.message || "Intenta nuevamente en unos segundos.",
             });
-        }
-    }
-
-    async function handlePreparePasswordChange() {
-        try {
-            setPreparingAccess(true);
-            const result = await preparePasswordChangeForAllUsers();
-            await cargarUsuarios();
-            const failedCount = result.failed || 0;
-            showToast({
-                type: failedCount ? "error" : "success",
-                title: "Accesos preparados",
-                message: failedCount
-                    ? `Sincronizados: ${result.processed || 0}. Con error: ${failedCount}.`
-                    : `Usuarios sincronizados: ${result.processed || 0}. Se exigira cambio de contrasena al ingresar.`,
-            });
-        } catch (error) {
-            const details = error.response?.data?.errors
-                ?.slice(0, 2)
-                .map((item) => `${item.email || item.id}: ${item.message}`)
-                .join(" ");
-            showToast({
-                type: "error",
-                title: "No se pudieron preparar los accesos",
-                message:
-                    details ||
-                    error.response?.data?.message ||
-                    error.message ||
-                    "Intenta nuevamente en unos segundos.",
-            });
-        } finally {
-            setPreparingAccess(false);
         }
     }
 
@@ -498,14 +462,6 @@ export default function Usuarios() {
                         >
                             Plantilla
                         </Button>
-                        <Button
-                            variant="secondary"
-                            iconLeft={KeyRound}
-                            onClick={handlePreparePasswordChange}
-                            disabled={preparingAccess || !usuarios.length}
-                        >
-                            {preparingAccess ? "Preparando..." : "Preparar accesos"}
-                        </Button>
                         <input
                             ref={importInputRef}
                             type="file"
@@ -537,8 +493,8 @@ export default function Usuarios() {
                             <strong>Email</strong> y{" "}
                             <strong>Rol Sistema</strong>. Ya no necesitas
                             enviar ID en la plantilla: el sistema crea o
-                            sincroniza la identidad en Supabase Auth y exige
-                            cambio de contrasena al primer acceso.
+                            sincroniza la identidad en Supabase Auth sin
+                            reemplazar las contrasenas existentes.
                         </Alert>
 
                         {bulkSummary ? (
@@ -865,7 +821,7 @@ export default function Usuarios() {
                 description={
                     editingUser
                         ? "Actualiza nombre, correo y rol sin afectar la experiencia del resto del equipo."
-                        : "Crea una cuenta operativa en Supabase Auth y exige cambio de contrasena al primer acceso."
+                        : "Crea una cuenta operativa en Supabase Auth. El usuario verificara su identidad con un codigo y definira su contrasena."
                 }
                 icon={UsersIcon}
                 actions={
@@ -923,6 +879,17 @@ export default function Usuarios() {
                         placeholder="persona@empresa.com"
                         type="email"
                         icon={Mail}
+                        containerClassName="md:col-span-2"
+                    />
+                    <Input
+                        label="Telefono para recuperacion"
+                        value={formValues.telefono}
+                        onChange={(event) =>
+                            updateFormValue("telefono", event.target.value)
+                        }
+                        error={formErrors.telefono}
+                        placeholder="Ej. +57 300 000 0000"
+                        inputMode="tel"
                         containerClassName="md:col-span-2"
                     />
                 </div>
