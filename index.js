@@ -87,10 +87,18 @@ const SUPABASE_KEY_ROLE = (() => {
 })();
 const SUPABASE_ADMIN_KEY = SUPABASE_SERVICE_ROLE_KEY ||
     (SUPABASE_KEY_ROLE === "service_role" ? SUPABASE_KEY : "");
+const isSupabaseSecretKey = (key) =>
+    typeof key === "string" && key.startsWith("sb_secret_");
 const SUPABASE_ADMIN_KEY_ROLE = (() => {
     try {
         if (!SUPABASE_ADMIN_KEY) {
             return "missing";
+        }
+
+        // Supabase now emits opaque sb_secret_ keys in addition to legacy JWT
+        // service_role keys. Both are server-only administrative credentials.
+        if (isSupabaseSecretKey(SUPABASE_ADMIN_KEY)) {
+            return "service_role";
         }
 
         const payload = SUPABASE_ADMIN_KEY.split(".")[1];
