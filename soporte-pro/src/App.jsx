@@ -186,7 +186,7 @@ function AppLayout() {
 }
 
 function PrivateApp() {
-    const { session, profile, loading } = useAuth();
+    const { session, loading } = useAuth();
 
     if (loading) {
         return <AppBootSplash />;
@@ -196,15 +196,11 @@ function PrivateApp() {
         return <Navigate to="/phidias/access" replace />;
     }
 
-    if (profile?.requiere_cambio_contrasena) {
-        return <Navigate to="/phidias/access" replace />;
-    }
-
     return <AppLayout />;
 }
 
 function AuthRoutes() {
-    const { loading, session, profile, role } = useAuth();
+    const { loading, session, role } = useAuth();
     const homeRoute = getHomeRouteByRole(role);
 
     return (
@@ -212,7 +208,7 @@ function AuthRoutes() {
             <Route
                 path="/phidias/access"
                 element={
-                    !loading && session && !profile?.requiere_cambio_contrasena ? (
+                    !loading && session ? (
                         <Navigate to={homeRoute} replace />
                     ) : (
                         <PhidiasAccess />
