@@ -1,7 +1,10 @@
 import axios from "axios";
 import { supabase } from "./supabase";
 
-const fallbackApiUrl = "https://soporte-phidias.onrender.com";
+const fallbackApiUrl =
+    typeof window !== "undefined"
+        ? window.location.origin
+        : "https://soporte.colomboingles.edu.co";
 const baseURL = (import.meta.env.VITE_API_URL || fallbackApiUrl).replace(/\/+$/, "");
 
 const API = axios.create({

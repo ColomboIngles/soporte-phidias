@@ -1,7 +1,7 @@
 import API from "./api";
 
 const VALID_ROLES = new Set(["admin", "tecnico", "usuario"]);
-const TEMPLATE_COLUMNS = ["Nombre", "Cargo", "Email", "Rol Sistema"];
+const TEMPLATE_COLUMNS = ["Nombre", "Cargo", "Email", "Telefono", "Rol Sistema"];
 const USER_BATCH_SIZE = 100;
 
 function normalizeText(value) {
@@ -121,7 +121,10 @@ function buildImportPlan(rows, existingUsers) {
         const rol = normalizeRole(
             getRowValue(row, ["rolsistema", "rol", "role", "sistemarol"])
         );
-        const isEmptyRow = !nombre && !email && !rol;
+        const telefono = normalizeText(
+            getRowValue(row, ["telefono", "celular", "phone", "movil"])
+        );
+        const isEmptyRow = !nombre && !email && !telefono && !rol;
 
         if (isEmptyRow) {
             skipped += 1;
@@ -154,6 +157,7 @@ function buildImportPlan(rows, existingUsers) {
             id: existing?.id || createProvisionalId(),
             email,
             nombre: finalNombre,
+            telefono: telefono || existing?.telefono || "",
             rol,
         });
 
@@ -187,13 +191,14 @@ export async function exportUsersWorkbook(users) {
         Nombre: user.nombre || "",
         Cargo: user.cargo || "",
         Email: user.email,
+        Telefono: user.telefono || "",
         "Rol Sistema": formatRoleForSheet(user.rol || "usuario"),
     }));
 
     const workbook = XLSX.utils.book_new();
     const worksheet = XLSX.utils.json_to_sheet(rows);
 
-    setWorksheetColumns(worksheet, [34, 24, 34, 18]);
+    setWorksheetColumns(worksheet, [34, 24, 34, 20, 18]);
     XLSX.utils.book_append_sheet(workbook, worksheet, "Usuarios");
     XLSX.writeFile(
         workbook,
@@ -211,33 +216,35 @@ export async function exportUsersTemplateWorkbook() {
             "Apellido Nombre",
             "Coordinacion Academica",
             "persona@empresa.com",
+            "+57 300 000 0000",
             "Usuario",
         ],
         [
             "Apellido Nombre",
             "Mesa de Soporte",
             "tecnico@empresa.com",
+            "+57 300 000 0000",
             "Tecnico",
         ],
         [
             "Apellido Nombre",
             "Direccion TI",
             "admin@empresa.com",
+            "+57 300 000 0000",
             "Administrador",
         ],
     ]);
 
     const notesSheet = XLSX.utils.aoa_to_sheet([
         ["Reglas de importacion"],
-        ["1. Usa las columnas Nombre, Cargo, Email y Rol Sistema."],
+        ["1. Usa las columnas Nombre, Cargo, Email, Telefono y Rol Sistema."],
         ["2. Rol Sistema solo admite: Administrador, Tecnico o Usuario."],
         ["3. Ya no necesitas enviar ID en el archivo."],
-        [
-            "4. Si el email ya existe, se actualizan nombre y rol con la informacion del archivo.",
-        ],
+        ["4. Telefono es opcional y se usa para enviar codigos de recuperacion por WhatsApp."],
+        ["5. Si el email ya existe, se actualizan nombre, telefono y rol con la informacion del archivo."],
     ]);
 
-    setWorksheetColumns(templateSheet, [34, 26, 34, 18]);
+    setWorksheetColumns(templateSheet, [34, 26, 34, 20, 18]);
     setWorksheetColumns(notesSheet, [118]);
     XLSX.utils.book_append_sheet(workbook, templateSheet, "Plantilla");
     XLSX.utils.book_append_sheet(workbook, notesSheet, "Notas");
