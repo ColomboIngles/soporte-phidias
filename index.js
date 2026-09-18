@@ -33,7 +33,17 @@ const PASSWORD_ACTIVATION_TOKEN_TTL_HOURS = Math.min(
     24,
     Math.max(0.5, Number(process.env.PASSWORD_ACTIVATION_TOKEN_TTL_HOURS || 24))
 );
-const FRONTEND_APP_URL = (process.env.FRONTEND_APP_URL || "https://soporte-phidias.onrender.com/app")
+const PASSWORD_RECOVERY_CODE_TTL_MINUTES = Math.min(
+    30,
+    Math.max(5, Number(process.env.PASSWORD_RECOVERY_CODE_TTL_MINUTES || 15))
+);
+const PASSWORD_RECOVERY_MAX_ATTEMPTS = Math.min(
+    10,
+    Math.max(3, Number(process.env.PASSWORD_RECOVERY_MAX_ATTEMPTS || 5))
+);
+const WHATSAPP_PASSWORD_RECOVERY_TEMPLATE_NAME =
+    process.env.WHATSAPP_PASSWORD_RECOVERY_TEMPLATE_NAME || "";
+const FRONTEND_APP_URL = (process.env.FRONTEND_APP_URL || "https://soporte.colomboingles.edu.co/app")
     .replace(/\/+$/, "");
 const FRONTEND_APP_ORIGIN = (() => {
     try {
@@ -113,7 +123,7 @@ const adminSupabase = SUPABASE_ADMIN_KEY
     : null;
 const hasSupabaseAdmin = SUPABASE_ADMIN_KEY_ROLE === "service_role";
 const passwordLinkRequests = new Map();
-const PASSWORD_LINK_COOLDOWN_MS = 90 * 1000;
+const PASSWORD_RECOVERY_COOLDOWN_MS = 90 * 1000;
 
 function createUserScopedClient(token) {
     return createClient(SUPABASE_URL, SUPABASE_KEY, {
@@ -188,8 +198,19 @@ function createPasswordActivationToken() {
     return crypto.randomBytes(32).toString("base64url");
 }
 
+function createTemporaryRecoveryCode() {
+    return String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
+}
+
 function hashPasswordActivationToken(token) {
     return crypto.createHash("sha256").update(String(token || "")).digest("hex");
+}
+
+function hashPasswordRecoveryCode(userId, code) {
+    return crypto
+        .createHash("sha256")
+        .update(`${String(userId || "")}:${String(code || "").trim()}`)
+        .digest("hex");
 }
 
 function getErrorMessage(error) {
@@ -205,9 +226,21 @@ function isMissingPasswordActivationTableError(error) {
             message.includes("does not exist"));
 }
 
+function isMissingPasswordRecoveryTableError(error) {
+    const message = getErrorMessage(error).toLowerCase();
+
+    return message.includes("password_recovery_codes") &&
+        (message.includes("schema cache") ||
+            message.includes("could not find the table") ||
+            message.includes("does not exist"));
+}
+
 function getPasswordActivationPublicError(error, fallback) {
-    if (isMissingPasswordActivationTableError(error)) {
-        return "La activacion de contrasena aun no esta configurada en la base de datos. Contacta al administrador del sistema.";
+    if (
+        isMissingPasswordActivationTableError(error) ||
+        isMissingPasswordRecoveryTableError(error)
+    ) {
+        return "La recuperacion de contrasena aun no esta configurada en la base de datos. Contacta al administrador del sistema.";
     }
 
     return error.message || fallback;
@@ -224,6 +257,7 @@ function pickUserProfilePayload(body = {}) {
         email,
         nombre,
         rol: normalizeRole(body.rol),
+        telefono: normalizePhone(body.telefono || body.celular || body.phone),
     };
 }
 
@@ -512,14 +546,71 @@ async function sendPasswordAccessEmail({ to, actionLink, expiresAt }) {
     }
 }
 
-function buildWhatsAppPayload({ to, message }) {
-    if (WHATSAPP_TEMPLATE_NAME) {
+function formatRecoveryExpiration(expiresAt) {
+    return new Date(expiresAt).toLocaleString("es-CO", {
+        timeZone: "America/Bogota",
+        dateStyle: "medium",
+        timeStyle: "short",
+    });
+}
+
+function buildPasswordRecoveryCodeEmailHtml({ code, expiresAt }) {
+    return `
+        <div style="font-family:Inter,Arial,sans-serif;background:#f7f4ee;padding:32px;color:#24342d">
+            <div style="max-width:640px;margin:0 auto;border:1px solid #e8dccb;background:#fffdf8;border-radius:24px;padding:28px">
+                <div style="display:inline-block;border:1px solid #d7c8b4;background:#f3ede3;color:#315a49;padding:6px 12px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase">Soporte Tecnico</div>
+                <h1 style="margin:20px 0 12px;font-size:28px;line-height:1.2;color:#1f2d27">Codigo para cambiar tu contrasena</h1>
+                <p style="margin:0 0 22px;font-size:15px;line-height:1.7;color:#66746d">Ingresa este codigo en la plataforma. No lo compartas con nadie.</p>
+                <p style="margin:0 0 22px;font-size:32px;letter-spacing:.28em;font-weight:800;color:#1f5c46">${escapeHtml(code)}</p>
+                <p style="margin:0;font-size:13px;line-height:1.6;color:#66746d">El codigo vence el ${escapeHtml(formatRecoveryExpiration(expiresAt))} y solo puede usarse una vez.</p>
+            </div>
+        </div>
+    `;
+}
+
+async function sendPasswordRecoveryCodeEmail({ to, code, expiresAt }) {
+    if (!RESEND_API_KEY || !RESEND_FROM_EMAIL) {
+        throw new Error("El envio de codigos por correo no esta configurado.");
+    }
+
+    const recipient = normalizeEmail(to);
+
+    if (!recipient || !code) {
+        throw new Error("Falta el destinatario o el codigo de recuperacion.");
+    }
+
+    const subject = "Codigo para cambiar tu contrasena del sistema de soporte";
+    const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${RESEND_API_KEY}`,
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            from: RESEND_FROM_EMAIL,
+            to: [recipient],
+            subject,
+            html: buildPasswordRecoveryCodeEmailHtml({ code, expiresAt }),
+            text: `${subject}\n\nCodigo: ${code}\nVence: ${formatRecoveryExpiration(expiresAt)}\n\nNo compartas este codigo.`,
+            ...(RESEND_REPLY_TO ? { reply_to: RESEND_REPLY_TO } : {}),
+        }),
+    });
+
+    if (!response.ok) {
+        const body = await response.text();
+        console.error("Fallo el envio del codigo de contrasena por Resend:", response.status, body);
+        throw new Error("No se pudo enviar el codigo por correo. Intenta nuevamente o usa tu telefono registrado.");
+    }
+}
+
+function buildWhatsAppPayload({ to, message, templateName = WHATSAPP_TEMPLATE_NAME }) {
+    if (templateName) {
         return {
             messaging_product: "whatsapp",
             to,
             type: "template",
             template: {
-                name: WHATSAPP_TEMPLATE_NAME,
+                name: templateName,
                 language: {
                     code: WHATSAPP_TEMPLATE_LANGUAGE_CODE,
                 },
@@ -550,7 +641,7 @@ function buildWhatsAppPayload({ to, message }) {
     };
 }
 
-async function sendViaWhatsAppCloud({ to, message }) {
+async function sendViaWhatsAppCloud({ to, message, templateName }) {
     if (!WHATSAPP_ACCESS_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
         return false;
     }
@@ -574,6 +665,7 @@ async function sendViaWhatsAppCloud({ to, message }) {
                     buildWhatsAppPayload({
                         to: target,
                         message,
+                        templateName,
                     })
                 ),
             }
@@ -589,6 +681,22 @@ async function sendViaWhatsAppCloud({ to, message }) {
     } catch (error) {
         console.error("Error al enviar WhatsApp con Cloud API:", error);
         return false;
+    }
+}
+
+async function sendPasswordRecoveryCodePhone({ to, code, expiresAt }) {
+    const message = `Codigo de recuperacion del Sistema de Soporte: ${code}. Vence el ${formatRecoveryExpiration(expiresAt)}. No lo compartas.`;
+    const sent = await sendViaWhatsAppCloud({
+        to,
+        message,
+        templateName:
+            WHATSAPP_PASSWORD_RECOVERY_TEMPLATE_NAME || WHATSAPP_TEMPLATE_NAME,
+    });
+
+    if (!sent) {
+        throw new Error(
+            "No se pudo enviar el codigo al telefono registrado. Intenta por correo o contacta al administrador."
+        );
     }
 }
 
@@ -983,12 +1091,12 @@ function assertPasswordLinkCooldown(req, email) {
     const previousRequestAt = passwordLinkRequests.get(key) || 0;
     const elapsed = now - previousRequestAt;
 
-    if (elapsed < PASSWORD_LINK_COOLDOWN_MS) {
+    if (elapsed < PASSWORD_RECOVERY_COOLDOWN_MS) {
         const retryAfterSeconds = Math.ceil(
-            (PASSWORD_LINK_COOLDOWN_MS - elapsed) / 1000
+            (PASSWORD_RECOVERY_COOLDOWN_MS - elapsed) / 1000
         );
         const error = new Error(
-            `Espera ${retryAfterSeconds}s antes de solicitar otro enlace.`
+            `Espera ${retryAfterSeconds}s antes de solicitar otro codigo.`
         );
         error.status = 429;
         throw error;
@@ -1030,7 +1138,7 @@ async function sendPasswordSetupLink({
     }
 
     const managedProfile = await upsertManagedUsuario(existingProfile, {
-        requirePasswordChange: true,
+        passwordSetupRequired: true,
     });
 
     const token = createPasswordActivationToken();
@@ -1098,6 +1206,243 @@ async function sendPasswordSetupLink({
         email: normalizedEmail,
         expiresAt,
     };
+}
+
+function getRegisteredRecoveryPhone(profile) {
+    return normalizePhone(
+        profile?.telefono || profile?.celular || profile?.phone || profile?.whatsapp
+    );
+}
+
+function maskRecoveryDestination(value, channel) {
+    const text = String(value || "");
+
+    if (channel === "phone") {
+        return text.length > 4 ? `***${text.slice(-4)}` : "telefono registrado";
+    }
+
+    const [localPart, domain] = normalizeEmail(text).split("@");
+    if (!localPart || !domain) {
+        return "correo registrado";
+    }
+
+    return `${localPart.slice(0, 2)}***@${domain}`;
+}
+
+function normalizeRecoveryChannel(value) {
+    return value === "phone" ? "phone" : "email";
+}
+
+async function getAuthorizedRecoveryProfile(email) {
+    const normalizedEmail = normalizeEmail(email);
+
+    if (!normalizedEmail) {
+        const error = new Error("Debes ingresar un correo valido.");
+        error.status = 400;
+        throw error;
+    }
+
+    if (!isAllowedSupportEmail(normalizedEmail)) {
+        const error = new Error("Este dominio de correo no esta autorizado.");
+        error.status = 403;
+        throw error;
+    }
+
+    let profile = await findUsuarioByIdOrEmail({ email: normalizedEmail });
+
+    if (!profile || !userIsEnabled(profile)) {
+        const error = new Error("Tu correo no esta autorizado para acceder.");
+        error.status = 403;
+        throw error;
+    }
+
+    const authUser = await findAuthUserByEmail(normalizedEmail);
+
+    if (!authUser || authUser.id !== profile.id) {
+        profile = await upsertManagedUsuario(profile, {
+            passwordSetupRequired: !authUser,
+        });
+    }
+
+    return profile;
+}
+
+async function createPasswordRecoveryCode({ email, channel }) {
+    const profile = await getAuthorizedRecoveryProfile(email);
+    const normalizedChannel = normalizeRecoveryChannel(channel);
+    const destination =
+        normalizedChannel === "phone"
+            ? getRegisteredRecoveryPhone(profile)
+            : normalizeEmail(profile.email);
+
+    if (!destination) {
+        const error = new Error(
+            "No hay un numero de telefono registrado para esta cuenta. Usa el correo institucional o solicita su actualizacion al administrador."
+        );
+        error.status = 400;
+        throw error;
+    }
+
+    const code = createTemporaryRecoveryCode();
+    const expiresAt = new Date(
+        Date.now() + PASSWORD_RECOVERY_CODE_TTL_MINUTES * 60 * 1000
+    ).toISOString();
+    const now = new Date().toISOString();
+
+    await adminSupabase
+        .from("password_recovery_codes")
+        .update({ used_at: now })
+        .eq("user_id", profile.id)
+        .is("used_at", null);
+
+    const { data: recoveryCode, error: insertError } = await adminSupabase
+        .from("password_recovery_codes")
+        .insert([
+            {
+                user_id: profile.id,
+                email: normalizeEmail(profile.email),
+                channel: normalizedChannel,
+                code_hash: hashPasswordRecoveryCode(profile.id, code),
+                expires_at: expiresAt,
+            },
+        ])
+        .select("id")
+        .single();
+
+    if (insertError) {
+        throw insertError;
+    }
+
+    try {
+        if (normalizedChannel === "phone") {
+            await sendPasswordRecoveryCodePhone({
+                to: destination,
+                code,
+                expiresAt,
+            });
+        } else {
+            await sendPasswordRecoveryCodeEmail({
+                to: normalizeEmail(profile.email),
+                code,
+                expiresAt,
+            });
+        }
+    } catch (error) {
+        await adminSupabase
+            .from("password_recovery_codes")
+            .update({ used_at: new Date().toISOString() })
+            .eq("id", recoveryCode.id);
+        throw error;
+    }
+
+    return {
+        email: normalizeEmail(profile.email),
+        channel: normalizedChannel,
+        destination: maskRecoveryDestination(destination, normalizedChannel),
+        expiresAt,
+    };
+}
+
+async function consumePasswordRecoveryCode({ email, code, password }) {
+    const profile = await getAuthorizedRecoveryProfile(email);
+    const normalizedCode = String(code || "").trim();
+
+    if (!/^\d{6}$/.test(normalizedCode)) {
+        const error = new Error("Ingresa el codigo temporal de seis digitos.");
+        error.status = 400;
+        throw error;
+    }
+
+    if (!password || password.length < 8) {
+        const error = new Error("La contrasena debe tener al menos 8 caracteres.");
+        error.status = 400;
+        throw error;
+    }
+
+    if (normalizeEmail(password) === normalizeEmail(profile.email)) {
+        const error = new Error(
+            "Por seguridad, la nueva contrasena no puede ser igual al correo."
+        );
+        error.status = 400;
+        throw error;
+    }
+
+    const now = new Date().toISOString();
+    const { data: activeCode, error: activeCodeError } = await adminSupabase
+        .from("password_recovery_codes")
+        .select("id, code_hash, expires_at, used_at, attempts")
+        .eq("user_id", profile.id)
+        .is("used_at", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (activeCodeError) {
+        throw activeCodeError;
+    }
+
+    const expired = !activeCode || new Date(activeCode.expires_at).getTime() <= Date.now();
+
+    if (expired || activeCode.attempts >= PASSWORD_RECOVERY_MAX_ATTEMPTS) {
+        if (activeCode?.id) {
+            await adminSupabase
+                .from("password_recovery_codes")
+                .update({ used_at: now })
+                .eq("id", activeCode.id)
+                .is("used_at", null);
+        }
+
+        const error = new Error(
+            "El codigo ya vencio o alcanzo el limite de intentos. Solicita uno nuevo."
+        );
+        error.status = 410;
+        throw error;
+    }
+
+    const expectedHash = hashPasswordRecoveryCode(profile.id, normalizedCode);
+
+    if (!crypto.timingSafeEqual(Buffer.from(activeCode.code_hash), Buffer.from(expectedHash))) {
+        const attempts = activeCode.attempts + 1;
+        await adminSupabase
+            .from("password_recovery_codes")
+            .update({
+                attempts,
+                ...(attempts >= PASSWORD_RECOVERY_MAX_ATTEMPTS ? { used_at: now } : {}),
+            })
+            .eq("id", activeCode.id)
+            .is("used_at", null);
+
+        const error = new Error(
+            attempts >= PASSWORD_RECOVERY_MAX_ATTEMPTS
+                ? "El codigo alcanzo el limite de intentos. Solicita uno nuevo."
+                : "El codigo temporal no es valido."
+        );
+        error.status = attempts >= PASSWORD_RECOVERY_MAX_ATTEMPTS ? 410 : 400;
+        throw error;
+    }
+
+    const { data: consumedCode, error: consumeError } = await adminSupabase
+        .from("password_recovery_codes")
+        .update({ used_at: now })
+        .eq("id", activeCode.id)
+        .is("used_at", null)
+        .gt("expires_at", now)
+        .select("id")
+        .maybeSingle();
+
+    if (consumeError) {
+        throw consumeError;
+    }
+
+    if (!consumedCode) {
+        const error = new Error("El codigo ya vencio o fue utilizado. Solicita uno nuevo.");
+        error.status = 410;
+        throw error;
+    }
+
+    await updateUserPasswordAndProfile({ userId: profile.id, password, now });
+
+    return { email: normalizeEmail(profile.email) };
 }
 
 async function getValidPasswordActivationToken(token) {
@@ -1191,40 +1536,11 @@ async function completePasswordActivation({ token, password }) {
         throw error;
     }
 
-    const { data: currentAuthData } = await adminSupabase.auth.admin
-        .getUserById(tokenRow.user_id)
-        .catch(() => ({ data: null }));
-    const currentUserMetadata = currentAuthData?.user?.user_metadata || {};
-
-    const { error: authError } = await adminSupabase.auth.admin.updateUserById(
-        tokenRow.user_id,
-        {
-            password,
-            email_confirm: true,
-            user_metadata: {
-                ...currentUserMetadata,
-                requirePasswordChange: false,
-            },
-        }
-    );
-
-    if (authError) {
-        throw authError;
-    }
-
-    const { data: updatedProfile, error: profileError } = await adminSupabase
-        .from("usuarios")
-        .update({
-            requiere_cambio_contrasena: false,
-            contrasena_actualizada_en: now,
-        })
-        .eq("id", tokenRow.user_id)
-        .select("*")
-        .maybeSingle();
-
-    if (profileError) {
-        throw profileError;
-    }
+    const updatedProfile = await updateUserPasswordAndProfile({
+        userId: tokenRow.user_id,
+        password,
+        now,
+    });
 
     await adminSupabase
         .from("password_activation_tokens")
@@ -1238,13 +1554,8 @@ async function completePasswordActivation({ token, password }) {
     };
 }
 
-function userNeedsPasswordSetup(profile) {
-    return Boolean(profile?.requiere_cambio_contrasena) ||
-        !profile?.contrasena_actualizada_en;
-}
-
 function authUserNeedsPasswordSetup(authUser) {
-    return Boolean(authUser?.user_metadata?.requirePasswordChange);
+    return Boolean(authUser?.user_metadata?.passwordSetupRequired);
 }
 
 function userIsEnabled(profile) {
@@ -1318,7 +1629,47 @@ async function saveManagedProfile(previousId, nextId, profileRow) {
     return data;
 }
 
-async function ensureAuthUserForProfile(profile, { requirePasswordChange = true } = {}) {
+async function updateUserPasswordAndProfile({ userId, password, now }) {
+    const { data: currentAuthData } = await adminSupabase.auth.admin
+        .getUserById(userId)
+        .catch(() => ({ data: null }));
+    const currentUserMetadata = currentAuthData?.user?.user_metadata || {};
+
+    const { error: authError } = await adminSupabase.auth.admin.updateUserById(userId, {
+        password,
+        email_confirm: true,
+        user_metadata: {
+            ...currentUserMetadata,
+            passwordSetupRequired: false,
+            requirePasswordChange: false,
+        },
+    });
+
+    if (authError) {
+        throw authError;
+    }
+
+    const { data: updatedProfile, error: profileError } = await adminSupabase
+        .from("usuarios")
+        .update({
+            requiere_cambio_contrasena: false,
+            contrasena_actualizada_en: now,
+        })
+        .eq("id", userId)
+        .select("*")
+        .maybeSingle();
+
+    if (profileError) {
+        throw profileError;
+    }
+
+    return updatedProfile;
+}
+
+async function ensureAuthUserForProfile(
+    profile,
+    { passwordSetupRequired = false } = {}
+) {
     const email = normalizeEmail(profile.email);
 
     if (!email) {
@@ -1349,7 +1700,10 @@ async function ensureAuthUserForProfile(profile, { requirePasswordChange = true 
                     ...(existingAuthUser.user_metadata || {}),
                     nombre: profile.nombre || email,
                     rol: normalizeRole(profile.rol),
-                    requirePasswordChange,
+                    passwordSetupRequired:
+                        typeof passwordSetupRequired === "boolean"
+                            ? passwordSetupRequired
+                            : Boolean(existingAuthUser.user_metadata?.passwordSetupRequired),
                 },
             }
         );
@@ -1368,7 +1722,7 @@ async function ensureAuthUserForProfile(profile, { requirePasswordChange = true 
         user_metadata: {
             nombre: profile.nombre || email,
             rol: normalizeRole(profile.rol),
-            requirePasswordChange,
+            passwordSetupRequired,
         },
     });
 
@@ -1379,14 +1733,23 @@ async function ensureAuthUserForProfile(profile, { requirePasswordChange = true 
     return data.user;
 }
 
-async function upsertManagedUsuario(body, { requirePasswordChange = true } = {}) {
+async function upsertManagedUsuario(
+    body,
+    { passwordSetupRequired } = {}
+) {
     const payload = pickUserProfilePayload(body);
-    const authUser = await ensureAuthUserForProfile(payload, {
-        requirePasswordChange,
-    });
     const existingProfile = await findUsuarioByIdOrEmail({
         id: payload.id,
         email: payload.email,
+    });
+    const isNewProfile = !existingProfile;
+    const existingAuthUser = await findAuthUserByEmail(payload.email);
+    const shouldRequirePasswordSetup =
+        isNewProfile
+            ? passwordSetupRequired !== false
+            : !existingAuthUser && passwordSetupRequired === true;
+    const authUser = await ensureAuthUserForProfile(payload, {
+        passwordSetupRequired: shouldRequirePasswordSetup,
     });
     const previousId = existingProfile?.id;
     const profileRow = {
@@ -1394,10 +1757,11 @@ async function upsertManagedUsuario(body, { requirePasswordChange = true } = {})
         email: payload.email,
         nombre: payload.nombre,
         rol: payload.rol,
-        requiere_cambio_contrasena: requirePasswordChange,
+        telefono: payload.telefono || existingProfile?.telefono || null,
+        requiere_cambio_contrasena: shouldRequirePasswordSetup,
     };
 
-    if (requirePasswordChange) {
+    if (shouldRequirePasswordSetup) {
         profileRow.contrasena_temporal_establecida_en = new Date().toISOString();
     }
 
@@ -1610,9 +1974,11 @@ app.post("/auth/lookup", async (req, res) => {
 
         const authUser = await findAuthUserByEmail(email);
 
+        const needsInitialSetup = !authUser || authUserNeedsPasswordSetup(authUser);
+
         if (!authUser) {
             await upsertManagedUsuario(profile, {
-                requirePasswordChange: true,
+                passwordSetupRequired: true,
             });
         }
 
@@ -1621,15 +1987,76 @@ app.post("/auth/lookup", async (req, res) => {
             email,
             nombre: profile.nombre || email,
             rol: normalizeRole(profile.rol),
-            needsPasswordSetup:
-                userNeedsPasswordSetup(profile) ||
-                authUserNeedsPasswordSetup(authUser) ||
-                !authUser,
+            accountStatus: needsInitialSetup ? "new" : "existing",
+            needsPasswordSetup: needsInitialSetup,
         });
     } catch (error) {
         console.error("Error al validar correo de soporte:", error);
         return res.status(error.status || 500).json({
             message: error.message || "No se pudo validar el correo.",
+        });
+    }
+});
+
+app.post("/auth/password-recovery/request", async (req, res) => {
+    try {
+        if (!hasSupabaseAdmin) {
+            return res.status(503).json({
+                message:
+                    "La recuperacion de contrasena requiere SUPABASE_SERVICE_ROLE_KEY configurada.",
+            });
+        }
+
+        const email = normalizeEmail(req.body.email);
+
+        if (!email) {
+            return res.status(400).json({
+                message: "Debes ingresar un correo valido.",
+            });
+        }
+
+        assertPasswordLinkCooldown(req, email);
+        const result = await createPasswordRecoveryCode({
+            email,
+            channel: req.body.channel,
+        });
+        markPasswordLinkRequest(req, email);
+
+        return res.json({ ok: true, ...result });
+    } catch (error) {
+        console.error("Error al enviar codigo temporal de contrasena:", error);
+        return res.status(error.status || 500).json({
+            message: getPasswordActivationPublicError(
+                error,
+                "No se pudo enviar el codigo temporal de contrasena."
+            ),
+        });
+    }
+});
+
+app.post("/auth/password-recovery/complete", async (req, res) => {
+    try {
+        if (!hasSupabaseAdmin) {
+            return res.status(503).json({
+                message:
+                    "La recuperacion de contrasena requiere SUPABASE_SERVICE_ROLE_KEY configurada.",
+            });
+        }
+
+        const result = await consumePasswordRecoveryCode({
+            email: req.body.email,
+            code: req.body.code,
+            password: req.body.password,
+        });
+
+        return res.json({ ok: true, ...result });
+    } catch (error) {
+        console.error("Error al completar recuperacion de contrasena:", error);
+        return res.status(error.status || 500).json({
+            message: getPasswordActivationPublicError(
+                error,
+                "No se pudo actualizar la contrasena."
+            ),
         });
     }
 });
@@ -1766,7 +2193,7 @@ app.post("/admin/users", async (req, res) => {
         }
 
         const user = await upsertManagedUsuario(req.body, {
-            requirePasswordChange: true,
+            passwordSetupRequired: true,
         });
 
         return res.status(201).json(user);
@@ -1791,10 +2218,7 @@ app.put("/admin/users/:id", async (req, res) => {
                 ...req.body,
                 id: req.params.id,
             },
-            {
-                requirePasswordChange:
-                    req.body.requiere_cambio_contrasena !== false,
-            }
+            { passwordSetupRequired: false }
         );
 
         return res.json(user);
@@ -1858,7 +2282,7 @@ app.post("/admin/users/bulk", async (req, res) => {
         }
 
         const { managedUsers, errors } = await upsertManagedUsuarios(users, {
-            requirePasswordChange: true,
+            passwordSetupRequired: true,
         });
 
         if (errors.length > 0 && managedUsers.length === 0) {
@@ -1897,7 +2321,7 @@ app.post("/admin/users/bootstrap-password-change", async (req, res) => {
         const { managedUsers, errors } = await upsertManagedUsuarios(
             usuarios || [],
             {
-                requirePasswordChange: true,
+                passwordSetupRequired: false,
             }
         );
 
