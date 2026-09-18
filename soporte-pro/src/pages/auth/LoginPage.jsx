@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { ArrowRight, KeyRound, Mail } from "lucide-react";
-import { Link, Navigate, useSearchParams } from "react-router-dom";
-import API from "../../services/api";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../../services/supabase";
 import Button from "../../components/ui/Button";
 import AuthShell from "./AuthShell";
@@ -10,7 +9,8 @@ import { getFriendlyAuthErrorMessage, normalizeEmail } from "../../auth/authUtil
 import { getHomeRouteByRole } from "../../utils/permissions";
 
 export default function LoginPage() {
-    const { session, profile, role, loading } = useAuth();
+    const { session, role, loading } = useAuth();
+    const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const initialEmail = useMemo(
         () => normalizeEmail(searchParams.get("email") || ""),
@@ -20,11 +20,6 @@ export default function LoginPage() {
     const [password, setPassword] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [errorMessage, setErrorMessage] = useState("");
-    const [successMessage, setSuccessMessage] = useState("");
-
-    if (!loading && session && profile?.requiere_cambio_contrasena) {
-        return <Navigate to="/phidias/access" replace />;
-    }
 
     if (!loading && session) {
         return <Navigate to={getHomeRouteByRole(role)} replace />;
@@ -34,7 +29,6 @@ export default function LoginPage() {
         event.preventDefault();
         setSubmitting(true);
         setErrorMessage("");
-        setSuccessMessage("");
 
         try {
             const normalizedEmail = normalizeEmail(email);
@@ -62,28 +56,17 @@ export default function LoginPage() {
         }
     }
 
-    async function handlePasswordRecovery() {
-        setSubmitting(true);
-        setErrorMessage("");
-        setSuccessMessage("");
+    function handlePasswordRecovery() {
+        const normalizedEmail = normalizeEmail(email);
 
-        try {
-            const normalizedEmail = normalizeEmail(email);
-
-            if (!normalizedEmail) {
-                throw new Error("Ingresa tu correo institucional para recuperar la contrasena.");
-            }
-
-            await API.post("/auth/request-password-link", {
-                email: normalizedEmail,
-                source: "login",
-            });
-            setSuccessMessage("Te enviamos un correo para crear una contrasena nueva.");
-        } catch (error) {
-            setErrorMessage(getFriendlyAuthErrorMessage(error));
-        } finally {
-            setSubmitting(false);
+        if (!normalizedEmail) {
+            setErrorMessage("Ingresa tu correo institucional para recuperar la contrasena.");
+            return;
         }
+
+        navigate(
+            `/set-password?email=${encodeURIComponent(normalizedEmail)}&mode=recovery`
+        );
     }
 
     return (
@@ -95,12 +78,6 @@ export default function LoginPage() {
                 {errorMessage ? (
                     <div className="rounded-2xl border border-rose-200/80 bg-rose-50/80 px-4 py-3 text-sm text-rose-700">
                         {errorMessage}
-                    </div>
-                ) : null}
-
-                {successMessage ? (
-                    <div className="app-surface-muted rounded-2xl border border-emerald-200/70 px-4 py-3 text-sm text-emerald-700">
-                        {successMessage}
                     </div>
                 ) : null}
 
@@ -159,7 +136,7 @@ export default function LoginPage() {
                         className="font-semibold text-[color:var(--app-accent)]"
                         disabled={submitting}
                     >
-                        Recuperar contrasena
+                        Recuperar contrasena con codigo
                     </button>
                 </div>
             </form>

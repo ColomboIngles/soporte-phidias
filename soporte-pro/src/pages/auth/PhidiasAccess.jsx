@@ -30,12 +30,11 @@ export default function PhidiasAccess() {
                 email: normalizedEmail,
             });
 
-            if (data?.needsPasswordSetup) {
-                await API.post("/auth/request-password-link", {
-                    email: normalizedEmail,
-                    source: "phidias",
-                });
-                setSuccessMessage("Te enviamos un correo para crear tu contrasena.");
+            if (data?.accountStatus === "new" || data?.needsPasswordSetup) {
+                navigate(
+                    `/set-password?email=${encodeURIComponent(normalizedEmail)}&mode=activation`,
+                    { replace: false }
+                );
                 return;
             }
 
